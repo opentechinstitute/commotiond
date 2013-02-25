@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 2.6)
+
+PROJECT(commotion)
+SET(DEBUG 1)
+SET(COMMOTION_VERSION_MAJOR 0)
+SET(COMMOTION_VERSION_MINOR 1)
+SET(COMMOTION_VERSION_PATCH 0)
+SET(COMMOTION_RUNDIR \"/var/run/commotion\")
+SET(COMMOTION_PIDFILE \"/var/run/commotiond.pid\")
+SET(COMMOTION_MANAGESOCK \"/var/run/commotiond.sock\")
+SET(COMMOTION_PLUGINDIR \"/usr/lib/commotion/plugins\")
+SET(CMAKE_EXE_LINKER_FLAGS "-ldl")
+
+CONFIGURE_FILE( "${CMAKE_SOURCE_DIR}/src/config.h.in" "${CMAKE_SOURCE_DIR}/src/config.h" )
+
+ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -Wmissing-declarations -DNDEBUG)
+
+IF(DEBUG)
+  ADD_DEFINITIONS(-g3)
+  REMOVE_DEFINITIONS(-DNDEBUG)
+  IF(NO_OPTIMIZE)
+    ADD_DEFINITIONS(-O0)
+  ENDIF()
+ENDIF()
+
+ADD_SUBDIRECTORY(src)
