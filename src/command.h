@@ -38,11 +38,11 @@ typedef struct {
   command_handler_t exec;
 } command_t;
 
-void command_add(char *name, command_handler_t handler, char *usage, char *description, int mask);
+void command_add(const char *name, command_handler_t handler, const char *usage, const char *description, const int mask);
 
-char *command_exec(char *name, char *args, int mask);
+char *command_exec(const char *name, char *args, const int mask);
 
-char *command_usage(char *name, int mask);
+char *command_usage(const char *name, const int mask);
 
-char *command_description(char *name, int mask);
+char *command_description(const char *name, const int mask);
 

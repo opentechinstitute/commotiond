@@ -50,7 +50,7 @@ static tst_t *commands = NULL;
 */
 
 
-void command_add(char *name, command_handler_t handler, char *usage, char *description, int mask) {
+void command_add(const char *name, command_handler_t handler, const char *usage, const char *description, const int mask) {
   command_t *new_cmd = malloc(sizeof(command_t));
   new_cmd->exec = handler;
   new_cmd->mask = mask;
@@ -61,7 +61,7 @@ void command_add(char *name, command_handler_t handler, char *usage, char *descr
   return;
 }
 
-char *command_exec(char *name, char *args, int mask) {
+char *command_exec(const char *name, char *args, const int mask) {
   command_t *cmd = tst_search(commands, name, strlen(name));
   CHECK((cmd != NULL), "No such command!");
   CHECK((cmd->mask & mask) == mask, "Permissions denied for command %s from this access type.", name);
@@ -70,7 +70,7 @@ error:
   return NULL;
 }
 
-char *command_usage(char *name, int mask) {
+char *command_usage(const char *name, const int mask) {
   command_t *cmd = tst_search(commands, name, strlen(name));
   CHECK((cmd != NULL), "No such command!");
   CHECK((cmd->mask & mask) == mask, "Permissions denied for command %s from this access type.", name);
@@ -79,7 +79,7 @@ error:
   return 0;
 }
 
-char *command_description(char *name, int mask) {
+char *command_description(const char *name, const int mask) {
   command_t *cmd = tst_search(commands, name, strlen(name));
   CHECK((cmd != NULL), "No such command!");
   CHECK((cmd->mask & mask) == mask, "Permissions denied for command %s from this access type.", name);
