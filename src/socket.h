@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #define MAX_IPPROTO 255
 #define MAX_CONNECTIONS 32
