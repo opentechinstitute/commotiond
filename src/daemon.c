@@ -44,6 +44,7 @@
 #include "profile.h"
 #include "socket.h"
 #include "msg.h"
+#include "ubus.h"
 
 extern socket_t unix_socket_proto;
 static int pid_filehandle;
