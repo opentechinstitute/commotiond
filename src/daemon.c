@@ -47,6 +47,7 @@
 #include "ubus.h"
 
 extern socket_t unix_socket_proto;
+extern socket_t ubus_socket_proto;
 static int pid_filehandle;
 
 int dispatcher_cb(void *self, void *context);
@@ -145,6 +146,7 @@ static void print_usage() {
           " -p, --pid <file>    Specify pid file.\n"
           " -r, --rundir <dir>  Specify instance directory.\n"
           " -h, --help          Print this usage message.\n"
+          " -u, --ubus <uri>    Specify ubus socket.\n"
   );
 }
 
@@ -155,9 +157,10 @@ int main(int argc, char *argv[]) {
   char *pidfile = COMMOTION_PIDFILE;
   char *rundir = COMMOTION_RUNDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
+  char *ubus_socket = "./ubus.sock";
   //char *plugindir = COMMOTION_PLUGINDIR;
 
-  static const char *opt_string = "b:d:np:r:h";
+  static const char *opt_string = "b:d:np:r:hu:";
 
   static struct option long_opts[] = {
     {"bind", required_argument, NULL, 'b'},
@@ -165,7 +168,8 @@ int main(int argc, char *argv[]) {
     {"nodaemon", no_argument, NULL, 'n'},
     {"pid", required_argument, NULL, 'p'},
     {"rundir", required_argument, NULL, 'r'},
-    {"help", no_argument, NULL, 'h'}
+    {"help", no_argument, NULL, 'h'},
+    {"ubus", required_argument, NULL, 'u'}
   };
 
   opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
@@ -187,6 +191,9 @@ int main(int argc, char *argv[]) {
       case 'r':
         rundir = optarg;
         break;
+      case 'u':
+        ubus_socket = optarg;
+        break;
       case 'h':
       default:
         print_usage();
@@ -202,9 +209,12 @@ int main(int argc, char *argv[]) {
   //plugins_create();
   //plugins_load_all(plugindir);
   socket_t *socket = NEW(socket, unix_socket);
+  socket_t *ubus = NEW(socket, ubus_socket);
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = loop_add_socket;
   socket->bind(socket, socket_uri);
+  ubus->register_cb = loop_add_socket;
+  ubus->bind(ubus, ubus_socket);
   loop_start();
   loop_destroy();
 
