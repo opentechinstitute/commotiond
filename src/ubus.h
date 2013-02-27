@@ -27,4 +27,6 @@ typedef struct {
   struct ubus_context *ctx;
 } ubus_socket_t;
 
+int ubus_socket_init(void *self);
+
 int ubus_socket_bind(void *self, const char *endpoint);

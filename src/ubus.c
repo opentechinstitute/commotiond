@@ -19,6 +19,7 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <libubox/blobmsg_json.h>
 #include <libubus.h>
 #include "socket.h"
@@ -77,10 +78,29 @@ static struct ubus_object commotion_object = {
 	.n_methods = ARRAY_SIZE(commotion_methods),
 };
 
+int ubus_socket_init(void *self) {
+  DEBUG("Initializing ubus_socket struct.");
+  if(self) {
+    socket_t *this = self;
+    this->fd = -1;
+    this->rfd = -1;
+    this->local = NULL;
+    this->remote = NULL;
+    this->fd_registered = false;
+    this->rfd_registered = false;
+    this->listen = false;
+    this->uri = strdup("ubus://");
+    return 1;
+  } else return 0;
+}
+
 int ubus_socket_bind(void *self, const char *endpoint) {
   ubus_socket_t *this = self;  
   CHECK((this->ctx = ubus_connect(endpoint)) != NULL, "Failed to get ubus socket context.");
   CHECK(!ubus_add_object(this->ctx, &commotion_object), "Failed to add object to ubus.");
+  this->_(fd) = this->ctx->sock.fd;
+  this->_(listen) = true;
+  if(this->_(register_cb)) this->_(register_cb)(this, NULL);
   return 1;
 error:
   free(this->ctx);
@@ -88,5 +108,6 @@ error:
 }
 
 socket_t ubus_socket_proto = {
+  .init = ubus_socket_init,
   .bind = ubus_socket_bind
 };
