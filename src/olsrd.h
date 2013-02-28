@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct {
   char *name; 
-  olsrd_conf_item_t attr[];
+  olsrd_conf_item_t **attr;
   int num_attr;
 } olsrd_conf_plugin_t;
 
@@ -26,7 +26,6 @@ typedef struct {
   char *ifname;
   int mode;
   char *Ipv4Broadcast;
-  char *Ipv6Broadcast;
 } olsrd_conf_iface_t;
 
 typedef struct {
@@ -35,9 +34,9 @@ typedef struct {
   char *netmask;
 } olsrd_conf_hna_t;
 
-int co_olsrd_add_iface(const char* name, int mode, const char *Ipv4Broadcast, const char *Ipv6Broadcast);
+int co_olsrd_add_iface(const char* name, int mode, const char *Ipv4Broadcast);
 
-int co_olsrd_remove_iface(const char* name, const int mode, const char *Ipv4Broadcast, const char *Ipv6Broadcast);
+int co_olsrd_remove_iface(const char* name, const int mode, const char *Ipv4Broadcast);
 
 int co_olsrd_add_hna(const int family, const char *address, const char *netmask);
 
