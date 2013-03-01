@@ -189,7 +189,6 @@ int co_olsrd_remove_hna(const int family, const char *address, const char *netma
    * discarding the constant. Using a strcpy()
    * would fix this, but that wastes time.
    */
-  iface_to_find.mode = mode;
   hna_to_find.family = family;
   hna_to_find.address = address;
   hna_to_find.netmask = netmask;

@@ -44,8 +44,10 @@
 #include "profile.h"
 #include "socket.h"
 #include "msg.h"
+#include "olsrd.h"
 
 extern socket_t unix_socket_proto;
+extern process_t olsrd_process_proto;
 static int pid_filehandle;
 
 int dispatcher_cb(void *self, void *context);
@@ -200,6 +202,8 @@ int main(int argc, char *argv[]) {
   loop_create();
   //plugins_create();
   //plugins_load_all(plugindir);
+  process_t *process = process_create(sizeof(olsrd_process_t), olsrd_process_proto, "olsrd", "/var/run/commotion/olsrd.pid", "/usr/local/sbin/olsrd", "/var/run/commotion");
+  process->start(process, NULL);
   socket_t *socket = NEW(socket, unix_socket);
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = loop_add_socket;
