@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
   CHECK((socket->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
   DEBUG("opt_index: %d argc: %d", optind, argc);
   int received = 0;
-  char str[100];
+  char str[1024];
   memset(str, '\0', sizeof(str));
   if(optind < argc) {
     co_msg_t *message = cli_parse_argv(argv + optind, argc - optind - 1);

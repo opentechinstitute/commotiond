@@ -101,12 +101,13 @@ error:
 
 static void _cmd_help_i(void *value, void *data) {
   co_cmd_t *cvalue = value;
-  snprintf((char *)data, 1024, "%s Usage: %s\n", cvalue->name, cvalue->usage);
+  snprintfcat((char *)data, 2048, "Command: %s Usage: %s\n", cvalue->name, cvalue->usage);
   return;
 }
 
 char *cmd_help(void *self, char *argv[], int argc) {
-  char *ret = malloc(1024);
+  char *ret = malloc(2048);
+  memset(ret, '\0', sizeof(2048));
   tst_traverse(commands, _cmd_help_i, (void *)ret);
   return ret;
 }
