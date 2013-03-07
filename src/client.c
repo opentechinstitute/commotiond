@@ -151,7 +151,6 @@ int main(int argc, char *argv[]) {
   } else {
     printf("Connected to commotiond at %s\n", socket_uri);
     while(printf("Co$ "), fgets(str, 100, stdin), !feof(stdin)) {
-      DEBUG("Input string length: %d", (int)strlen(str));
       //if(str[strlen(str) - 1] == '\n') {
       //  str[strlen(str) - 1] = '\0';
       //}
