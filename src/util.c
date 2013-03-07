@@ -168,7 +168,7 @@ int string_to_argv(const char *input, char **argv, int *argc, const size_t max) 
 	CHECK_MEM(token = strtok_r(input_tmp, " ", &saveptr));
   while(token && count < max) {
     argv[count++] = token;
-	  token = strtok_r(input_tmp, " ", &saveptr);
+	  token = strtok_r(NULL, " ", &saveptr);
   }
   *argc = count;
   return 1; 

@@ -125,10 +125,11 @@ char *cmd_up(void *self, char *argv[], int argc) {
     return this->usage;
   }
   co_iface_t *iface = co_iface_create(argv[0], AF_INET);
+  co_profile_t *prof = co_profile_find(argv[1]);
   co_iface_get_mac(iface, mac);
   co_generate_ip("5.0.0.0", "255.0.0.0", mac, address);
   co_iface_wpa_connect(iface);
-  co_iface_set_ssid(iface, "commotionwireless.net");
+  co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "commotionwireless.net"));
 
   address[15] = '\0';
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
