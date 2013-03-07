@@ -18,6 +18,7 @@
 
 # CMake
 build
+config.h
 
 # Vim
 Session.vim
