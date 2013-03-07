@@ -227,9 +227,9 @@ int main(int argc, char *argv[]) {
   co_loop_create();
   co_profiles_create();
   co_profile_import_files(profiledir);
-  co_cmd_add("help", cmd_help, "help <none>", "Print list of commands and usage information.", 0);
-  co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>", "Print list of available profiles.", 0);
-  co_cmd_add("up", cmd_up, "up <interface> <profile>", "Apply profile to interface.", 0);
+  co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
+  co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
+  co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
   co_socket_t *socket = NEW(co_socket, unix_socket);

@@ -63,7 +63,7 @@ error:
 char *co_msg_pack(const co_msg_t *input) {
   DEBUG("Packing message.");
   uint16_t tmp;
-  char *output = malloc(sizeof(co_msg_t));
+  char *output = malloc(input->header.size);
   char *cursor = output;
 
   tmp = htons(input->header.size);

@@ -101,7 +101,7 @@ error:
 
 static void _cmd_help_i(void *value, void *data) {
   co_cmd_t *cvalue = value;
-  snprintfcat((char *)data, 2048, "Command: %s Usage: %s\n", cvalue->name, cvalue->usage);
+  snprintfcat((char *)data, 2048, "Command: %s Usage: %s", cvalue->name, cvalue->usage);
   return;
 }
 
@@ -128,6 +128,7 @@ char *cmd_up(void *self, char *argv[], int argc) {
   co_profile_t *prof = co_profile_find(argv[1]);
   co_iface_get_mac(iface, mac);
   co_generate_ip("5.0.0.0", "255.0.0.0", mac, address);
+  DEBUG("Address: %s", address);
   co_iface_wpa_connect(iface);
   co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "commotionwireless.net"));
 
