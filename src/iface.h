@@ -66,6 +66,6 @@ int co_iface_set_key(co_iface_t *iface, const char *key);
 
 int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
-int co_generate_ip(const char *network, const char *netmask, const char mac[MAC_LEN], char *output);
+int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output);
 
 #endif

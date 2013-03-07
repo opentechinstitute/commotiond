@@ -232,22 +232,43 @@ int co_set_dns(const char *dnsservers[], const size_t numservers, const char *se
   return 0;
 }
 
-int co_generate_ip(const char *network, const char *netmask, const char mac[MAC_LEN], char *output) {
+int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output) {
   uint32_t subnet = 0;
-  uint32_t addr = 1;
+  uint32_t addr = 0;
+  struct in_addr ipaddr;
   struct in_addr netaddr;
   struct in_addr maskaddr;
-  CHECK(inet_aton(network, &netaddr) != 0, "Invalid network address %s", network); 
+  CHECK(inet_aton(ip, &ipaddr) != 0, "Invalid ip address %s", ip); 
   CHECK(inet_aton(netmask, &maskaddr) != 0, "Invalid netmask address %s", netmask); 
-  subnet = (netaddr.s_addr ^ maskaddr.s_addr);
-  for (int i = 0; i < MAC_LEN; i++)
-    addr += mac[i]*i;
-    
-  addr = (addr % 0xFE00) + 0x0100;
-  netaddr.s_addr = (subnet | addr);
 
+  subnet = maskaddr.s_addr;
+  /*
+   * Turn the IP address into a 
+   * network address.
+   */
+  netaddr.s_addr = (ipaddr.s_addr & subnet);
 
-  strlcpy(inet_ntoa(netaddr), output, sizeof(uint32_t));
+  /*
+   * get the matching octet from 
+   * the mac and and then move it
+   * left to the proper spot.
+   */
+  for (int i = 0; i < 4; i++)
+    addr |= ((mac[i]&0xff)%0xfe) << (i*8);
+
+  /*
+   * mask out the parts of address
+   * that overlap with the subnet 
+   * mask
+   */
+  addr &= ~subnet;
+
+  /*
+   * add back the user-supplied 
+   * network number.
+   */
+  netaddr.s_addr = (netaddr.s_addr|addr);
+  strcpy(output, inet_ntoa(netaddr));
 
   return 1;
 error:
