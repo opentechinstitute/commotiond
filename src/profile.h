@@ -48,8 +48,6 @@ int co_profiles_create(void);
 
 int co_profiles_destroy(void);
 
-int _co_profile_import_files_i(const char *path, const char *filename);
-
 int co_profile_import_files(const char *path);
 
 //int profile_export_file(tst_t *profile, const char *path);
@@ -63,5 +61,7 @@ int co_profile_get_int(co_profile_t *profile, const char *key, const int def);
 char *co_profile_get_string(co_profile_t *profile, const char *key, char *def);
 
 char *co_list_profiles(void);
+
+co_profile_t *co_profile_find(const char *name);
 
 #endif

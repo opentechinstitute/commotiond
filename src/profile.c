@@ -59,7 +59,14 @@ int co_profiles_destroy(void) {
   return 1;
 }
 
-int _co_profile_import_files_i(const char *path, const char *filename) {
+static int _co_profile_find_i(const void *prof, const void *name) {
+  const co_profile_t *this_profile = prof;
+  const char *this_name = name;
+  if((strcmp(this_profile->name, this_name)) == 0) return 0;
+  return -1;
+}
+
+static int _co_profile_import_files_i(const char *path, const char *filename) {
   char key[80];
   char value[80];
   char line[80];
@@ -178,4 +185,12 @@ char *co_list_profiles(void) {
   char *ret = malloc(1024);
   list_process(profiles, (void *)ret, _co_list_profiles_i);
   return ret;
+}
+
+co_profile_t *co_profile_find(const char *name) {
+  lnode_t *node;
+  CHECK((node = list_find(profiles, name, _co_profile_find_i)) != NULL, "Failed to find profile %s!", name);
+  return lnode_get(node);
+error:
+  return NULL;
 }
