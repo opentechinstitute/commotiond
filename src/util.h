@@ -46,6 +46,8 @@ size_t strlcat(char *dst, const char *src, const size_t size);
 
 size_t strlcpy(char *dest, const char *src, const size_t size);
 
+size_t snprintfcat(char *str, size_t size, const char *format, ...);
+
 size_t strstrip(const char *s, char *out, const size_t outlen);
 
 int compare_version(const char * aver, const char *bver);

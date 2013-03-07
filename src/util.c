@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "debug.h"
 #include "util.h"
 
@@ -64,6 +65,18 @@ size_t strlcat(char *dst, const char *src, const size_t size)
     dst[used + copy] = '\0';
   }
   return used + length;
+}
+
+size_t snprintfcat(char *str, size_t size, const char *format, ...) {
+  size_t result;
+  va_list args;
+  size_t len = strnlen(str, size);
+
+  va_start(args, format);
+  result = vsnprintf(str + len, size - len, format, args);
+  va_end(args);
+
+  return result + len;
 }
 /*
 int strstrip(char *s) {
