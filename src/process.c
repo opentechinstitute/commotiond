@@ -1,31 +1,35 @@
-/*! 
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  process.c
+ *      @brief  a simple object-oriented process manager
  *
- * \file process.c 
+ *     @author  Josh King (jheretic), jking@chambana.net
+ *              object model inspired by Zed Shaw
  *
- * \brief a simple object-oriented process_t manager
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
  *
- *        object model inspired by Zed Shaw
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
+ * 
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \author Josh King <jking@chambana.net>
- * 
- * \date
- *
- * \copyright This file is part of Commotion, Copyright(C) 2012-2013 Josh King
- * 
- *            Commotion is free software: you can redistribute it and/or modify
- *            it under the terms of the GNU General Public License as published 
- *            by the Free Software Foundation, either version 3 of the License, 
- *            or (at your option) any later version.
- * 
- *            Commotion is distributed in the hope that it will be useful,
- *            but WITHOUT ANY WARRANTY; without even the implied warranty of
- *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *            GNU General Public License for more details.
- * 
- *            You should have received a copy of the GNU General Public License
- *            along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * */
+ * =====================================================================================
+ */
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -37,13 +41,13 @@
 #include "process.h"
 #include "util.h"
 
-process_t *process_create(const size_t size, process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path) {
+co_process_t *co_process_create(const size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path) {
   if(!proto.init) proto.init = NULL;
-  if(!proto.destroy) proto.destroy = process_destroy;
-  if(!proto.start) proto.start = process_start;
-  if(!proto.stop) proto.stop = process_stop;
+  if(!proto.destroy) proto.destroy = co_process_destroy;
+  if(!proto.start) proto.start = co_process_start;
+  if(!proto.stop) proto.stop = co_process_stop;
 
-  process_t *new_proc = malloc(size);
+  co_process_t *new_proc = malloc(size);
   *new_proc = proto;
 
   CHECK_MEM(new_proc);
@@ -64,9 +68,9 @@ error:
   return NULL;
 }
 
-int process_destroy(void *self) {
+int co_process_destroy(void *self) {
   CHECK_MEM(self);
-  process_t *this = self;
+  co_process_t *this = self;
 
   free(this->name);
   free(this->pid_file);
@@ -81,9 +85,9 @@ error:
   return 0;
 }
 
-int process_start(void *self, char *argv[]) {
+int co_process_start(void *self, char *argv[]) {
   CHECK_MEM(self);
-  process_t *this = self;
+  co_process_t *this = self;
   char *exec = NULL;
   CHECK(((exec = this->exec_path) != NULL), "Invalid exec path!");
 	int pid = 0;
@@ -125,10 +129,10 @@ error:
   return 0;
 }
 
-int process_stop(void *self) {
+int co_process_stop(void *self) {
   CHECK_MEM(self);
-  process_t *this = self;
-  CHECK(!(kill(this->pid, SIGKILL)), "Failed to kill process_t %d.", this->pid);
+  co_process_t *this = self;
+  CHECK(!(kill(this->pid, SIGKILL)), "Failed to kill co_process_t %d.", this->pid);
 
   return 1;
 
@@ -136,9 +140,9 @@ error:
   return 0;
 }
 
-int process_restart(void *self) {
+int co_process_restart(void *self) {
   CHECK_MEM(self);
-  process_t *this = self;
+  co_process_t *this = self;
   if(this->stop(this)) this->start(this, NULL);
 
   return 1;

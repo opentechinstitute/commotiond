@@ -1,30 +1,34 @@
-/*! 
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  client.c
+ *      @brief  commotion - a client to the embedded C daemon
  *
- * \file client.c 
+ *     @author  Josh King (jheretic), jking@chambana.net
  *
- * \brief commotion - a client to the embedded C daemon for managing mesh 
- *        network profiles
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
  *
- * \author Josh King <jking@chambana.net>
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
  * 
- * \date
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \copyright This file is part of Commotion, Copyright(C) 2012-2013 Josh King
- * 
- *            Commotion is free software: you can redistribute it and/or modify
- *            it under the terms of the GNU General Public License as published 
- *            by the Free Software Foundation, either version 3 of the License, 
- *            or (at your option) any later version.
- * 
- *            Commotion is distributed in the hope that it will be useful,
- *            but WITHOUT ANY WARRANTY; without even the implied warranty of
- *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *            GNU General Public License for more details.
- * 
- *            You should have received a copy of the GNU General Public License
- *            along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * */
+ * =====================================================================================
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,18 +45,38 @@
 #include "util.h"
 #include "socket.h"
 
-extern socket_t unix_socket_proto;
+extern co_socket_t unix_socket_proto;
 
-static msg_t *cli_parse_string(const char *input) {
+static co_msg_t *cli_parse_argv(char *argv[], const int argc) {
+  CHECK(argv != NULL, "No input.");
+  char payload[MSG_MAX_PAYLOAD];
+  memset(payload, '\0', sizeof(payload));
+  co_msg_t *message;
+  if(argc > 1) {
+    char **args = argv + 1;
+    CHECK(argv_to_string(args, argc, payload, MSG_MAX_PAYLOAD), "Failed to parse argv.");
+    message = co_msg_create(argv[0], payload);
+  } else {
+    message = co_msg_create(argv[0], NULL);
+  }
+  CHECK(message != NULL, "Invalid message.");
+  return message;
+
+error:
+  free(message);
+  return NULL;
+}
+
+static co_msg_t *cli_parse_string(const char *input) {
   CHECK(input != NULL, "No input.");
 	char *saveptr = NULL;
-  DEBUG("Checking for tokens.");
-  char *input_tmp = strdup(input);
+  int inputsize = strlen(input);
+  char *input_tmp = malloc(inputsize);
+  strstrip(input, input_tmp, inputsize);
 	char *command = strtok_r(input_tmp, " ", &saveptr);
   if(strlen(command) < 2) command = "help";
   char *payload = strchr(input, ' ');
-  DEBUG("payload: %s", payload);
-  msg_t *message = msg_create(command, payload);
+  co_msg_t *message = co_msg_create(command, payload);
   CHECK(message != NULL, "Invalid message.");
   free(input_tmp);
   return message;
@@ -103,20 +127,37 @@ int main(int argc, char *argv[]) {
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
 
+  co_socket_t *socket = NEW(co_socket, unix_socket);
 
-  socket_t *socket = NEW(socket, unix_socket);
-  if(socket->connect(socket, socket_uri)) printf("Connected to commotiond at %s\n", socket_uri);
-  char str[100];
+  CHECK((socket->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
+  DEBUG("opt_index: %d argc: %d", optind, argc);
   int received = 0;
-  while(printf("Co$ "), fgets(str, 100, stdin), !feof(stdin)) {
-    char *msgstr = msg_pack(cli_parse_string(str));
-    CHECK(socket->send(socket, msgstr, sizeof(msg_t)) != -1, "Send error!");
+  char str[100];
+  memset(str, '\0', sizeof(str));
+  if(optind < argc) {
+    co_msg_t *message = cli_parse_argv(argv + optind, argc - optind - 1);
+    char *msgstr = co_msg_pack(message);
+    CHECK(socket->send(socket, msgstr, sizeof(co_msg_t)) != -1, "Send error!");
     if((received = socket->receive(socket, str, sizeof(str))) > 0) {
-      str[received + 1] = '\0';
+      str[received] = '\0';
       printf("%s", str);
+    }
+  } else {
+    printf("Connected to commotiond at %s\n", socket_uri);
+    while(printf("Co$ "), fgets(str, 100, stdin), !feof(stdin)) {
+      if(str[strlen(str) - 1] == '\n') {
+        str[strlen(str) - 1] = '\0';
+      }
+      char *msgstr = co_msg_pack(cli_parse_string(str));
+      CHECK(socket->send(socket, msgstr, sizeof(co_msg_t)) != -1, "Send error!");
+      if((received = socket->receive(socket, str, sizeof(str))) > 0) {
+        str[received] = '\0';
+        printf("%s", str);
+      }
     }
   }
 
+  socket->destroy(socket);
   return 0;
 error:
   socket->destroy(socket);

@@ -1,30 +1,34 @@
-/*! 
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  daemon.c
+ *      @brief  commotiond - an embedded C daemon for managing mesh networks.
  *
- * \file main.c 
+ *     @author  Josh King (jheretic), jking@chambana.net
  *
- * \brief commotiond - an embedded C daemon and library for managing mesh 
- *        network profiles
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
  *
- * \author Josh King <jking@chambana.net>
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
  * 
- * \date
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \copyright This file is part of Commotion, Copyright(C) 2012-2013 Josh King
- * 
- *            Commotion is free software: you can redistribute it and/or modify
- *            it under the terms of the GNU General Public License as published 
- *            by the Free Software Foundation, either version 3 of the License, 
- *            or (at your option) any later version.
- * 
- *            Commotion is distributed in the hope that it will be useful,
- *            but WITHOUT ANY WARRANTY; without even the implied warranty of
- *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *            GNU General Public License for more details.
- * 
- *            You should have received a copy of the GNU General Public License
- *            along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * */
+ * =====================================================================================
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,28 +50,44 @@
 #include "msg.h"
 #include "olsrd.h"
 
-extern socket_t unix_socket_proto;
-extern process_t olsrd_process_proto;
+extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
 
 int dispatcher_cb(void *self, void *context);
 
 int dispatcher_cb(void *self, void *context) {
-  socket_t *sock = self;
-  char buffer[256];
+  co_socket_t *sock = self;
+  char buffer[1024];
+  char *cmdargv[MAX_ARGS];
+  int cmdargc;
   memset((void *)buffer, '\0', sizeof(buffer));
-  DEBUG("Handling socket callback.");
 
-  sock->receive(sock, buffer, sizeof(buffer));
-  msg_t *msgrcv = msg_unpack(buffer);
-  DEBUG("Received target %s and payload %s", msgrcv->target, msgrcv->payload);
-  char *ret = command_exec(msgrcv->target, msgrcv->payload, 0);
+  int received = sock->receive(sock, buffer, sizeof(buffer));
+  DEBUG("Received %d bytes.", received);
+  if(received <= 0) {
+    INFO("Received connection.");
+    return 1;
+  }
+  co_msg_t *msgrcv = co_msg_unpack(buffer);
+  if(msgrcv->header.size <= (sizeof(co_msg_header_t) + strlen(msgrcv->target))) {
+    DEBUG("Received message with target %s and empty payload.", msgrcv->target);
+    cmdargc = 0;
+    cmdargv[0] = NULL;
+  } else {
+    DEBUG("Received target %s and payload %s", msgrcv->target, msgrcv->payload);
+    string_to_argv(msgrcv->payload, cmdargv, &cmdargc, MAX_ARGS);
+  }
+  char *ret = co_cmd_exec(msgrcv->target, cmdargv, cmdargc, 0);
   if(ret != NULL) {
     sock->send(sock, ret, strlen(ret));
+    free(ret);
   } else {
     sock->send(sock, "No such command.\n", 17);
   }
 
+ // for(int i = 0; i < cmdargc; i++) {
+ //   if(cmdargv[i]) free(cmdargv[i]);
+ // }
   return 1;
 }
 
@@ -157,12 +177,14 @@ int main(int argc, char *argv[]) {
   char *rundir = COMMOTION_RUNDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
   //char *plugindir = COMMOTION_PLUGINDIR;
+  char *profiledir = COMMOTION_PROFILEDIR;
 
-  static const char *opt_string = "b:d:np:r:h";
+  static const char *opt_string = "b:d:f:np:r:h";
 
   static struct option long_opts[] = {
     {"bind", required_argument, NULL, 'b'},
     {"plugins", required_argument, NULL, 'd'},
+    {"profiles", required_argument, NULL, 'f'},
     {"nodaemon", no_argument, NULL, 'n'},
     {"pid", required_argument, NULL, 'p'},
     {"rundir", required_argument, NULL, 'r'},
@@ -178,6 +200,9 @@ int main(int argc, char *argv[]) {
         break;
       case 'd':
         //plugindir = optarg;
+        break;
+      case 'f':
+        profiledir = optarg;
         break;
       case 'n':
         daemonize = 0;
@@ -199,17 +224,20 @@ int main(int argc, char *argv[]) {
 
 
   if(daemonize) daemon_start((char *)rundir, (char *)pidfile);
-  loop_create();
+  co_loop_create();
+  co_profiles_create();
+  co_profile_import_files(profiledir);
+  co_cmd_add("help", cmd_help, "help <none>", "Print list of commands and usage information.", 0);
+  co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>", "Print list of available profiles.", 0);
+  co_cmd_add("up", cmd_up, "up <interface> <profile>", "Apply profile to interface.", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
-  //process_t *process = process_create(sizeof(olsrd_process_t), olsrd_process_proto, "olsrd", "/var/run/commotion/olsrd.pid", "/usr/local/sbin/olsrd", "/var/run/commotion");
-  //process->start(process, NULL);
-  socket_t *socket = NEW(socket, unix_socket);
+  co_socket_t *socket = NEW(co_socket, unix_socket);
   socket->poll_cb = dispatcher_cb;
-  socket->register_cb = loop_add_socket;
+  socket->register_cb = co_loop_add_socket;
   socket->bind(socket, socket_uri);
-  loop_start();
-  loop_destroy();
+  co_loop_start();
+  co_loop_destroy();
 
   return 0;
 }

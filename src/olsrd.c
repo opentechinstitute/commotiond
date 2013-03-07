@@ -1,18 +1,49 @@
 /* vim: set ts=2 expandtab: */
+/**
+ *       @file  olsrd.c
+ *      @brief  OLSRd configuration and process management
+ *
+ *     @author  Josh King (jheretic), jking@chambana.net
+ *
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
+ *
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
+ * 
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * =====================================================================================
+ */
+
 #include <stdlib.h>
 #include "extern/list.h"
 #include "debug.h"
 #include "util.h"
 #include "olsrd.h"
 
-process_t olsrd_process_proto = {
-  .init = olsrd_init
+co_process_t olsrd_process_proto = {
+  .init = co_olsrd_init
 };
 
-static olsrd_conf_item_t *global_items;
+static co_olsrd_conf_item_t *global_items;
 static int global_items_count;
 
-static olsrd_conf_plugin_t *plugins;
+static co_olsrd_conf_plugin_t *plugins;
 static int plugins_count;
 
 static list_t *ifaces;
@@ -20,7 +51,7 @@ static list_t *ifaces;
 static list_t *hna;
 
 static void _co_olsrd_print_iface_i(list_t *list, lnode_t *lnode, void *context) {
-  olsrd_conf_iface_t *iface = lnode_get(lnode);
+  co_olsrd_conf_iface_t *iface = lnode_get(lnode);
   FILE *conf_file = (FILE*)context;
 
   fprintf(conf_file, "interface\t%s\n", iface->ifname);
@@ -39,7 +70,7 @@ static void _co_olsrd_print_iface_i(list_t *list, lnode_t *lnode, void *context)
 }
 
 static void _co_olsrd_print_hna_i(list_t *list, lnode_t *lnode, void *context) {
-  olsrd_conf_hna_t *hna = lnode_get(lnode);
+  co_olsrd_conf_hna_t *hna = lnode_get(lnode);
   FILE *conf_file = (FILE*)context;
 
   if (hna->family == 0)
@@ -94,8 +125,8 @@ int co_olsrd_print_conf(const char *filename) {
 }
 
 static int _co_olsrd_compare_iface_i(const void *a, const void *b) {
-  olsrd_conf_iface_t *iface_a = (olsrd_conf_iface_t*)a;
-  olsrd_conf_iface_t *iface_b = (olsrd_conf_iface_t*)b;
+  co_olsrd_conf_iface_t *iface_a = (co_olsrd_conf_iface_t*)a;
+  co_olsrd_conf_iface_t *iface_b = (co_olsrd_conf_iface_t*)b;
 
   if (!strcmp(iface_a->ifname, iface_b->ifname) &&
       !strcmp(iface_a->Ipv4Broadcast, iface_b->Ipv4Broadcast) &&
@@ -105,8 +136,8 @@ static int _co_olsrd_compare_iface_i(const void *a, const void *b) {
 }
 
 static int _co_olsrd_compare_hna_i(const void *a, const void *b) {
-  olsrd_conf_hna_t *hna_a = (olsrd_conf_hna_t*)a;
-  olsrd_conf_hna_t *hna_b = (olsrd_conf_hna_t*)b;
+  co_olsrd_conf_hna_t *hna_a = (co_olsrd_conf_hna_t*)a;
+  co_olsrd_conf_hna_t *hna_b = (co_olsrd_conf_hna_t*)b;
 
   if (!strcmp(hna_a->address, hna_b->address) &&
       !strcmp(hna_a->netmask, hna_b->netmask) &&
@@ -116,8 +147,8 @@ static int _co_olsrd_compare_hna_i(const void *a, const void *b) {
 }
 
 int co_olsrd_add_iface(const char* name, int mode, const char *Ipv4Broadcast) {
-  olsrd_conf_iface_t *new_iface = NULL;
-  new_iface = (olsrd_conf_iface_t*)calloc(1, sizeof(olsrd_conf_iface_t));
+  co_olsrd_conf_iface_t *new_iface = NULL;
+  new_iface = (co_olsrd_conf_iface_t*)calloc(1, sizeof(co_olsrd_conf_iface_t));
 
   new_iface->mode = mode;
 
@@ -130,9 +161,9 @@ int co_olsrd_add_iface(const char* name, int mode, const char *Ipv4Broadcast) {
   list_append(ifaces, lnode_create(new_iface));
   return 1;
 }
-int co_olsrd_remove_iface(const char* name, const int mode, const char *Ipv4Broadcast) {
-  olsrd_conf_iface_t *iface_to_remove;
-  olsrd_conf_iface_t iface_to_find;
+int co_olsrd_remove_iface(char* name, int mode, char *Ipv4Broadcast) {
+  co_olsrd_conf_iface_t *iface_to_remove;
+  co_olsrd_conf_iface_t iface_to_find;
   lnode_t *iface_node_to_remove;
 
   /*
@@ -164,8 +195,8 @@ int co_olsrd_remove_iface(const char* name, const int mode, const char *Ipv4Broa
 }
 
 int co_olsrd_add_hna(const int family, const char *address, const char *netmask) {
-  olsrd_conf_hna_t *new_hna = NULL;
-  new_hna = (olsrd_conf_hna_t*)calloc(1, sizeof(olsrd_conf_hna_t));
+  co_olsrd_conf_hna_t *new_hna = NULL;
+  new_hna = (co_olsrd_conf_hna_t*)calloc(1, sizeof(co_olsrd_conf_hna_t));
 
   new_hna->family = family;
 
@@ -179,9 +210,9 @@ int co_olsrd_add_hna(const int family, const char *address, const char *netmask)
   return 1;
 }
 
-int co_olsrd_remove_hna(const int family, const char *address, const char *netmask) {
-  olsrd_conf_hna_t *hna_to_remove;
-  olsrd_conf_hna_t hna_to_find;
+int co_olsrd_remove_hna(int family, char *address, char *netmask) {
+  co_olsrd_conf_hna_t *hna_to_remove;
+  co_olsrd_conf_hna_t hna_to_find;
   lnode_t *hna_node_to_remove;
 
   /*
@@ -213,9 +244,10 @@ int co_olsrd_remove_hna(const int family, const char *address, const char *netma
 }
 
 
-int olsrd_init(void *self) {
-  olsrd_process_t *this = self;
+int co_olsrd_init(void *self) {
+  //co_olsrd_process_t *this = self;
   //This function gets called when the process object is created, and should call any initialization stuff that happens before it starts
+  return 1;
 }
 
 #if 0
@@ -224,12 +256,12 @@ int test_co_olsrd_print_conf(const char *filename) {
 }
 
 int main() {
-  olsrd_conf_hna_t test_hna, test_hna2;
+  co_olsrd_conf_hna_t test_hna, test_hna2;
 
   ifaces = list_create(5);
   hna = list_create(5);
 
-  global_items = (olsrd_conf_item_t*)calloc(3, sizeof(olsrd_conf_item_t));
+  global_items = (co_olsrd_conf_item_t*)calloc(3, sizeof(co_olsrd_conf_item_t));
   global_items[0].key = "one";
   global_items[0].value = "1";
   global_items[1].key = "two";
@@ -238,19 +270,19 @@ int main() {
   global_items[2].value = "3";
   global_items_count = 3;
 
-  plugins = (olsrd_conf_plugin_t*)calloc(2, sizeof(olsrd_conf_plugin_t));
-  plugins[0].attr = (olsrd_conf_item_t**)calloc(2, sizeof(olsrd_conf_item_t*));
-  plugins[0].attr[0] = (olsrd_conf_item_t*)malloc(sizeof(olsrd_conf_item_t));
+  plugins = (co_olsrd_conf_plugin_t*)calloc(2, sizeof(co_olsrd_conf_plugin_t));
+  plugins[0].attr = (co_olsrd_conf_item_t**)calloc(2, sizeof(co_olsrd_conf_item_t*));
+  plugins[0].attr[0] = (co_olsrd_conf_item_t*)malloc(sizeof(co_olsrd_conf_item_t));
   plugins[0].attr[0]->key = "attr1";
   plugins[0].attr[0]->value = "value of attr1";
-  plugins[0].attr[1] = (olsrd_conf_item_t*)malloc(sizeof(olsrd_conf_item_t));
+  plugins[0].attr[1] = (co_olsrd_conf_item_t*)malloc(sizeof(co_olsrd_conf_item_t));
   plugins[0].attr[1]->key = "attr2";
   plugins[0].attr[1]->value = "value of attr2";
   plugins[0].num_attr = 2;
   plugins[0].name = "Plugin1";
 
-  plugins[1].attr = (olsrd_conf_item_t**)calloc(2, sizeof(olsrd_conf_item_t*));
-  plugins[1].attr[0] = (olsrd_conf_item_t*)malloc(sizeof(olsrd_conf_item_t));
+  plugins[1].attr = (co_olsrd_conf_item_t**)calloc(2, sizeof(co_olsrd_conf_item_t*));
+  plugins[1].attr[0] = (co_olsrd_conf_item_t*)malloc(sizeof(co_olsrd_conf_item_t));
   plugins[1].num_attr = 0;
   plugins[1].name = "Plugin2";
   plugins_count = 2;

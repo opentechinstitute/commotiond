@@ -1,31 +1,35 @@
-/*! 
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  socket.c
+ *      @brief  a simple object-oriented socket wrapper
+ *              object model inspired by Zed Shaw
  *
- * \file socket.c 
+ *     @author  Josh King (jheretic), jking@chambana.net
  *
- * \brief a simple object-oriented socket wrapper
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
  *
- *        object model inspired by Zed Shaw
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
+ * 
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \author Josh King <jking@chambana.net>
- * 
- * \date
- *
- * \copyright This file is part of Commotion, Copyright(C) 2012-2013 Josh King
- * 
- *            Commotion is free software: you can redistribute it and/or modify
- *            it under the terms of the GNU General Public License as published 
- *            by the Free Software Foundation, either version 3 of the License, 
- *            or (at your option) any later version.
- * 
- *            Commotion is distributed in the hope that it will be useful,
- *            but WITHOUT ANY WARRANTY; without even the implied warranty of
- *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *            GNU General Public License for more details.
- * 
- *            You should have received a copy of the GNU General Public License
- *            along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * */
+ * =====================================================================================
+ */
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -39,24 +43,24 @@
 #include "socket.h"
 #include "util.h"
 
-socket_t unix_socket_proto = {
+co_socket_t unix_socket_proto = {
   .init = unix_socket_init,
   .bind = unix_socket_bind,
   .connect = unix_socket_connect
 };
 
-socket_t *socket_create(size_t size, socket_t proto) {
+co_socket_t *co_socket_create(size_t size, co_socket_t proto) {
 
   if(!proto.init) proto.init = NULL;
-  if(!proto.destroy) proto.destroy = socket_destroy;
-  if(!proto.hangup) proto.hangup = socket_hangup;
+  if(!proto.destroy) proto.destroy = co_socket_destroy;
+  if(!proto.hangup) proto.hangup = co_socket_hangup;
   if(!proto.bind) proto.bind = NULL;
   if(!proto.connect) proto.connect = NULL;
-  if(!proto.send) proto.send = socket_send;
-  if(!proto.receive) proto.receive = socket_receive;
-  if(!proto.setopt) proto.setopt = socket_setopt;
-  if(!proto.getopt) proto.getopt = socket_getopt;
-  socket_t *new_sock = malloc(size);
+  if(!proto.send) proto.send = co_socket_send;
+  if(!proto.receive) proto.receive = co_socket_receive;
+  if(!proto.setopt) proto.setopt = co_socket_setopt;
+  if(!proto.getopt) proto.getopt = co_socket_getopt;
+  co_socket_t *new_sock = malloc(size);
   *new_sock = proto;
   
   if((proto.init != NULL) && (!new_sock->init(new_sock))) {
@@ -70,10 +74,9 @@ error:
   return NULL;
 }
 
-int socket_init(void *self) {
-  DEBUG("Using generic socket initialization function.");
+int co_socket_init(void *self) {
   if(self) {
-    socket_t *this = self;
+    co_socket_t *this = self;
     this->local = malloc(sizeof(struct sockaddr_storage));
     this->remote = malloc(sizeof(struct sockaddr_storage));
     this->fd = -1;
@@ -85,10 +88,9 @@ int socket_init(void *self) {
   } else return 0;
 }
 
-int socket_destroy(void *self) {
-  DEBUG("Using generic socket destroy function.");
+int co_socket_destroy(void *self) {
   if(self) {
-    socket_t *this = self;
+    co_socket_t *this = self;
     close(this->fd);
     close(this->rfd);
     free(this->local);
@@ -98,10 +100,9 @@ int socket_destroy(void *self) {
   } else return 0;
 }
 
-int socket_hangup(void *self, void *context) {
-  DEBUG("Using generic socket receive function.");
+int co_socket_hangup(void *self, void *context) {
   CHECK_MEM(self);
-  socket_t *this = self;
+  co_socket_t *this = self;
   if((this->listen) && (this->rfd >= 0)) {
     CHECK((close(this->rfd) != -1), "Failed to close socket.");
     this->rfd = -1;
@@ -120,10 +121,9 @@ error:
 }
 
 
-int socket_send(void *self, char *outgoing, size_t length) {
-  DEBUG("Using generic socket send function.");
+int co_socket_send(void *self, char *outgoing, size_t length) {
   CHECK_MEM(self);
-  socket_t *this = self;
+  co_socket_t *this = self;
   unsigned int sent = 0;
   unsigned int remaining = length;
   int n, sfd;
@@ -145,10 +145,9 @@ error:
   return -1;
 }
 
-int socket_receive(void *self, char *incoming, size_t length) {
-  DEBUG("Using generic socket receive function.");
+int co_socket_receive(void *self, char *incoming, size_t length) {
   CHECK_MEM(self);
-  socket_t *this = self;
+  co_socket_t *this = self;
   int received = 0;
   int rfd = 0;
   if(this->listen) {
@@ -179,9 +178,8 @@ error:
   return -1;
 }
 
-int socket_setopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
-  DEBUG("Setting socket options.");
-  socket_t *this = self;
+int co_socket_setopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
+  co_socket_t *this = self;
 
   //Check to see if this is a standard socket option, or needs custom handling.
   if(level <= MAX_IPPROTO) {
@@ -196,9 +194,8 @@ error:
   return 0;
 }
 
-int socket_getopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
-  DEBUG("Getting socket options.");
-  socket_t *this = self;
+int co_socket_getopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
+  co_socket_t *this = self;
 
   //Check to see if this is a standard socket option, or needs custom handling.
   if(level <= MAX_IPPROTO) {
@@ -214,9 +211,8 @@ error:
 }
 
 int unix_socket_init(void *self) {
-  DEBUG("Initializing unix_socket struct.");
   if(self) {
-    socket_t *this = self;
+    co_socket_t *this = self;
     this->fd = -1;
     this->rfd = -1;
     this->local = malloc(sizeof(struct sockaddr_un));
