@@ -1,29 +1,34 @@
-/*! 
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  msg.c
+ *      @brief  a simple message serialization library
  *
- * \file msg.c 
+ *     @author  Josh King (jheretic), jking@chambana.net
  *
- * \brief a simple message packing library
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
  *
- * \author Josh King <jking@chambana.net>
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
  * 
- * \date
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * \copyright This file is part of Commotion, Copyright(C) 2012-2013 Josh King
- * 
- *            Commotion is free software: you can redistribute it and/or modify
- *            it under the terms of the GNU General Public License as published 
- *            by the Free Software Foundation, either version 3 of the License, 
- *            or (at your option) any later version.
- * 
- *            Commotion is distributed in the hope that it will be useful,
- *            but WITHOUT ANY WARRANTY; without even the implied warranty of
- *            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *            GNU General Public License for more details.
- * 
- *            You should have received a copy of the GNU General Public License
- *            along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * */
+ * =====================================================================================
+ */
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -35,25 +40,19 @@
 #include "util.h"
 #include "msg.h"
 
-const char *commands[] = { "HELP", "LIST", "LOAD" };
-const size_t command_num = 3;
-
-
-msg_t *msg_create(const char *target, const char *payload) {
-  size_t target_size = -1;
-  size_t payload_size = -1;
-	msg_t *message = malloc(sizeof(msg_t));
-  message->type = 0;
-  target_size = strlen(target);
-  CHECK((target_size < MSG_TARGET_SIZE) && (target_size != -1), "Invalid target size!");
-  if(payload == NULL) {
-    payload_size = 0;
-  } else payload_size = strlen(payload);
-  CHECK((payload_size < MSG_PAYLOAD_SIZE) && (payload_size != -1), "Invalid payload size!");
-  memmove(message->target, target, target_size);
-  memmove(message->payload, payload, payload_size);
-  message->size = payload_size;
-  DEBUG("Created message with size %d, command #%s, type #%d, and payload %s", message->size, message->target, message->type, message->payload);
+co_msg_t *co_msg_create(const char *target, const char *payload) {
+  size_t target_size = 0;
+  size_t payload_size = 0;
+	co_msg_t *message = malloc(sizeof(co_msg_t));
+  message->header.size = sizeof(co_msg_header_t);
+  DEBUG("HEADER SIZE: %d", message->header.size);
+  message->header.type = 0;
+  CHECK(((target_size = strstrip(target, message->target, sizeof(message->target))) != -1), "Invalid target size!");
+  DEBUG("TARGET SIZE: %d", (int)target_size);
+  if(payload != NULL) CHECK(((payload_size = strstrip(payload, message->payload, sizeof(message->payload))) != -1), "Invalid payload size!");
+  DEBUG("PAYLOAD SIZE: %d", (int)payload_size);
+  message->header.size += target_size + payload_size;
+  DEBUG("Created message with size %d, command #%s, type %d, and payload %s", message->header.size, message->target, message->header.type, message->payload);
   return message;
 
 error:
@@ -61,19 +60,19 @@ error:
   return NULL;
 }
 
-char *msg_pack(const msg_t *input) {
+char *co_msg_pack(const co_msg_t *input) {
   DEBUG("Packing message.");
   uint16_t tmp;
-  char *output = malloc(sizeof(msg_t));
+  char *output = malloc(sizeof(co_msg_t));
   char *cursor = output;
 
-  tmp = htons(input->size);
-  memmove(cursor, &tmp, sizeof(input->size));
-  cursor += sizeof(input->size);
+  tmp = htons(input->header.size);
+  memmove(cursor, &tmp, sizeof(input->header.size));
+  cursor += sizeof(input->header.size);
 
-  tmp = htons(input->type);
-  memmove(cursor, &tmp, sizeof(input->type));
-  cursor += sizeof(input->type);
+  tmp = htons(input->header.type);
+  memmove(cursor, &tmp, sizeof(input->header.type));
+  cursor += sizeof(input->header.type);
 
   memmove(cursor, input->target, sizeof(input->target));
   cursor += sizeof(input->target);
@@ -82,23 +81,23 @@ char *msg_pack(const msg_t *input) {
   return output;
 }
 
-msg_t *msg_unpack(const char *input) {
+co_msg_t *co_msg_unpack(const char *input) {
   CHECK_MEM(input);
   uint16_t tmp = 0;
-  msg_t *output = malloc(sizeof(msg_t));
+  co_msg_t *output = malloc(sizeof(co_msg_t));
   //char input_tmp[strlen(input) + 1];
   //strcpy(input_tmp, input);
   ///DEBUG("input_tmp: %s", input_tmp);
   const char *cursor = input;
 
-  memmove(&tmp, cursor, sizeof(output->size));
-  output->size = ntohs(tmp);
-  DEBUG("output->size: %d", output->size);
-  cursor += sizeof(output->size);
+  memmove(&tmp, cursor, sizeof(output->header.size));
+  output->header.size = ntohs(tmp);
+  DEBUG("output->header.size: %d", output->header.size);
+  cursor += sizeof(output->header.size);
 
-  memmove(&tmp, cursor, sizeof(output->type));
-  output->type = ntohs(tmp);
-  cursor += sizeof(output->type);
+  memmove(&tmp, cursor, sizeof(output->header.type));
+  output->header.type = ntohs(tmp);
+  cursor += sizeof(output->header.type);
 
   memmove(output->target, cursor, sizeof(output->target));
   cursor += sizeof(output->target);
