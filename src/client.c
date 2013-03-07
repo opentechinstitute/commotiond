@@ -71,12 +71,18 @@ static co_msg_t *cli_parse_string(const char *input) {
   CHECK(input != NULL, "No input.");
 	char *saveptr = NULL;
   int inputsize = strlen(input);
-  char *input_tmp = malloc(inputsize);
-  strstrip(input, input_tmp, inputsize);
-	char *command = strtok_r(input_tmp, " ", &saveptr);
-  if(strlen(command) < 2) command = "help";
-  char *payload = strchr(input, ' ');
-  co_msg_t *message = co_msg_create(command, payload);
+  char *input_tmp = NULL;
+  co_msg_t *message = NULL;
+  if(inputsize > 2) {
+    input_tmp = malloc(inputsize);
+    strstrip(input, input_tmp, inputsize);
+	  char *command = strtok_r(input_tmp, " ", &saveptr);
+    if(strlen(command) < 2) command = "help";
+    char *payload = strchr(input, ' ');
+    message = co_msg_create(command, payload);
+  } else {
+    message = co_msg_create("help", NULL);
+  }
   CHECK(message != NULL, "Invalid message.");
   free(input_tmp);
   return message;
@@ -145,9 +151,10 @@ int main(int argc, char *argv[]) {
   } else {
     printf("Connected to commotiond at %s\n", socket_uri);
     while(printf("Co$ "), fgets(str, 100, stdin), !feof(stdin)) {
-      if(str[strlen(str) - 1] == '\n') {
-        str[strlen(str) - 1] = '\0';
-      }
+      DEBUG("Input string length: %d", (int)strlen(str));
+      //if(str[strlen(str) - 1] == '\n') {
+      //  str[strlen(str) - 1] = '\0';
+      //}
       char *msgstr = co_msg_pack(cli_parse_string(str));
       CHECK(socket->send(socket, msgstr, sizeof(co_msg_t)) != -1, "Send error!");
       if((received = socket->receive(socket, str, sizeof(str))) > 0) {
