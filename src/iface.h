@@ -64,6 +64,12 @@ int co_iface_set_encryption(co_iface_t *iface, const char *proto);
 
 int co_iface_set_key(co_iface_t *iface, const char *key);
 
+int co_iface_wireless_apscan(co_iface_t *iface, const int value);
+
+int co_iface_wireless_enable(co_iface_t *iface);
+
+int co_iface_wireless_disable(co_iface_t *iface);
+
 int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
 int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output);

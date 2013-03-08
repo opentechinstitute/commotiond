@@ -46,10 +46,12 @@
 #include "iface.h"
 #include "util.h"
 
+#define SIOCGIWNAME 0x8B01
+
 static char *wpa_control_dir = "/var/run/wpa_supplicant";
 
 static int _co_iface_is_wireless(const co_iface_t *iface) {
-	CHECK((ioctl(iface->fd, SIOCSIFADDR, iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
+	CHECK((ioctl(iface->fd, SIOCGIWNAME, iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
   return 1;
 error: 
   return 0;
@@ -99,6 +101,7 @@ error:
 
 co_iface_t *co_iface_create(const char *iface_name, const int family) {
   co_iface_t *iface = malloc(sizeof(co_iface_t));
+  memset(iface, '\0', sizeof(co_iface_t));
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
   strlcpy(iface->ifr.ifr_name, iface_name, IFNAMSIZ);
   
@@ -133,23 +136,18 @@ int co_iface_set_ip(co_iface_t *iface, const char *ip_addr, const char *netmask)
 
   DEBUG("Setting address %s and netmask %s.", ip_addr, netmask);
  
-	/* Read interface flags */
-	CHECK((ioctl(iface->fd, SIOCGIFFLAGS, iface->ifr) < 0), "Interface shutdown: %s", iface->ifr.ifr_name);
- 
-	// If interface is down, bring it up
-	if (!(iface->ifr.ifr_flags & IFF_UP)) {
-		fprintf(stdout, "Device is currently down..setting up.-- %u\n",iface->ifr.ifr_flags);
-		iface->ifr.ifr_flags |= IFF_UP;
-		CHECK((ioctl(iface->fd, SIOCSIFFLAGS, iface->ifr) < 0), "Interface up failed: %s", iface->ifr.ifr_name);
-    DEBUG("Interface is up.");
-	}
- 
 	// Convert IP from numbers and dots to binary notation
   inet_pton(AF_INET, ip_addr, &addr->sin_addr);
-	CHECK((ioctl(iface->fd, SIOCSIFADDR, iface->ifr) < 0), "Failed to set IP address for interface: %s", iface->ifr.ifr_name);
+	CHECK((ioctl(iface->fd, SIOCSIFADDR, &iface->ifr) == 0), "Failed to set IP address for interface: %s", iface->ifr.ifr_name);
 
   inet_pton(AF_INET, netmask, &addr->sin_addr);
-	CHECK((ioctl(iface->fd, SIOCSIFNETMASK, iface->ifr) < 0), "Failed to set IP address for interface: %s", iface->ifr.ifr_name);
+	CHECK((ioctl(iface->fd, SIOCSIFNETMASK, &iface->ifr) == 0), "Failed to set IP address for interface: %s", iface->ifr.ifr_name);
+
+  //Get and set interface flags.
+  CHECK((ioctl(iface->fd, SIOCGIFFLAGS, &iface->ifr) == 0), "Interface shutdown: %s", iface->ifr.ifr_name);
+	iface->ifr.ifr_flags |= IFF_UP;
+	iface->ifr.ifr_flags |= IFF_RUNNING;
+	CHECK((ioctl(iface->fd, SIOCSIFFLAGS, &iface->ifr) == 0), "Interface up failed: %s", iface->ifr.ifr_name);
  
   DEBUG("Addressing for interface %s is done!", iface->ifr.ifr_name);
 	return 1;
@@ -162,12 +160,14 @@ int co_iface_wpa_connect(co_iface_t *iface) {
 	char *filename;
 	size_t length;
 
-  //CHECK(iface->wireless, "Not a wireless interface: %s", iface->ifr.ifr_name);
+  CHECK(iface->wireless, "Not a wireless interface: %s", iface->ifr.ifr_name);
 
 	length = strlen(wpa_control_dir) + strlen(iface->ifr.ifr_name) + 2;
 	filename = malloc(length);
 	CHECK_MEM(filename);
+  memset(filename, '\0', length);
 	snprintf(filename, length, "%s/%s", wpa_control_dir, iface->ifr.ifr_name);
+  DEBUG("WPA control file: %s", filename);
 
 	iface->ctrl = wpa_ctrl_open(filename);
 	free(filename);
@@ -217,6 +217,30 @@ int co_iface_set_encryption(co_iface_t *iface, const char *proto) {
 
 int co_iface_set_key(co_iface_t *iface, const char *key) {
   return _co_iface_wpa_set(iface, "psk", key); 
+}
+
+int co_iface_wireless_apscan(co_iface_t *iface, const int value) {
+  char cmd[256];
+  snprintf(cmd, sizeof(cmd), "AP_SCAN %d", value);
+	cmd[sizeof(cmd) - 1] = '\0';
+
+	return _co_iface_wpa_command(iface, cmd);
+}
+
+int co_iface_wireless_enable(co_iface_t *iface) {
+  char cmd[256];
+  snprintf(cmd, sizeof(cmd), "ENABLE_NETWORK %d", iface->wpa_id);
+	cmd[sizeof(cmd) - 1] = '\0';
+
+	return _co_iface_wpa_command(iface, cmd);
+}
+
+int co_iface_wireless_disable(co_iface_t *iface) {
+  char cmd[256];
+  snprintf(cmd, sizeof(cmd), "DISABLE_NETWORK %d", iface->wpa_id);
+	cmd[sizeof(cmd) - 1] = '\0';
+
+	return _co_iface_wpa_command(iface, cmd);
 }
 
 int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath) {
