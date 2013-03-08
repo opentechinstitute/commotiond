@@ -189,3 +189,110 @@ int argv_to_string(char **argv, const int argc, char *output, const size_t max) 
   } 
   return 1; 
 }
+
+int wifi_freq(const int channel) {
+  if(channel > 14) {
+    return 5000 + 5*channel;
+  }
+  switch(channel) {
+    case 1:
+      return 2412;
+      break;
+    case 2:
+      return 2417;
+      break;
+    case 3:
+      return 2422;
+      break;
+    case 4:
+      return 2427;
+      break;
+    case 5:
+      return 2432;
+      break;
+    case 6:
+      return 2437;
+      break;
+    case 7:
+      return 2442;
+      break;
+    case 8:
+      return 2447;
+      break;
+    case 9:
+      return 2452;
+      break;
+    case 10:
+      return 2457;
+      break;
+    case 11:
+      return 2462;
+      break;
+    case 12:
+      return 2467;
+      break;
+    case 13:
+      return 2472;
+      break;
+    case 14:
+      return 2484;
+      break;
+    default:
+      ERROR("Not a valid channel!");
+      return 0;
+  }
+}
+
+int wifi_chan(const int frequency) {
+  if(frequency < 5080) {
+    return (frequency - 5000)/5;
+  }
+  switch(frequency) {
+    case 2412:
+      return 1;
+      break;
+    case 2417:
+      return 2;
+      break;
+    case 2422:
+      return 3;
+      break;
+    case 2427:
+      return 4;
+      break;
+    case 2432:
+      return 5;
+      break;
+    case 2437:
+      return 6;
+      break;
+    case 2442:
+      return 7;
+      break;
+    case 2447:
+      return 8;
+      break;
+    case 2452:
+      return 9;
+      break;
+    case 2457:
+      return 10;
+      break;
+    case 2462:
+      return 11;
+      break;
+    case 2467:
+      return 12;
+      break;
+    case 2472:
+      return 13;
+      break;
+    case 2484:
+      return 14;
+      break;
+    default:
+      ERROR("Not a valid frequency!");
+      return 0;
+  }
+
+}

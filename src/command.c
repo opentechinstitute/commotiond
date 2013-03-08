@@ -140,7 +140,7 @@ char *cmd_up(void *self, char *argv[], int argc) {
     co_iface_wpa_connect(iface);
     co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "\"commotionwireless.net\""));
     co_iface_set_bssid(iface, co_profile_get_string(prof, "bssid", "02:CA:FF:EE:BA:BE"));
-    //co_iface_set_frequency(iface, co_profile_get_string(prof, "freq", 2447));
+    co_iface_set_frequency(iface, wifi_freq(co_profile_get_int(prof, "channel", 5)));
     co_iface_set_mode(iface, co_profile_get_string(prof, "mode", "\"adhoc\""));
     co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
     co_iface_wireless_apscan(iface, 0);
@@ -172,5 +172,4 @@ char *cmd_status(void *self, char *argv[], int argc) {
     return this->usage;
   }
   return ret;
-  
 }

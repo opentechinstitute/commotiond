@@ -59,4 +59,8 @@ int process_files(const char *dir_path, file_iter loader);
 int string_to_argv(const char *input, char **argv, int *argc, const size_t max);
 
 int argv_to_string(char **argv, const int argc, char *output, const size_t max);
+
+int wifi_freq(const int channel);
+
+int wifi_chan(const int frequency);
 #endif
