@@ -33,15 +33,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-//#include <stropts.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <linux/sockios.h>
-#include <iwlib.h>
 #include "extern/wpa_ctrl.h"
 #include "debug.h"
 #include "iface.h"
