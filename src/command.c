@@ -119,7 +119,9 @@ char *cmd_list_profiles(void *self, char *argv[], int argc) {
 char *cmd_up(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
   char mac[6];
+  memset(mac, '\0', sizeof(mac));
   char address[16];
+  memset(address, '\0', sizeof(address));
   char *ret = strdup("Interface up!\n");
   if(argc < 2) {
     return this->usage;
@@ -129,8 +131,9 @@ char *cmd_up(void *self, char *argv[], int argc) {
   co_profile_t *prof = co_profile_find(argv[1]);
   co_profile_dump(prof);
   if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
-    co_iface_get_mac(iface, mac);
-    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "ip", "255.0.0.0"), mac, address);
+    if(!co_iface_get_mac(iface, mac)) DEBUG("Error getting MAC address!");
+    DEBUG("MAC: %s", mac);
+    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), mac, address);
   }
   DEBUG("Address: %s", address);
   if(iface->wireless) {
@@ -144,7 +147,7 @@ char *cmd_up(void *self, char *argv[], int argc) {
     co_iface_wireless_enable(iface);
   }
 
-  co_iface_set_ip(iface, address, co_profile_get_string(prof, "ip", "255.0.0.0"));
+  co_iface_set_ip(iface, address, co_profile_get_string(prof, "netmask", "255.0.0.0"));
 
   return ret;
 error:
@@ -158,11 +161,7 @@ char *cmd_down(void *self, char *argv[], int argc) {
   if(argc < 2) {
     return this->usage;
   }
-  co_iface_t *iface = co_iface_create(argv[0], AF_INET);
-  CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
-  co_iface_unset_ip(iface);
-  return ret;
-error:
+
   return ret;
 }
 

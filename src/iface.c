@@ -96,6 +96,17 @@ error:
   return 0;
 }
 
+static int _co_iface_wpa_disable_network(co_iface_t *iface) {
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+  
+  CHECK(_co_iface_wpa_command(iface, "DISABLE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
+  DEBUG("Disabled wpa_supplicant network #%d", iface->wpa_id);
+  return 1;
+error:
+  return 0;
+}
+
 static int _co_iface_wpa_set(co_iface_t *iface, const char *option, const char *optval) {
 	char cmd[256];
 	int res;
@@ -138,10 +149,17 @@ co_iface_t *co_iface_create(const char *iface_name, const int family) {
 }
 
 int co_iface_get_mac(co_iface_t *iface, char output[6]) {
-  if (0 == ioctl(iface->fd, SIOCGIFHWADDR, iface->ifr)) {
-    memmove(output, iface->ifr.ifr_addr.sa_data, sizeof(output));
+  co_iface_t *maciface = malloc(sizeof(co_iface_t));
+  memmove(maciface, iface, sizeof(co_iface_t));
+  if (0 == ioctl(iface->fd, SIOCGIFHWADDR, &maciface->ifr)) {
+    DEBUG("Received MAC Address : %02x:%02x:%02x:%02x:%02x:%02x\n",
+                maciface->ifr.ifr_hwaddr.sa_data[0],maciface->ifr.ifr_hwaddr.sa_data[1],iface->ifr.ifr_hwaddr.sa_data[2]
+                ,iface->ifr.ifr_hwaddr.sa_data[3],iface->ifr.ifr_hwaddr.sa_data[4],iface->ifr.ifr_hwaddr.sa_data[5]);
+    memmove(output, maciface->ifr.ifr_addr.sa_data, sizeof(output));
+    free(maciface);
     return 1;
   }
+  free(maciface);
   return 0;
 }
 
@@ -276,14 +294,11 @@ int co_iface_wireless_enable(co_iface_t *iface) {
 }
 
 int co_iface_wireless_disable(co_iface_t *iface) {
-  char cmd[256];
-  char buf[WPA_REPLY_SIZE];
-  size_t len;
-
-  snprintf(cmd, sizeof(cmd), "DISABLE_NETWORK %d", iface->wpa_id);
-	cmd[sizeof(cmd) - 1] = '\0';
-
-	return _co_iface_wpa_command(iface, cmd, buf, &len);
+  CHECK(_co_iface_wpa_disable_network(iface), "Failed to disable network %s", iface->ifr.ifr_name);
+  CHECK(_co_iface_wpa_remove_network(iface), "Failed to remove network %s", iface->ifr.ifr_name);
+	return 1;
+error:
+  return 0;
 }
 
 /*
