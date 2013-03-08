@@ -87,9 +87,16 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   new_profile->name = strdup(filename);
   while(fgets(line, 80, config_file) != NULL) {
     if(strlen(line) > 1) {
+      char *key_copy, *value_copy;
       sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
-      DEBUG("Inserting key: %s and value: %s into profile tree.", key, value);
-      new_profile->profile = tst_insert(new_profile->profile, (char *)key, strlen(key), (void *)value);
+
+      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
+      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
+      strcpy(key_copy, key);
+      strcpy(value_copy, value);
+
+      DEBUG("Inserting key: %s and value: %s into profile tree.", key_copy, value_copy);
+      new_profile->profile = tst_insert(new_profile->profile, (char *)key_copy, strlen(key_copy), (void *)value_copy);
       CHECK(new_profile->profile != NULL, "Could not load line %d of %s.", line_number, path);
       line_number++;
     }
