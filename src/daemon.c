@@ -230,6 +230,7 @@ int main(int argc, char *argv[]) {
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
   co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
   co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
+  co_cmd_add("down", cmd_down, "down <interface>\n", "Bring specified interface down.\n", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
   co_socket_t *socket = NEW(co_socket, unix_socket);

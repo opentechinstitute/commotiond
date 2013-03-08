@@ -74,7 +74,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   int line_number = 1;
   //int strings = 0;
   FILE *config_file = NULL;
-  tst_t *config_tree = NULL;
+  //tst_t *config_tree = NULL;
 
   DEBUG("Importing file %s at path %s", filename, path);
 
@@ -83,28 +83,29 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   config_file = fopen(path_tmp, "r");
   CHECK(config_file != NULL, "Config file %s could not be opened", path);
 
-  //while((strings = fscanf(config_file, "%[^=]= %[^\n]", (char *)key, (char *)value)) != EOF) {
+  co_profile_t *new_profile = malloc(sizeof(co_profile_t));
+  new_profile->name = strdup(filename);
   while(fgets(line, 80, config_file) != NULL) {
     if(strlen(line) > 1) {
       sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
       DEBUG("Inserting key: %s and value: %s into profile tree.", key, value);
-      config_tree = tst_insert(config_tree, (char *)key, strlen(key), (void *)value);
-      CHECK(config_tree != NULL, "Could not load line %d of %s.", line_number, path);
+      new_profile->profile = tst_insert(new_profile->profile, (char *)key, strlen(key), (void *)value);
+      CHECK(new_profile->profile != NULL, "Could not load line %d of %s.", line_number, path);
       line_number++;
     }
   }
 
   fclose(config_file);
-  co_profile_t *new_profile = malloc(sizeof(co_profile_t));
-  new_profile->name = strdup(filename);
-  new_profile->profile = config_tree;
   list_append(profiles, lnode_create((void *)new_profile));
 
   return 1;
 
 error:
   if(config_file) fclose(config_file);
-  if(config_tree) tst_destroy(config_tree);
+  //if(new_profile != NULL) {
+  //  tst_destroy(new_profile->profile);
+  //  free(new_profile);
+  //}
   return 0;
 }
 
@@ -165,8 +166,9 @@ int co_profile_get_int(co_profile_t *profile, const char *key, const int def) {
 }
 
 char *co_profile_get_string(co_profile_t *profile, const char *key, char *def) {
-  CHECK_MEM(profile);
-  char *value = tst_search(profile->profile, key, strlen(key));
+  CHECK_MEM(profile->profile);
+  char *value = tst_search(profile->profile, key, strlen(key) + 1);
+  DEBUG("profile: %s, key:%s, value: %s", profile->name, key, value);
 
   return value == NULL ? def : value;
 
@@ -193,4 +195,14 @@ co_profile_t *co_profile_find(const char *name) {
   return lnode_get(node);
 error:
   return NULL;
+}
+
+static void _co_profile_dump_i(void *value, void *data) {
+  DEBUG("Value: %s", (char *)value);
+  return;
+}
+
+void co_profile_dump(co_profile_t *profile) {
+  tst_traverse(profile->profile, _co_profile_dump_i, NULL);
+  return;
 }

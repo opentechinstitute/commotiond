@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stropts.h>
+//#include <stropts.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <linux/sockios.h>
+#include <iwlib.h>
 #include "extern/wpa_ctrl.h"
 #include "debug.h"
 #include "iface.h"
@@ -115,7 +116,8 @@ co_iface_t *co_iface_create(const char *iface_name, const int family) {
     return NULL;
   }
 
-  if(_co_iface_is_wireless(iface)) iface->wireless = true;
+  //if(_co_iface_is_wireless(iface)) iface->wireless = true;
+  iface->wireless = true;
   iface->wpa_id = -1;
     
   return iface; 
@@ -152,6 +154,18 @@ int co_iface_set_ip(co_iface_t *iface, const char *ip_addr, const char *netmask)
   DEBUG("Addressing for interface %s is done!", iface->ifr.ifr_name);
 	return 1;
 
+error:
+  return 0;
+}
+
+int co_iface_unset_ip(co_iface_t *iface) {
+  CHECK_MEM(iface); 
+  //Get and set interface flags.
+  CHECK((ioctl(iface->fd, SIOCGIFFLAGS, &iface->ifr) == 0), "Interface shutdown: %s", iface->ifr.ifr_name);
+	iface->ifr.ifr_flags &= ~IFF_UP;
+	iface->ifr.ifr_flags &= ~IFF_RUNNING;
+	CHECK((ioctl(iface->fd, SIOCSIFFLAGS, &iface->ifr) == 0), "Interface up failed: %s", iface->ifr.ifr_name);
+  return 1;
 error:
   return 0;
 }
@@ -219,6 +233,10 @@ int co_iface_set_key(co_iface_t *iface, const char *key) {
   return _co_iface_wpa_set(iface, "psk", key); 
 }
 
+int co_iface_set_mode(co_iface_t *iface, const char *mode) {
+  return _co_iface_wpa_set(iface, "mode", mode); 
+}
+
 int co_iface_wireless_apscan(co_iface_t *iface, const int value) {
   char cmd[256];
   snprintf(cmd, sizeof(cmd), "AP_SCAN %d", value);
@@ -243,6 +261,7 @@ int co_iface_wireless_disable(co_iface_t *iface) {
 	return _co_iface_wpa_command(iface, cmd);
 }
 
+/*
 int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath) {
   FILE *fp = fopen(resolvpath, "w+");
   if(fp != NULL) {
@@ -250,6 +269,18 @@ int co_set_dns(const char *dnsservers[], const size_t numservers, const char *se
     for(int i = 0; i < numservers; i++) {
       fprintf(fp, "nameserver %s\n", dnsservers[i]);
     }
+    fclose(fp);
+    return 1;
+  } else ERROR("Could not open file: %s", resolvpath);
+  return 0;
+}
+*/
+
+int co_set_dns(const char *dnsserver, const char *searchdomain, const char *resolvpath) {
+  FILE *fp = fopen(resolvpath, "w+");
+  if(fp != NULL) {
+    if(searchdomain != NULL) fprintf(fp, "search %s\n", searchdomain); 
+    fprintf(fp, "nameserver %s\n", dnsserver);
     fclose(fp);
     return 1;
   } else ERROR("Could not open file: %s", resolvpath);

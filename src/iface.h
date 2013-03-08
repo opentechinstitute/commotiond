@@ -54,6 +54,8 @@ int co_iface_get_mac(co_iface_t *iface, char output[6]);
 
 int co_iface_set_ip(co_iface_t *iface, const char *ip_addr, const char *netmask);
 
+int co_iface_unset_ip(co_iface_t *iface);
+
 int co_iface_set_ssid(co_iface_t *iface, const char *ssid);
 
 int co_iface_set_bssid(co_iface_t *iface, const char *bssid);
@@ -64,13 +66,17 @@ int co_iface_set_encryption(co_iface_t *iface, const char *proto);
 
 int co_iface_set_key(co_iface_t *iface, const char *key);
 
+int co_iface_set_mode(co_iface_t *iface, const char *mode);
+
 int co_iface_wireless_apscan(co_iface_t *iface, const int value);
 
 int co_iface_wireless_enable(co_iface_t *iface);
 
 int co_iface_wireless_disable(co_iface_t *iface);
 
-int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
+int co_set_dns(const char *dnsserver, const char *searchdomain, const char *resolvpath);
+
+//int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
 int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output);
 

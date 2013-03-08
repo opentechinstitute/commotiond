@@ -127,12 +127,19 @@ char *cmd_up(void *self, char *argv[], int argc) {
   co_iface_t *iface = co_iface_create(argv[0], AF_INET);
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
   co_profile_t *prof = co_profile_find(argv[1]);
-  co_iface_get_mac(iface, mac);
-  co_generate_ip("5.0.0.0", "255.0.0.0", mac, address);
+  co_profile_dump(prof);
+  if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
+    co_iface_get_mac(iface, mac);
+    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "ip", "255.0.0.0"), mac, address);
+  }
   DEBUG("Address: %s", address);
   if(iface->wireless) {
     co_iface_wpa_connect(iface);
     co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "\"commotionwireless.net\""));
+    co_iface_set_bssid(iface, co_profile_get_string(prof, "bssid", "\"02:CA:FF:EE:BA:BE\""));
+    //co_iface_set_frequency(iface, co_profile_get_string(prof, "freq", 2447));
+    co_iface_set_mode(iface, co_profile_get_string(prof, "mode", "\"adhoc\""));
+    co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
     co_iface_wireless_apscan(iface, 0);
     co_iface_wireless_enable(iface);
   }
@@ -143,4 +150,28 @@ char *cmd_up(void *self, char *argv[], int argc) {
 error:
   free(iface);
   return ret;
+}
+
+char *cmd_down(void *self, char *argv[], int argc) {
+  co_cmd_t *this = self;
+  char *ret = strdup("Interface down!\n");
+  if(argc < 2) {
+    return this->usage;
+  }
+  co_iface_t *iface = co_iface_create(argv[0], AF_INET);
+  CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
+  co_iface_unset_ip(iface);
+  return ret;
+error:
+  return ret;
+}
+
+char *cmd_status(void *self, char *argv[], int argc) {
+  co_cmd_t *this = self;
+  char *ret = strdup("Interface down!\n");
+  if(argc < 1) {
+    return this->usage;
+  }
+  return ret;
+  
 }

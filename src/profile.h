@@ -64,4 +64,5 @@ char *co_list_profiles(void);
 
 co_profile_t *co_profile_find(const char *name);
 
+void co_profile_dump(co_profile_t *profile);
 #endif
