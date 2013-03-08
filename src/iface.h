@@ -37,6 +37,7 @@
 
 #define FREQ_LEN 5 //number of characters in 802.11 frequency designator
 #define MAC_LEN 6
+#define WPA_REPLY_SIZE 2048
 
 typedef struct {
   int fd;

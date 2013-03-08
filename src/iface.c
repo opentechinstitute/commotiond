@@ -63,14 +63,10 @@ static void _co_iface_wpa_cb(char *msg, size_t len) {
   return;
 }
 
-static int _co_iface_wpa_command(const co_iface_t *iface, const char *cmd) {
-	char buffer[2048];
-	size_t length;
-
+static int _co_iface_wpa_command(const co_iface_t *iface, const char *cmd, char *buf, size_t *len) {
   CHECK(iface->ctrl != NULL, "Interface %s not connected to wpa_supplicant.", iface->ifr.ifr_name);
 
-	length = sizeof(buffer) - 1;
-	CHECK((wpa_ctrl_request(iface->ctrl, cmd, strlen(cmd), buffer, &length, _co_iface_wpa_cb) >= 0), "Failed to send command %s to wpa_supplicant.", cmd);
+	CHECK((wpa_ctrl_request(iface->ctrl, cmd, strlen(cmd), buf, len, _co_iface_wpa_cb) >= 0), "Failed to send command %s to wpa_supplicant.", cmd);
 	return 1;
 
 error:
@@ -78,7 +74,23 @@ error:
 }
 
 static int _co_iface_wpa_add_network(co_iface_t *iface) {
-  CHECK((iface->wpa_id = _co_iface_wpa_command(iface, "ADD_NETWORK")), "Failed to add network to wpa_supplicant.");
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+  
+  CHECK(_co_iface_wpa_command(iface, "ADD_NETWORK", buf, &len), "Failed to add network to wpa_supplicant.");
+  iface->wpa_id = atoi(buf);
+  DEBUG("Added wpa_supplicant network #%s", buf);
+  return 1;
+error:
+  return 0;
+}
+
+static int _co_iface_wpa_remove_network(co_iface_t *iface) {
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+  
+  CHECK(_co_iface_wpa_command(iface, "REMOVE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
+  DEBUG("Removed wpa_supplicant network #%d", iface->wpa_id);
   return 1;
 error:
   return 0;
@@ -87,6 +99,8 @@ error:
 static int _co_iface_wpa_set(co_iface_t *iface, const char *option, const char *optval) {
 	char cmd[256];
 	int res;
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
 
   if(iface->wpa_id < 0) { CHECK(_co_iface_wpa_add_network(iface), "Could not set option %s", option); }
 
@@ -94,7 +108,7 @@ static int _co_iface_wpa_set(co_iface_t *iface, const char *option, const char *
 			  iface->wpa_id, option, optval);
 	CHECK((res > 0 && (size_t) res <= sizeof(cmd) - 1), "Too long SET_NETWORK command.");
 	
-  return _co_iface_wpa_command(iface, cmd);
+  return _co_iface_wpa_command(iface, cmd, buf, &len);
 
 error:
   return 0;
@@ -200,6 +214,8 @@ int co_iface_set_ssid(co_iface_t *iface, const char *ssid) {
 int co_iface_set_bssid(co_iface_t *iface, const char *bssid) {
 	char cmd[256], *pos, *end;
 	int ret;
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
 
 	end = cmd + sizeof(cmd);
 	pos = cmd;
@@ -216,7 +232,7 @@ int co_iface_set_bssid(co_iface_t *iface, const char *bssid) {
 	}
 	pos += ret;
 
-	return _co_iface_wpa_command(iface, cmd);
+	return _co_iface_wpa_command(iface, cmd, buf, &len);
 }
 
 int co_iface_set_frequency(co_iface_t *iface, const int frequency) {
@@ -239,26 +255,35 @@ int co_iface_set_mode(co_iface_t *iface, const char *mode) {
 
 int co_iface_wireless_apscan(co_iface_t *iface, const int value) {
   char cmd[256];
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+
   snprintf(cmd, sizeof(cmd), "AP_SCAN %d", value);
 	cmd[sizeof(cmd) - 1] = '\0';
 
-	return _co_iface_wpa_command(iface, cmd);
+	return _co_iface_wpa_command(iface, cmd, buf, &len);
 }
 
 int co_iface_wireless_enable(co_iface_t *iface) {
   char cmd[256];
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+
   snprintf(cmd, sizeof(cmd), "ENABLE_NETWORK %d", iface->wpa_id);
 	cmd[sizeof(cmd) - 1] = '\0';
 
-	return _co_iface_wpa_command(iface, cmd);
+	return _co_iface_wpa_command(iface, cmd, buf, &len);
 }
 
 int co_iface_wireless_disable(co_iface_t *iface) {
   char cmd[256];
+  char buf[WPA_REPLY_SIZE];
+  size_t len;
+
   snprintf(cmd, sizeof(cmd), "DISABLE_NETWORK %d", iface->wpa_id);
 	cmd[sizeof(cmd) - 1] = '\0';
 
-	return _co_iface_wpa_command(iface, cmd);
+	return _co_iface_wpa_command(iface, cmd, buf, &len);
 }
 
 /*
