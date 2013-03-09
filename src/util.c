@@ -142,7 +142,7 @@ int process_files(const char *dir_path, file_iter loader) {
   size_t path_size = strlen(dir_path);
   CHECK((path_size > 0) && (path_size <= PATH_MAX), "Invalid path length!");
   DIR *dir_iter = NULL;
-  dir_iter = opendir(dir_path);
+  CHECK((dir_iter = opendir(dir_path)), "Could not read directory!");
   struct dirent *dir_entry = NULL;
   DEBUG("Processing files in directory %s", dir_path);
   

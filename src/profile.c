@@ -79,6 +79,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   DEBUG("Importing file %s at path %s", filename, path);
 
   strlcpy(path_tmp, path, PATH_MAX);
+  strlcat(path_tmp, "/", PATH_MAX);
   strlcat(path_tmp, filename, PATH_MAX);
   config_file = fopen(path_tmp, "r");
   CHECK(config_file != NULL, "Config file %s could not be opened", path);
@@ -193,7 +194,9 @@ static void _co_list_profiles_i(list_t *list, lnode_t *lnode, void *context) {
 char *co_list_profiles(void) {
   char *ret = malloc(1024);
   list_process(profiles, (void *)ret, _co_list_profiles_i);
-  return ret;
+  if(strlen(ret) > 0) {
+    return ret;
+  } else return NULL;
 }
 
 co_profile_t *co_profile_find(const char *name) {

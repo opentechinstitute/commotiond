@@ -42,12 +42,13 @@
 #include <netinet/in.h>
 #include <linux/sockios.h>
 #include "extern/wpa_ctrl.h"
+#include "extern/list.h"
 #include "debug.h"
 #include "iface.h"
 #include "util.h"
 
-#define SIOCGIWNAME 0x8B01
 
+static list_t *ifaces = NULL;
 static char *wpa_control_dir = "/var/run/wpa_supplicant";
 
 static int _co_iface_is_wireless(const co_iface_t *iface) {
@@ -124,7 +125,40 @@ error:
   return 0;
 }
 
-co_iface_t *co_iface_create(const char *iface_name, const int family) {
+static int _co_iface_match_i(const void *iface, const void *iface_name) {
+  const co_iface_t *this_iface = iface;
+  const char *this_name = iface_name;
+  if((strcmp(this_iface->ifr.ifr_name, this_name)) == 0) return 0;
+  return -1;
+}
+
+int co_ifaces_create(void) {
+  CHECK((ifaces = list_create(IFACES_MAX)) != NULL, "Interface loader creation failed, clearing lists.");
+  return 1;
+
+error:
+  list_destroy(ifaces);
+  free(ifaces);
+  return 0;
+}
+
+int co_iface_remove(const char *iface_name) {
+  lnode_t *node;
+  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to delete interface %s!", iface_name);
+  node = list_delete(ifaces, node);
+  co_iface_t *iface = lnode_get(node);
+  co_iface_unset_ip(iface);
+  co_iface_wireless_disable(iface);
+  co_iface_wpa_disconnect(iface);
+  free(iface->profile);
+  free(iface);
+  return 1;
+
+error:
+  return 0;
+}
+
+co_iface_t *co_iface_add(const char *iface_name, const int family) {
   co_iface_t *iface = malloc(sizeof(co_iface_t));
   memset(iface, '\0', sizeof(co_iface_t));
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -144,6 +178,7 @@ co_iface_t *co_iface_create(const char *iface_name, const int family) {
   iface->wireless = true;
   iface->wpa_id = -1;
     
+  list_append(ifaces, lnode_create((void *)iface));
   return iface; 
 }
 
@@ -201,6 +236,14 @@ error:
   return 0;
 }
 
+int co_iface_wpa_disconnect(co_iface_t *iface) {
+  if(iface->ctrl) {
+    wpa_ctrl_detach(iface->ctrl);
+    wpa_ctrl_close(iface->ctrl);
+    return 1;
+  } else return 0;
+}
+
 int co_iface_wpa_connect(co_iface_t *iface) {
 	char *filename;
 	size_t length;
@@ -214,12 +257,12 @@ int co_iface_wpa_connect(co_iface_t *iface) {
 	snprintf(filename, length, "%s/%s", wpa_control_dir, iface->ifr.ifr_name);
   DEBUG("WPA control file: %s", filename);
 
-	iface->ctrl = wpa_ctrl_open(filename);
+	CHECK((iface->ctrl = wpa_ctrl_open(filename)), "Failed to connect to wpa_supplicant.");
 	free(filename);
 	return 1;
 
 error:
-  if(filename) free(filename);
+  free(filename);
   return 0;
 }
 
@@ -270,7 +313,7 @@ int co_iface_set_mode(co_iface_t *iface, const char *mode) {
   return _co_iface_wpa_set(iface, "mode", mode); 
 }
 
-int co_iface_wireless_apscan(co_iface_t *iface, const int value) {
+int co_iface_set_apscan(co_iface_t *iface, const int value) {
   char cmd[256];
   char buf[WPA_REPLY_SIZE];
   size_t len;
@@ -367,4 +410,21 @@ int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN],
   return 1;
 error:
   return 0;
+}
+
+char *co_iface_profile(const char *iface_name) {
+  lnode_t *node;
+  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to get interface %s profile!", iface_name);
+  co_iface_t *iface = lnode_get(node);
+  return iface->profile;
+error:
+  return NULL;
+}
+
+co_iface_t *co_iface_get(const char *iface_name) {
+  lnode_t *node;
+  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to get interface %s profile!", iface_name);
+  return lnode_get(node);
+error:
+  return NULL;
 }

@@ -49,6 +49,7 @@
 #include "socket.h"
 #include "msg.h"
 #include "olsrd.h"
+#include "iface.h"
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -78,7 +79,7 @@ int dispatcher_cb(void *self, void *context) {
     string_to_argv(msgrcv->payload, cmdargv, &cmdargc, MAX_ARGS);
   }
   char *ret = co_cmd_exec(msgrcv->target, cmdargv, cmdargc, 0);
-  if(ret != NULL) {
+  if(ret) {
     sock->send(sock, ret, strlen(ret));
     free(ret);
   } else {
@@ -225,12 +226,15 @@ int main(int argc, char *argv[]) {
 
   if(daemonize) daemon_start((char *)rundir, (char *)pidfile);
   co_loop_create();
+  co_ifaces_create();
   co_profiles_create();
   co_profile_import_files(profiledir);
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
   co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
   co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
   co_cmd_add("down", cmd_down, "down <interface>\n", "Bring specified interface down.\n", 0);
+  co_cmd_add("status", cmd_status, "status <interface>\n", "Report profile of connected interface.\n", 0);
+  co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
   co_socket_t *socket = NEW(co_socket, unix_socket);

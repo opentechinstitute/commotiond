@@ -113,7 +113,12 @@ char *cmd_help(void *self, char *argv[], int argc) {
 }
 
 char *cmd_list_profiles(void *self, char *argv[], int argc) {
-  return co_list_profiles();
+  char *ret = NULL;
+  CHECK((ret = co_list_profiles()), "No valid profiles to list!");
+  return ret;
+error:
+  ret = strdup("No profiles available.\n");
+  return ret;
 }
 
 char *cmd_up(void *self, char *argv[], int argc) {
@@ -122,11 +127,12 @@ char *cmd_up(void *self, char *argv[], int argc) {
   memset(mac, '\0', sizeof(mac));
   char address[16];
   memset(address, '\0', sizeof(address));
-  char *ret = strdup("Interface up!\n");
+  char *ret = strdup("Interface up.\n");
   if(argc < 2) {
     return this->usage;
   }
-  co_iface_t *iface = co_iface_create(argv[0], AF_INET);
+  co_iface_t *iface = co_iface_add(argv[0], AF_INET);
+  DEBUG("Bringing up iface %s", argv[0]);
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
   co_profile_t *prof = co_profile_find(argv[1]);
   co_profile_dump(prof);
@@ -136,18 +142,18 @@ char *cmd_up(void *self, char *argv[], int argc) {
     co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), mac, address);
   }
   DEBUG("Address: %s", address);
-  if(iface->wireless) {
-    co_iface_wpa_connect(iface);
+  if(iface->wireless && co_iface_wpa_connect(iface)) {
     co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "\"commotionwireless.net\""));
     co_iface_set_bssid(iface, co_profile_get_string(prof, "bssid", "02:CA:FF:EE:BA:BE"));
     co_iface_set_frequency(iface, wifi_freq(co_profile_get_int(prof, "channel", 5)));
     co_iface_set_mode(iface, co_profile_get_string(prof, "mode", "\"adhoc\""));
-    co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
-    co_iface_wireless_apscan(iface, 0);
+    co_iface_set_apscan(iface, 0);
     co_iface_wireless_enable(iface);
   }
 
+  co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
   co_iface_set_ip(iface, address, co_profile_get_string(prof, "netmask", "255.0.0.0"));
+  iface->profile = strdup(argv[1]);
 
   return ret;
 error:
@@ -157,19 +163,79 @@ error:
 
 char *cmd_down(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
-  char *ret = strdup("Interface down!\n");
-  if(argc < 2) {
+  char *ret = NULL;
+  if(argc < 1) {
     return this->usage;
   }
 
+  if(co_iface_remove(argv[0])) {
+    ret = strdup("Interface down.\n");
+  } else {
+    ret = strdup("Failed to bring down interface!\n");
+  }
   return ret;
 }
 
 char *cmd_status(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
-  char *ret = strdup("Interface down!\n");
+  char *ret = NULL;
   if(argc < 1) {
-    return this->usage;
+    return ret = strdup(this->usage);
   }
+  CHECK((ret = co_iface_profile(argv[0])), "Interface status not found.");
+  ret = strdup(ret);
   return ret;
+
+error:
+  ret = strdup("Status not available.\n");
+  return ret;
+}
+
+char *cmd_state(void *self, char *argv[], int argc) {
+  co_cmd_t *this = self;
+  char *ret = NULL;
+  char mac[6];
+  memset(mac, '\0', sizeof(mac));
+  char address[16];
+  memset(address, '\0', sizeof(address));
+  if(argc < 2) {
+    return ret = strdup(this->usage);
+  }
+  char *profile_name = NULL; 
+  CHECK((profile_name = co_iface_profile(argv[0])), "Interface state is inactive."); 
+  DEBUG("profile_name: %s", profile_name);
+  co_profile_t *prof = NULL;
+  CHECK((prof = co_profile_find(profile_name)), "Could not load profile."); 
+  if(!strcmp(argv[1], "ssid")) {
+    ret = co_profile_get_string(prof, "ssid", "commotionwireless.net");
+  } else if(!strcmp(argv[1], "bssid")) {
+    ret = co_profile_get_string(prof, "bssid", "02:CA:FF:EE:BA:BE");
+  } else if(!strcmp(argv[1], "channel")) {
+    ret = co_profile_get_string(prof, "channel", "5");
+  } else if(!strcmp(argv[1], "type")) {
+    ret = co_profile_get_string(prof, "type", "mesh");
+  } else if(!strcmp(argv[1], "dns")) {
+    ret = co_profile_get_string(prof, "dns", "8.8.8.8");
+  } else if(!strcmp(argv[1], "domain")) {
+    ret = co_profile_get_string(prof, "domain", "mesh.local");
+  } else if(!strcmp(argv[1], "ipgenerate")) {
+    ret = co_profile_get_string(prof, "ipgenerate", "true");
+  } else if(!strcmp(argv[1], "netmask")) {
+    ret = co_profile_get_string(prof, "netmask", "255.0.0.0");
+  } else if(!strcmp(argv[1], "ip")) {
+    if(!strcmp(co_profile_get_string(prof, "ipgenerate", "true"), "true")) {
+      if(co_iface_get_mac(co_iface_get(argv[0]), mac)) {
+        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), mac, address);
+        ret = address;
+      } else ret = "Error getting address!\n";
+    } else {
+      ret = co_profile_get_string(prof, "ip", "5.0.0.0");
+    }
+  } else ret = NULL;
+
+  if(ret) {
+    return ret = strdup(ret);
+  } else return ret = strdup("Failed to get variable state.\n");
+error:
+  return ret = strdup("Failed to get interface or profile.\n");
 }

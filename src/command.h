@@ -64,4 +64,6 @@ char *cmd_down(void *self, char *argv[], int argc);
 
 char *cmd_status(void *self, char *argv[], int argc);
 
+char *cmd_state(void *self, char *argv[], int argc);
+
 #endif

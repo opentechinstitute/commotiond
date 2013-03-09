@@ -38,18 +38,33 @@
 #define FREQ_LEN 5 //number of characters in 802.11 frequency designator
 #define MAC_LEN 6
 #define WPA_REPLY_SIZE 2048
+#define IFACES_MAX 32
+#define SIOCGIWNAME 0x8B01
+
+typedef enum {
+  DOWN = 0,
+  UP = 1
+} co_iface_status_t;
 
 typedef struct {
   int fd;
+  co_iface_status_t status;
+  char *profile;
   struct ifreq ifr;
   struct wpa_ctrl *ctrl;
   int wpa_id;
   bool wireless;
 } co_iface_t;
 
-co_iface_t *co_iface_create(const char *iface_name, const int family);
+int co_ifaces_create(void);
+
+int co_iface_remove(const char *iface_name);
+
+co_iface_t *co_iface_add(const char *iface_name, const int family);
 
 int co_iface_wpa_connect(co_iface_t *iface);
+
+int co_iface_wpa_disconnect(co_iface_t *iface);
 
 int co_iface_get_mac(co_iface_t *iface, char output[6]);
 
@@ -69,7 +84,7 @@ int co_iface_set_key(co_iface_t *iface, const char *key);
 
 int co_iface_set_mode(co_iface_t *iface, const char *mode);
 
-int co_iface_wireless_apscan(co_iface_t *iface, const int value);
+int co_iface_set_apscan(co_iface_t *iface, const int value);
 
 int co_iface_wireless_enable(co_iface_t *iface);
 
@@ -80,5 +95,11 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
 //int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
 int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output);
+
+//int co_iface_status(const char *iface_name);
+
+char *co_iface_profile(const char *iface_name);
+
+co_iface_t *co_iface_get(const char *iface_name);
 
 #endif
