@@ -46,6 +46,7 @@
 #include "debug.h"
 #include "iface.h"
 #include "util.h"
+#include "id.h"
 
 
 static list_t *ifaces = NULL;
@@ -358,6 +359,7 @@ int co_set_dns(const char *dnsservers[], const size_t numservers, const char *se
 }
 */
 
+
 int co_set_dns(const char *dnsserver, const char *searchdomain, const char *resolvpath) {
   FILE *fp = fopen(resolvpath, "w+");
   if(fp != NULL) {
@@ -369,7 +371,7 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
   return 0;
 }
 
-int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output) {
+int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char *output, int type) {
   uint32_t subnet = 0;
   uint32_t addr = 0;
   struct in_addr ipaddr;
@@ -391,7 +393,14 @@ int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN],
    * left to the proper spot.
    */
   for (int i = 0; i < 4; i++)
-    addr |= ((mac[i]&0xff)%0xfe) << (i*8);
+    addr |= ((id.bytes[i]&0xff)%0xfe) << (i*8);
+
+  /* 
+   * if address is of a gateway
+   * type, then set the last byte 
+   * to '1'
+   * */
+  if(type) addr &= 0x01;
 
   /*
    * mask out the parts of address

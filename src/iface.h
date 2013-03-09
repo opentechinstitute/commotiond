@@ -33,7 +33,8 @@
 #ifndef _IFACE_H
 #define _IFACE_H
 #include <stdbool.h>
-#include "net/if.h"
+#include <net/if.h>
+#include "id.h"
 
 #define FREQ_LEN 5 //number of characters in 802.11 frequency designator
 #define MAC_LEN 6
@@ -94,7 +95,7 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
 
 //int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
-int co_generate_ip(const char *ip, const char *netmask, const char mac[MAC_LEN], char *output);
+int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char *output, int type);
 
 //int co_iface_status(const char *iface_name);
 

@@ -50,6 +50,7 @@
 #include "msg.h"
 #include "olsrd.h"
 #include "iface.h"
+#include "id.h"
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -92,7 +93,7 @@ int dispatcher_cb(void *self, void *context) {
   return 1;
 }
 
-static void daemon_start(char *rundir, char *pidfile) {
+static void daemon_start(char *statedir, char *pidfile) {
   int pid, sid, i;
   char str[10];
 
@@ -137,7 +138,7 @@ static void daemon_start(char *rundir, char *pidfile) {
   close(STDOUT_FILENO);
   close(STDERR_FILENO);
 
-  chdir(rundir); //change running directory
+  chdir(statedir); //change running directory
 
   pid_filehandle = open(pidfile, O_RDWR|O_CREAT, 0600); //Ensure only one copy
 
@@ -162,11 +163,13 @@ static void print_usage() {
           "Usage: commotiond [options]\n"
           "\n"
           "Options:\n"
-          " -b, --bind <uri>    Specify management socket.\n"
-          " -n, --nodaemonize   Do not fork into the background.\n"
-          " -p, --pid <file>    Specify pid file.\n"
-          " -r, --rundir <dir>  Specify instance directory.\n"
-          " -h, --help          Print this usage message.\n"
+          " -b, --bind <uri>      Specify management socket.\n"
+          " -f, --profiles <dir>  Specify profile directory.\n"
+          " -i, --id <nodeid>     Specify unique id number for this node.\n"
+          " -n, --nodaemonize     Do not fork into the background.\n"
+          " -p, --pid <file>      Specify pid file.\n"
+          " -s, --statedir <dir>  Specify instance directory.\n"
+          " -h, --help            Print this usage message.\n"
   );
 }
 
@@ -174,21 +177,23 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;
+  int newid = 0;
   char *pidfile = COMMOTION_PIDFILE;
-  char *rundir = COMMOTION_RUNDIR;
+  char *statedir = COMMOTION_STATEDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
   //char *plugindir = COMMOTION_PLUGINDIR;
   char *profiledir = COMMOTION_PROFILEDIR;
 
-  static const char *opt_string = "b:d:f:np:r:h";
+  static const char *opt_string = "b:d:f:i:np:s:h";
 
   static struct option long_opts[] = {
     {"bind", required_argument, NULL, 'b'},
     {"plugins", required_argument, NULL, 'd'},
     {"profiles", required_argument, NULL, 'f'},
+    {"nodeid", required_argument, NULL, 'i'},
     {"nodaemon", no_argument, NULL, 'n'},
     {"pid", required_argument, NULL, 'p'},
-    {"rundir", required_argument, NULL, 'r'},
+    {"statedir", required_argument, NULL, 's'},
     {"help", no_argument, NULL, 'h'}
   };
 
@@ -205,14 +210,17 @@ int main(int argc, char *argv[]) {
       case 'f':
         profiledir = optarg;
         break;
+      case 'i':
+        newid = atoi(optarg);
+        break;
       case 'n':
         daemonize = 0;
         break;
       case 'p':
         pidfile = optarg;
         break;
-      case 'r':
-        rundir = optarg;
+      case 's':
+        statedir = optarg;
         break;
       case 'h':
       default:
@@ -224,7 +232,10 @@ int main(int argc, char *argv[]) {
   }
 
 
-  if(daemonize) daemon_start((char *)rundir, (char *)pidfile);
+  if(daemonize) daemon_start((char *)statedir, (char *)pidfile);
+  co_id_set_from_int(newid);
+  nodeid_t id = co_id_get();
+  DEBUG("Node ID: %d", (int) id.id);
   co_loop_create();
   co_ifaces_create();
   co_profiles_create();
@@ -235,6 +246,7 @@ int main(int argc, char *argv[]) {
   co_cmd_add("down", cmd_down, "down <interface>\n", "Bring specified interface down.\n", 0);
   co_cmd_add("status", cmd_status, "status <interface>\n", "Report profile of connected interface.\n", 0);
   co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
+  co_cmd_add("nodeid", cmd_nodeid, "nodeid <none>\n", "Print unique ID for this node\n", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
   co_socket_t *socket = NEW(co_socket, unix_socket);

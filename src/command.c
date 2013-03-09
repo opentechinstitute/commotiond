@@ -38,6 +38,7 @@
 #include "profile.h"
 #include "iface.h"
 #include "command.h"
+#include "id.h"
 
 static tst_t *commands = NULL;
 
@@ -134,12 +135,14 @@ char *cmd_up(void *self, char *argv[], int argc) {
   co_iface_t *iface = co_iface_add(argv[0], AF_INET);
   DEBUG("Bringing up iface %s", argv[0]);
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
+  nodeid_t id = co_id_get();
+  if(!id.id && co_iface_get_mac(iface, mac)) {
+    co_id_set_from_mac(mac);
+  }
   co_profile_t *prof = co_profile_find(argv[1]);
   co_profile_dump(prof);
   if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
-    if(!co_iface_get_mac(iface, mac)) DEBUG("Error getting MAC address!");
-    DEBUG("MAC: %s", mac);
-    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), mac, address);
+    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
   }
   DEBUG("Address: %s", address);
   if(iface->wireless && co_iface_wpa_connect(iface)) {
@@ -225,7 +228,7 @@ char *cmd_state(void *self, char *argv[], int argc) {
   } else if(!strcmp(argv[1], "ip")) {
     if(!strcmp(co_profile_get_string(prof, "ipgenerate", "true"), "true")) {
       if(co_iface_get_mac(co_iface_get(argv[0]), mac)) {
-        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), mac, address);
+        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
         ret = address;
       } else ret = "Error getting address!\n";
     } else {
@@ -238,4 +241,12 @@ char *cmd_state(void *self, char *argv[], int argc) {
   } else return ret = strdup("Failed to get variable state.\n");
 error:
   return ret = strdup("Failed to get interface or profile.\n");
+}
+
+char *cmd_nodeid(void *self, char *argv[], int argc) {
+  char *ret = malloc(11);
+  memset(ret, '\0', sizeof(ret));
+  nodeid_t id = co_id_get();
+  snprintf(ret, sizeof(ret), "%d", id.id);
+  return ret;
 }
