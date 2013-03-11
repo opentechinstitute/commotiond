@@ -128,7 +128,7 @@ char *cmd_up(void *self, char *argv[], int argc) {
   memset(mac, '\0', sizeof(mac));
   char address[16];
   memset(address, '\0', sizeof(address));
-  char *ret = strdup("Interface up.\n");
+  char *ret;
   if(argc < 2) {
     return this->usage;
   }
@@ -140,6 +140,8 @@ char *cmd_up(void *self, char *argv[], int argc) {
     co_id_set_from_mac(mac);
   }
   co_profile_t *prof = co_profile_find(argv[1]);
+  CHECK(prof != NULL, "Failed to load profile %s.", argv[1]);
+#ifndef _OPENWRT
   co_profile_dump(prof);
   if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
     co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
@@ -156,11 +158,14 @@ char *cmd_up(void *self, char *argv[], int argc) {
 
   co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
   co_iface_set_ip(iface, address, co_profile_get_string(prof, "netmask", "255.0.0.0"));
+#endif
   iface->profile = strdup(argv[1]);
 
+  ret = strdup("Interface up.\n");
   return ret;
 error:
   free(iface);
+  ret = strdup("Interface up failed.\n");
   return ret;
 }
 
@@ -225,6 +230,10 @@ char *cmd_state(void *self, char *argv[], int argc) {
     ret = co_profile_get_string(prof, "ipgenerate", "true");
   } else if(!strcmp(argv[1], "netmask")) {
     ret = co_profile_get_string(prof, "netmask", "255.0.0.0");
+  } else if(!strcmp(argv[1], "wpakey")) {
+    ret = co_profile_get_string(prof, "wpakey", "c0MM0t10n!r0cks");
+  } else if(!strcmp(argv[1], "servald")) {
+    ret = co_profile_get_string(prof, "servald", "true");
   } else if(!strcmp(argv[1], "ip")) {
     if(!strcmp(co_profile_get_string(prof, "ipgenerate", "true"), "true")) {
       if(co_iface_get_mac(co_iface_get(argv[0]), mac)) {
