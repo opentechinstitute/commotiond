@@ -70,7 +70,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   char key[80];
   char value[80];
   char line[80];
-  char path_tmp[PATH_MAX];
+  char path_tmp[PATH_MAX] = {};
   int line_number = 1;
   //int strings = 0;
   FILE *config_file = NULL;
@@ -82,9 +82,9 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   strlcat(path_tmp, "/", PATH_MAX);
   strlcat(path_tmp, filename, PATH_MAX);
   config_file = fopen(path_tmp, "r");
-  CHECK(config_file != NULL, "Config file %s could not be opened", path);
+  CHECK(config_file != NULL, "Config file %s/%s could not be opened", path, filename);
 
-  co_profile_t *new_profile = malloc(sizeof(co_profile_t));
+  co_profile_t *new_profile = calloc(1, sizeof(co_profile_t));
   new_profile->name = strdup(filename);
   while(fgets(line, 80, config_file) != NULL) {
     if(strlen(line) > 1) {
@@ -187,12 +187,12 @@ error:
 static void _co_list_profiles_i(list_t *list, lnode_t *lnode, void *context) {
   co_profile_t *profile = lnode_get(lnode);
   char *data = context;
-  snprintf((char *)data, 1024, "%s\n", profile->name);
+  strcat((char *)data, profile->name);
   return;
 }
 
 char *co_list_profiles(void) {
-  char *ret = malloc(1024);
+  char *ret = calloc(1024, sizeof(char));
   list_process(profiles, (void *)ret, _co_list_profiles_i);
   if(strlen(ret) > 0) {
     return ret;
