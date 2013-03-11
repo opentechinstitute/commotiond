@@ -237,10 +237,8 @@ char *cmd_state(void *self, char *argv[], int argc) {
     ret = co_profile_get_string(prof, "servald", "true");
   } else if(!strcmp(argv[1], "ip")) {
     if(!strcmp(co_profile_get_string(prof, "ipgenerate", "true"), "true")) {
-      if(co_iface_get_mac(co_iface_get(argv[0]), mac)) {
-        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
-        ret = address;
-      } else ret = "Error getting address!\n";
+      co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
+      ret = address;
     } else {
       ret = co_profile_get_string(prof, "ip", "5.0.0.0");
     }
