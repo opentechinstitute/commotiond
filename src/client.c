@@ -52,7 +52,7 @@ static co_msg_t *cli_parse_argv(char *argv[], const int argc) {
   char payload[MSG_MAX_PAYLOAD];
   memset(payload, '\0', sizeof(payload));
   co_msg_t *message;
-  if(argc > 1) {
+  if(argc > 0) {
     char **args = argv + 1;
     CHECK(argv_to_string(args, argc, payload, MSG_MAX_PAYLOAD), "Failed to parse argv.");
     message = co_msg_create(argv[0], payload);
@@ -76,6 +76,7 @@ static co_msg_t *cli_parse_string(const char *input) {
   if(inputsize > 2) {
     input_tmp = malloc(inputsize);
     strstrip(input, input_tmp, inputsize);
+    if(input_tmp[inputsize - 1] == '\n') input_tmp[inputsize - 1] ='\0';
 	  char *command = strtok_r(input_tmp, " ", &saveptr);
     if(strlen(command) < 2) command = "help";
     char *payload = strchr(input, ' ');
