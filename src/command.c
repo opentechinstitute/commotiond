@@ -68,6 +68,7 @@ void co_cmd_add(char *name, co_cmd_handler_t handler, char *usage, char *descrip
   new_cmd->usage = strdup(usage);
   new_cmd->description = strdup(description);
   commands = tst_insert(commands, (char *)name, strlen(name), (void *)new_cmd);
+  if(!commands) ERROR("Failed to register command %s!", name);
   return;
 }
 
