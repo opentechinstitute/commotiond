@@ -9,8 +9,7 @@ boot() {
 }
 
 start() {
-  local bind profiles pid statedir id
-  local args="-n"
+  local args bind profiles pid statedir id
 
   config_cb() {  
     local type="$1"
