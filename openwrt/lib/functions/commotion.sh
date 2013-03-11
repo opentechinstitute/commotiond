@@ -129,7 +129,7 @@ commotion_get_nodeid() {
   local iface="$1"
   local data=
 
-  data="$($CLIENT -b $SOCKET state $iface nodeid 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET nodeid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
   echo "$data"
@@ -141,6 +141,17 @@ commotion_get_profile() {
   local data=
 
   data="$($CLIENT -b $SOCKET status $iface 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  
+  echo "$data"
+  return 0
+}
+
+commotion_get_announce() {
+  local iface="$1"
+  local data=
+
+  data="$($CLIENT -b $SOCKET state $iface announce 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
   echo "$data"

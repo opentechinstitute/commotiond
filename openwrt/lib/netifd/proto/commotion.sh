@@ -60,19 +60,19 @@ proto_commotion_setup() {
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 
 	commotion_up "$iface" "$profile"		
-	type=${type:-commotion_get_type $iface}
+	type=${type:-$(commotion_get_type $iface)}
 	
-	proto_add_ipv4_address ${ip:-commotion_get_ip $iface} ${netmask:-commotion_get_netmask $iface}
-	proto_add_dns_server ${dns:-commotion_get_dns $iface}
-	proto_add_dns_search ${domain:-commotion_get_domain $iface}
+	proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
+	proto_add_dns_server ${dns:-$(commotion_get_dns $iface)}
+	proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
 	
 	proto_export "INTERFACE=$config"
 	proto_export "TYPE=$type"
-	proto_export "MODE=${mode:-commotion_get_mode $iface}"
-	proto_export "ANNOUNCE=${announce:-commotion_get_announce $iface}"
+	proto_export "MODE=${mode:-$(commotion_get_mode $iface)}"
+	proto_export "ANNOUNCE=${announce:-$(commotion_get_announce $iface)}"
 	
 	config_load wireless
-	config_foreach configure_wifi_iface wifi-iface $config ${ssid:-commotion_get_ssid $iface} ${bssid:-commotion_get_bssid $iface} ${mode:-commotion_get_mode $iface} ${wpakey:-commotion_get_wpakey $iface}
+	config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
 					
 #	proto_run_command "$config" udhcpc \
 #		-p /var/run/udhcpc-$iface.pid \

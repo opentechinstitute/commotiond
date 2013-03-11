@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #define MAX_COMMANDS 32
 
+
 typedef char *(*co_cmd_handler_t)(void *self, char *argv[], int argc);
 
 typedef struct {
