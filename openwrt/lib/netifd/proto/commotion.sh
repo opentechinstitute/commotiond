@@ -62,8 +62,7 @@ proto_commotion_setup() {
 	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 	
-	config_load network
-	commotion_up "$iface" $(config_get profile "$config" profile)
+	commotion_up "$iface" $(uci get network.$config.profile)
 	type=${type:-$(commotion_get_type $iface)}
 	
 	logger -t "commotion.proto" -s "Type: $type"
