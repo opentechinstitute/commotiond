@@ -1,8 +1,10 @@
 #!/bin/sh
 
 . /lib/functions.sh
+. /lib/functions/commotion.sh
 . ../netifd-proto.sh
 init_proto "$@"
+
 
 WIFI_DEVICE=
 TYPE=
@@ -56,15 +58,23 @@ proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
 
+	proto_init_update "*" 1
 	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
-
-	commotion_up "$iface" "$profile"		
+	
+	config_load network
+	commotion_up "$iface" $(config_get profile "$config" profile)
 	type=${type:-$(commotion_get_type $iface)}
 	
+	logger -t "commotion.proto" -s "Type: $type"
+	
 	proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
-	proto_add_dns_server ${dns:-$(commotion_get_dns $iface)}
+	#proto_add_ipv4_address 5.5.5.5 ${netmask:-$(commotion_get_netmask $iface)}
+	logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
+	proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
+	logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
 	proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
+	logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
 	
 	proto_export "INTERFACE=$config"
 	proto_export "TYPE=$type"
@@ -82,6 +92,8 @@ proto_commotion_setup() {
 #		${hostname:+-H $hostname} \
 #		${vendorid:+-V $vendorid} \
 #		$clientid $broadcast $dhcpopts
+	logger -t "commotion.proto" -s "Sending update for $config"
+	proto_send_update "$config"
 }
 
 proto_commotion_teardown() {
