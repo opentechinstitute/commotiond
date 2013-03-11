@@ -57,41 +57,45 @@ proto_commotion_init_config() {
 proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
+	local have_ip=0
 
 	proto_init_update "*" 1
-	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce
+	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce have_ip
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 	
 	config_load network
 	commotion_up "$iface" $(config_get profile "$config" profile)
 	type=${type:-$(commotion_get_type $iface)}
-	
 	logger -t "commotion.proto" -s "Type: $type"
-	
-	proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
-	#proto_add_ipv4_address 5.5.5.5 ${netmask:-$(commotion_get_netmask $iface)}
-	logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
-	proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
-	logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
-	proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
-	logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
+
+
+	if [ "$type" = "plug" ]; then 
+		udhcpc -i ${iface} -t 2 -T 5 -n
+		if [ $? -eq 0 ]; then
+			# we got an IP
+			have_ip=1
+		fi
+	fi
+
+	if [ $have_ip -eq 0 ]; then
+		proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
+		#proto_add_ipv4_address 5.5.5.5 ${netmask:-$(commotion_get_netmask $iface)}
+		logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
+		proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
+		logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
+		proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
+		logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
+	fi
 	
 	proto_export "INTERFACE=$config"
 	proto_export "TYPE=$type"
 	proto_export "MODE=${mode:-$(commotion_get_mode $iface)}"
 	proto_export "ANNOUNCE=${announce:-$(commotion_get_announce $iface)}"
-	
-	config_load wireless
-	config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
-					
-#	proto_run_command "$config" udhcpc \
-#		-p /var/run/udhcpc-$iface.pid \
-#		-s /lib/netifd/dhcp.script \
-#		-f -t 0 -i "$iface" \
-#		${ipaddr:+-r $ipaddr} \
-#		${hostname:+-H $hostname} \
-#		${vendorid:+-V $vendorid} \
-#		$clientid $broadcast $dhcpopts
+
+	if [ "$type" != "plug" ]; then
+		config_load wireless
+		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
+	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
 }
