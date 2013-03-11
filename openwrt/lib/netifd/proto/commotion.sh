@@ -22,7 +22,7 @@ configure_wifi_iface() {
 	config_get thisnetwork "$config" network	
 	[[ "$thisnetwork" == "$network" ]] && {
 		uci_set wireless "$config" ssid "$ssid"
-		uci_set wireless "$config" bssid "$ssid"
+		uci_set wireless "$config" bssid "$bssid"
 		uci_set wireless "$config" mode "$mode"
 		[[ -z "$wpakey" ]] || {
 			uci_set wireless "$config" encryption "psk2"
@@ -94,7 +94,9 @@ proto_commotion_setup() {
 	if [ "$type" != "plug" ]; then
 		config_load wireless
 		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
-    uci_commit wireless
+		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
+    		uci_commit wireless
+    		wifi up "$config"
 	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
