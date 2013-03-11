@@ -157,7 +157,7 @@ static void _co_loop_destroy_process_i(list_t *list, lnode_t *lnode, void *conte
 }
 
 static void _co_loop_poll_sockets(void) {
-  int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, 0);
+  int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, LOOP_TIMEOUT);
   
   for(int i = 0; i < n; i++) {
     if((events[i].events & EPOLLERR) || 
@@ -231,7 +231,7 @@ void co_loop_start(void) {
   //Main event loop.
   while(!loop_exit) {
     _co_loop_poll_sockets();
-    sleep(1);
+    //sleep(1);
 		if (loop_exit) break;
 		if (loop_sigchld) _co_loop_poll_processes();
   }

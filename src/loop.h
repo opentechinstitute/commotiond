@@ -41,6 +41,7 @@
 #define LOOP_MAXPROC 20
 #define LOOP_MAXSOCK 20
 #define LOOP_MAXEVENT 64
+#define LOOP_TIMEOUT 5
 
 
 //Public functions
