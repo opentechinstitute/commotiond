@@ -2,6 +2,7 @@
 
 . /lib/functions.sh
 . /lib/functions/commotion.sh
+. /lib/config/uci.sh
 . ../netifd-proto.sh
 init_proto "$@"
 
@@ -20,12 +21,12 @@ configure_wifi_iface() {
 	local thisnetwork=
 	config_get thisnetwork "$config" network	
 	[[ "$thisnetwork" == "$network" ]] && {
-		config_set "$config" ssid "$ssid"
-		config_set "$config" bssid "$ssid"
-		config_set "$config" mode "$mode"
+		uci_set wireless "$config" ssid "$ssid"
+		uci_set wireless "$config" bssid "$bssid"
+		uci_set wireless "$config" mode "$mode"
 		[[ -z "$wpakey" ]] || {
-			config_set "$config" encryption "psk2"
-			config_set "$config" key "$wpakey"
+			uci_set wireless "$config" encryption "psk2"
+			uci_set wireless "$config" key "$wpakey"
 		}
 		config_get WIFI_DEVICE "$config" device
 	}
@@ -63,8 +64,7 @@ proto_commotion_setup() {
 	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce have_ip
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
 	
-	config_load network
-	commotion_up "$iface" $(config_get profile "$config" profile)
+	commotion_up "$iface" $(uci get network.$config.profile)
 	type=${type:-$(commotion_get_type $iface)}
 	logger -t "commotion.proto" -s "Type: $type"
 
@@ -79,7 +79,6 @@ proto_commotion_setup() {
 
 	if [ $have_ip -eq 0 ]; then
 		proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
-		#proto_add_ipv4_address 5.5.5.5 ${netmask:-$(commotion_get_netmask $iface)}
 		logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
 		proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
 		logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
@@ -95,6 +94,9 @@ proto_commotion_setup() {
 	if [ "$type" != "plug" ]; then
 		config_load wireless
 		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
+		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
+    		uci_commit wireless
+    		wifi up "$config"
 	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
