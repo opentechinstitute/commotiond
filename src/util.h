@@ -60,6 +60,8 @@ int string_to_argv(const char *input, char **argv, int *argc, const size_t max);
 
 int argv_to_string(char **argv, const int argc, char *output, const size_t max);
 
+void mac_string_to_bytes(const char *macstr, char mac[6]);
+
 int wifi_freq(const int channel);
 
 int wifi_chan(const int frequency);
