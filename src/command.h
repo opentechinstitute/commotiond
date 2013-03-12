@@ -68,4 +68,6 @@ char *cmd_status(void *self, char *argv[], int argc);
 char *cmd_state(void *self, char *argv[], int argc);
 
 char *cmd_nodeid(void *self, char *argv[], int argc);
+
+char *cmd_set_nodeid_from_mac(void *self, char *argv[], int argc);
 #endif

@@ -1,10 +1,18 @@
 #!/bin/sh /etc/rc.common
 
+. /lib/functions/commotion.sh
+. /lib/config/uci.sh
+
 #DEBUG=echo
 START=19
 STOP=91
 
 boot() {
+  [ -z "$(uci_get commotiond @node[0] id)" ] && {
+    commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"
+    uci_set commotiond @node[0] id "$(commotion_get_nodeid)"
+    uci_commit commotiond
+  }
   mkdir -m 0755 -p /var/run/commotion
   start
 }
@@ -52,9 +60,34 @@ start() {
         ;;
     esac
   }
-  config_load commotion
-  
+  config_load commotiond
+
   $DEBUG service_start /usr/sbin/commotiond $args
+  
+  reset_cb
+  local aname
+  config_cb() {  
+    local type="$1"
+    local name="$2"
+    aname=$name
+    
+    [ "$type" = "interface" ] && {
+      	option_cb() {
+      	  local option="$1"
+      	  local value="$2"
+        
+          [ "$option" = "profile" ] && {
+              local ifname="$(uci_get network $aname ifname)" 
+              [ ! -z $ifname ] && {
+                commotion_up $(uci_get network $aname ifname) $value 
+                logger -s -t commotion-init "commotion_up $(uci_get network $aname ifname) $value"
+              }
+          }
+        }
+    }
+  }
+  config_load network
+
 }
 
 stop() {

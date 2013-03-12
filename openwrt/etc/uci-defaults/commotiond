@@ -2,6 +2,9 @@
 [ -f "/usr/bin/patch" ] && { \
   cd /etc/init.d/
   patch -p0 < /usr/share/commotion/patches/dnsmasq.patch
+  
+  cd /lib/wifi/
+  patch -p0 < /usr/share/commotion/patches/mac80211.sh.patch
 }
 
 exit 0

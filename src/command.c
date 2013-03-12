@@ -266,3 +266,15 @@ char *cmd_nodeid(void *self, char *argv[], int argc) {
   snprintf(ret, sizeof(ret), "%d", id.id);
   return ret;
 }
+
+char *cmd_set_nodeid_from_mac(void *self, char *argv[], int argc) {
+  co_cmd_t *this = self;
+  char mac[6];
+  if(argc < 1) {
+    return this->usage;
+  }
+  mac_string_to_bytes(argv[0], mac);
+  co_id_set_from_mac(mac);
+
+  return strdup("Set nodeid.");
+}

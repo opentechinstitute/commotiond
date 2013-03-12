@@ -158,6 +158,18 @@ commotion_get_announce() {
   return 0
 }
 
+commotion_set_nodeid_from_mac() {
+  local iface="$1"
+  local mac="$2"
+  local data=
+
+  data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  
+  echo "$data"
+  return 0
+}
+
 commotion_up() {
   local iface="$1"
   local profile="$2"
