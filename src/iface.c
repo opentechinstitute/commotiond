@@ -175,8 +175,7 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
     return NULL;
   }
 
-  //if(_co_iface_is_wireless(iface)) iface->wireless = true;
-  iface->wireless = true;
+  if(_co_iface_is_wireless(iface)) iface->wireless = true;
   iface->wpa_id = -1;
     
   list_append(ifaces, lnode_create((void *)iface));
@@ -393,14 +392,14 @@ int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char 
    * left to the proper spot.
    */
   for (int i = 3; i >= 0; i--)
-    addr |= ((id.bytes[i]&0xff)%0xfe) << (i*8);
+    addr |= (((id.bytes[i]&0xff)%0xfd) +1) << (i*8);
 
   /* 
    * if address is of a gateway
    * type, then set the last byte 
    * to '1'
    * */
-  if(type) addr &= 0x01;
+  //if(type) addr &= 0x01;
 
   /*
    * mask out the parts of address
