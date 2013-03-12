@@ -6,6 +6,7 @@ STOP=91
 
 boot() {
   mkdir -m 0755 -p /var/run/commotion
+  start
 }
 
 start() {

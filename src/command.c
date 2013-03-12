@@ -229,6 +229,8 @@ char *cmd_state(void *self, char *argv[], int argc) {
     ret = co_profile_get_string(prof, "domain", "mesh.local");
   } else if(!strcmp(argv[1], "ipgenerate")) {
     ret = co_profile_get_string(prof, "ipgenerate", "true");
+  } else if(!strcmp(argv[1], "mode")) {
+    ret = co_profile_get_string(prof, "mode", "adhoc");
   } else if(!strcmp(argv[1], "netmask")) {
     ret = co_profile_get_string(prof, "netmask", "255.0.0.0");
   } else if(!strcmp(argv[1], "wpakey")) {
