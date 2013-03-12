@@ -392,8 +392,8 @@ int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char 
    * the mac and and then move it
    * left to the proper spot.
    */
-  for (int i = 3; i >= 0; i--)
-    addr.id |= (((id.bytes[i]&0xff)%0xfd) +1) << (i*8);
+  for (int i = 0; i < 4; i++)
+    addr.bytes[i] = (id.bytes[i]&0xff)%0xfe;
 
   /* 
    * if address is of a gateway
