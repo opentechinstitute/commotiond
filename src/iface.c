@@ -372,7 +372,8 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
 
 int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char *output, int type) {
   uint32_t subnet = 0;
-  uint32_t addr = 0;
+  nodeid_t addr;
+  addr.id = 0;
   struct in_addr ipaddr;
   struct in_addr netaddr;
   struct in_addr maskaddr;
@@ -392,27 +393,27 @@ int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char 
    * left to the proper spot.
    */
   for (int i = 3; i >= 0; i--)
-    addr |= (((id.bytes[i]&0xff)%0xfd) +1) << (i*8);
+    addr.id |= (((id.bytes[i]&0xff)%0xfd) +1) << (i*8);
 
   /* 
    * if address is of a gateway
    * type, then set the last byte 
    * to '1'
    * */
-  //if(type) addr &= 0x01;
+  if(type) addr.bytes[3] = 1;
 
   /*
    * mask out the parts of address
    * that overlap with the subnet 
    * mask
    */
-  addr &= ~subnet;
+  addr.id &= ~subnet;
 
   /*
    * add back the user-supplied 
    * network number.
    */
-  netaddr.s_addr = (netaddr.s_addr|addr);
+  netaddr.s_addr = (netaddr.s_addr|addr.id);
   strcpy(output, inet_ntoa(netaddr));
 
   return 1;
