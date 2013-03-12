@@ -1,4 +1,7 @@
 #!/bin/sh
-# Placeholder.
+[ -f "/usr/bin/patch" ] && { \
+  cd /etc/init.d/
+  patch -p0 < /usr/share/commotion/patches/dnsmasq.patch
+}
 
 exit 0
