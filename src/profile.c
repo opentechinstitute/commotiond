@@ -175,7 +175,7 @@ int co_profile_get_int(co_profile_t *profile, const char *key, const int def) {
 
 char *co_profile_get_string(co_profile_t *profile, const char *key, char *def) {
   CHECK_MEM(profile->profile);
-  char *value = tst_search(profile->profile, key, strlen(key) + 1);
+  char *value = tst_search(profile->profile, key, strlen(key));
   //DEBUG("profile: %s, key:%s, value: %s", profile->name, key, value);
 
   return value == NULL ? def : value;
