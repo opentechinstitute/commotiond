@@ -175,8 +175,7 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
     return NULL;
   }
 
-  //if(_co_iface_is_wireless(iface)) iface->wireless = true;
-  iface->wireless = true;
+  if(_co_iface_is_wireless(iface)) iface->wireless = true;
   iface->wpa_id = -1;
     
   list_append(ifaces, lnode_create((void *)iface));
