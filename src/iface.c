@@ -399,7 +399,7 @@ int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char 
    * type, then set the last byte 
    * to '1'
    * */
-  if(type) addr &= 0x01;
+  //if(type) addr &= 0x01;
 
   /*
    * mask out the parts of address
