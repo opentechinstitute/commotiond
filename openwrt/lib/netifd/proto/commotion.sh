@@ -76,17 +76,21 @@ proto_commotion_setup() {
 		if [ $? -eq 0 ]; then
 			# we got an IP
 			have_ip=1
+			uci_set_state network "$config" lease 0
 		fi
 	fi
 
 	if [ $have_ip -eq 0 ]; then
-		proto_add_ipv4_address ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}
+		local ip=${ip:-$(commotion_get_ip $iface)} 
+		local netmask=${netmask:-$(commotion_get_netmask $iface)}
+		proto_add_ipv4_address $ip $netmask
+		uci_set_state network "$config" ipaddr "$ip"
+		uci_set_state network "$config" netmask "$netmask"
 		logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
 		proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
 		logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
 		proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
 		logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
-		uci_set_state network "$config" lease 0
 	fi
 	
 	proto_export "INTERFACE=$config"
