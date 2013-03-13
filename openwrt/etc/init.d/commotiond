@@ -8,11 +8,24 @@ START=19
 STOP=91
 
 boot() {
-  [ -z "$(uci_get commotiond @node[0] id)" ] && {
-    commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"
-    uci_set commotiond @node[0] id "$(commotion_get_nodeid)"
-    uci_commit commotiond
-  }
+  case "$(uci_get wireless @wifi-device[0] disabled 1)" in
+    1)
+      case "$(uci_get wireless @wifi-iface[0] ssid "OpenWrt")" in
+        "OpenWrt")
+          rm -f /etc/config/wireless
+          $DEBUG /sbin/wifi detect > /etc/config/wireless
+          # Clear out any existing wireless interfaces
+          $DEBUG uci_load wireless
+          while [ "$?" != '1' ]; do
+            logger -t commotion.init "Removing interfaces."
+            $DEBUG uci_remove wireless @wifi-iface[]
+          done
+          $DEBUG uci_commit wireless
+          logger -t commotion.init "Applied wireless defaults."
+        ;;
+      esac
+    ;;
+  esac
   mkdir -m 0755 -p /var/run/commotion
   start
 }
@@ -63,6 +76,13 @@ start() {
   config_load commotiond
 
   $DEBUG service_start /usr/sbin/commotiond $args
+  
+#  [ -z "$(uci_get commotiond @node[0] id)" ] && {
+#    echo "Nodeid generation!"
+#    commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"
+#    uci_set commotiond @node[0] id "$(commotion_get_nodeid)"
+#    uci_commit commotiond
+#  }
   
   reset_cb
   local aname
