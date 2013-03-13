@@ -84,6 +84,9 @@ proto_commotion_setup() {
 		logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
 		proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
 		logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
+		uci_set_state network "$config" lease 0
+	elsif [ "$type" = "plug" ]; then
+		uci_set_state network "$config" lease 1
 	fi
 	
 	proto_export "INTERFACE=$config"
