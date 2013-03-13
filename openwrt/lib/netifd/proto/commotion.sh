@@ -60,6 +60,7 @@ proto_commotion_setup() {
 	local iface="$2"
 	local have_ip=0
 
+	logger -s -t commotion.proto "Running protocol handler."
 	proto_init_update "*" 1
 	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce have_ip
 	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
@@ -70,6 +71,7 @@ proto_commotion_setup() {
 
 
 	if [ "$type" = "plug" ]; then 
+		uci_set_state network "$config" lease 1
 		udhcpc -i ${iface} -t 2 -T 5 -n
 		if [ $? -eq 0 ]; then
 			# we got an IP
@@ -85,8 +87,6 @@ proto_commotion_setup() {
 		proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
 		logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
 		uci_set_state network "$config" lease 0
-	elsif [ "$type" = "plug" ]; then
-		uci_set_state network "$config" lease 1
 	fi
 	
 	proto_export "INTERFACE=$config"
