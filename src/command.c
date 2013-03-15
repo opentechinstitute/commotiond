@@ -243,7 +243,9 @@ char *cmd_state(void *self, char *argv[], int argc) {
   } else if(!strcmp(argv[1], "wpakey")) {
     ret = co_profile_get_string(prof, "wpakey", "c0MM0t10n!r0cks");
   } else if(!strcmp(argv[1], "servald")) {
-    ret = co_profile_get_string(prof, "servald", "true");
+    ret = co_profile_get_string(prof, "servald", "false");
+  } else if(!strcmp(argv[1], "servaldsid")) {
+    ret = co_profile_get_string(prof, "servaldsid", "");
   } else if(!strcmp(argv[1], "announce")) {
     ret = co_profile_get_string(prof, "announce", "true");
   } else if(!strcmp(argv[1], "ip")) {
