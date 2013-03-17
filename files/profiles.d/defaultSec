@@ -1,5 +1,4 @@
-ssid=commotionwireless.net
-bssid=02:CA:FF:EE:BA:BE
+ssid=commotion_wpa
 channel=5
 ip=103.0.0.0
 ipgenerate=true
