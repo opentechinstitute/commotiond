@@ -240,6 +240,8 @@ char *cmd_state(void *self, char *argv[], int argc) {
     ret = co_profile_get_string(prof, "mode", "adhoc");
   } else if(!strcmp(argv[1], "netmask")) {
     ret = co_profile_get_string(prof, "netmask", "255.0.0.0");
+  } else if(!strcmp(argv[1], "wpa")) {
+    ret = co_profile_get_string(prof, "wpa", "false");
   } else if(!strcmp(argv[1], "wpakey")) {
     ret = co_profile_get_string(prof, "wpakey", "c0MM0t10n!r0cks");
   } else if(!strcmp(argv[1], "servald")) {
