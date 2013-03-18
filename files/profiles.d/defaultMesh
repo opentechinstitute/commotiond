@@ -7,4 +7,4 @@ netmask=255.0.0.0
 dns=8.8.8.8
 type=mesh
 mode=adhoc
-servald=true
+wpa=true

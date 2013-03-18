@@ -370,22 +370,20 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
   return 0;
 }
 
-int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char *output, int type) {
-  uint32_t subnet = 0;
+int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type) {
   nodeid_t addr;
   addr.id = 0;
-  struct in_addr ipaddr;
-  struct in_addr netaddr;
-  struct in_addr maskaddr;
-  CHECK(inet_aton(ip, &ipaddr) != 0, "Invalid ip address %s", ip); 
-  CHECK(inet_aton(netmask, &maskaddr) != 0, "Invalid netmask address %s", netmask); 
+  struct in_addr baseaddr;
+  struct in_addr generatedaddr;
+  struct in_addr genmaskaddr;
+  CHECK(inet_aton(base, &baseaddr) != 0, "Invalid base ip address %s", base); 
+  CHECK(inet_aton(genmask, &genmaskaddr) != 0, "Invalid genmask address %s", genmask); 
 
-  subnet = maskaddr.s_addr;
   /*
    * Turn the IP address into a 
    * network address.
    */
-  netaddr.s_addr = (ipaddr.s_addr & subnet);
+  generatedaddr.s_addr = (baseaddr.s_addr & genmaskaddr.s_addr);
 
   /*
    * get the matching octet from 
@@ -404,18 +402,16 @@ int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char 
 
   /*
    * mask out the parts of address
-   * that overlap with the subnet 
-   * mask
+   * that overlap with the genmask 
    */
-  addr.id &= ~subnet;
-
+  addr.id &= ~(genmaskaddr.s_addr);
   /*
    * add back the user-supplied 
-   * network number.
+   * base ip address.
    */
-  netaddr.s_addr = (netaddr.s_addr|addr.id);
-  strcpy(output, inet_ntoa(netaddr));
+  generatedaddr.s_addr = (generatedaddr.s_addr|addr.id);
 
+  strcpy(output, inet_ntoa(generatedaddr));
   return 1;
 error:
   return 0;

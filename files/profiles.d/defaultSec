@@ -1,8 +1,10 @@
-ssid=commotion_wpa
+ssid=CommotionProtected
 channel=5
 ip=103.0.0.0
 ipgenerate=true
-netmask=255.0.0.0
+ipgeneratemask=255.0.0.0
+netmask=255.255.255.0
 dns=8.8.8.8
+wpa=true
 type=ap
 mode=ap
