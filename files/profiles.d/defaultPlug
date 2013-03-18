@@ -1,5 +1,6 @@
 ip=102.0.0.0
 ipgenerate=true
+ipgeneratemask=255.0.0.0
 netmask=255.255.255.0
 dns=8.8.8.8
 type=plug

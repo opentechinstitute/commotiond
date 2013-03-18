@@ -95,7 +95,7 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
 
 //int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath);
 
-int co_generate_ip(const char *ip, const char *netmask, const nodeid_t id, char *output, int type);
+int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
 
 //int co_iface_status(const char *iface_name);
 

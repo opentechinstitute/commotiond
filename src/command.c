@@ -145,7 +145,14 @@ char *cmd_up(void *self, char *argv[], int argc) {
 #ifndef _OPENWRT
   co_profile_dump(prof);
   if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
-    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
+    co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), 
+      co_profile_get_string(prof, 
+                            "ipgeneratemask",
+                            co_profile_get_string(prof, "netmask", "255.0.0")
+                           ),
+       co_id_get(), 
+       address, 
+       0);
   }
   DEBUG("Address: %s", address);
   if(iface->wireless && co_iface_wpa_connect(iface)) {
@@ -236,15 +243,33 @@ char *cmd_state(void *self, char *argv[], int argc) {
   } else if(!strcmp(argv[1], "wpakey")) {
     ret = co_profile_get_string(prof, "wpakey", "c0MM0t10n!r0cks");
   } else if(!strcmp(argv[1], "servald")) {
-    ret = co_profile_get_string(prof, "servald", "true");
+    ret = co_profile_get_string(prof, "servald", "false");
+  } else if(!strcmp(argv[1], "servaldsid")) {
+    ret = co_profile_get_string(prof, "servaldsid", "");
   } else if(!strcmp(argv[1], "announce")) {
     ret = co_profile_get_string(prof, "announce", "true");
   } else if(!strcmp(argv[1], "ip")) {
     if(!strcmp(co_profile_get_string(prof, "ipgenerate", "true"), "true")) {
       if(!strcmp(co_profile_get_string(prof, "type", "mesh"), "mesh")) {
-        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 0);
+        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), 
+                       co_profile_get_string(prof, 
+                                             "ipgeneratemask",
+                                             co_profile_get_string(prof, 
+                                                                   "netmask", 
+                                                                   "255.0.0")),
+                       co_id_get(), 
+                       address, 
+                       0);
       } else {
-        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), co_profile_get_string(prof, "netmask", "255.0.0.0"), co_id_get(), address, 1);
+        co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), 
+                       co_profile_get_string(prof, 
+                                             "ipgeneratemask",
+                                             co_profile_get_string(prof, 
+                                                                   "netmask", 
+                                                                   "255.0.0")),
+                       co_id_get(), 
+                       address, 
+                       1);
       }
       ret = address;
     } else {
