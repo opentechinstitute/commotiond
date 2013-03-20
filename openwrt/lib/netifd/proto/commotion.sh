@@ -16,15 +16,15 @@ configure_wifi_iface() {
 	local config="$1"
 	local network="$2"
 	local ssid="$3"
-	local bssid="$4"
-	local mode="$5"
-	local wpakey="$6"
+	local mode="$4"
+	local wpakey="$5"
+	#local bssid="$6"
 	
 	local thisnetwork=
 	config_get thisnetwork "$config" network	
 	[[ "$thisnetwork" == "$network" ]] && {
 		uci_set wireless "$config" ssid "$ssid"
-		uci_set wireless "$config" bssid "$bssid"
+		#uci_set wireless "$config" bssid "$bssid"
 		uci_set wireless "$config" mode "$mode"
 		[[ -z "$wpakey" ]] || {
 			uci_set wireless "$config" encryption "psk2"
@@ -116,17 +116,17 @@ proto_commotion_setup() {
 
 
 	if [ "$type" = "plug" ]; then 
-    unset_fwzone "$config"
+    		unset_fwzone "$config"
 		udhcpc -i ${iface} -t 2 -T 5 -n
 		if [ $? -eq 0 ]; then
 			# we got an IP
 			have_ip=1
 			uci_set_state network "$config" lease 0
-      set_fwzone "$config" "$(uci_get network "$config" lease_zone "$DEFAULT_LEASE_ZONE")"	
-	  else
-		  uci_set_state network "$config" lease 1
-      set_fwzone "$config" "$(uci_get network "$config" nolease_zone "$DEFAULT_NOLEASE_ZONE")"	
-    fi
+			set_fwzone "$config" "$(uci_get network "$config" lease_zone "$DEFAULT_LEASE_ZONE")"	
+		else
+			uci_set_state network "$config" lease 1
+			set_fwzone "$config" "$(uci_get network "$config" nolease_zone "$DEFAULT_NOLEASE_ZONE")"	
+		fi
 	fi
 
 	if [ $have_ip -eq 0 ]; then
@@ -149,7 +149,8 @@ proto_commotion_setup() {
 
 	if [ "$type" != "plug" ]; then
 		config_load wireless
-		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
+		#config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
+		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
     		uci_commit wireless
     		wifi up "$config"
