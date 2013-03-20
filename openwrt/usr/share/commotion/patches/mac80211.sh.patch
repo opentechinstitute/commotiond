@@ -1,5 +1,5 @@
---- mac80211.sh.orig	2013-03-12 19:11:49.341838839 -0400
-+++ mac80211.sh	2013-03-12 19:12:21.928504027 -0400
+--- mac80211.sh.orig	2013-03-20 12:08:29.242841716 -0400
++++ mac80211.sh	2013-03-20 12:10:23.912836514 -0400
 @@ -1,6 +1,8 @@
  #!/bin/sh
  append DRIVERS "mac80211"
@@ -9,7 +9,7 @@
  mac80211_hostapd_setup_base() {
  	local phy="$1"
  	local ifname="$2"
-@@ -340,10 +342,39 @@
+@@ -340,10 +342,40 @@
  		[ -n "$ifname" ] || {
  			[ $i -gt 0 ] && ifname="wlan${phy#phy}-$i" || ifname="wlan${phy#phy}"
  		}
@@ -24,8 +24,9 @@
 +			mode=$(commotion_get_mode $ifname)
 +			ssid=$(commotion_get_ssid $ifname)
 +			channel=$(commotion_get_channel $ifname)
-+			key=$(commotion_get_wpakey $ifname)
-+			if [ ! -z "$key" ]; then 
++			wpa=$(commotion_get_wpa $ifname)
++			if [ "$wpa" = "true" ]; then 
++				key=$(commotion_get_wpakey $ifname)
 +				config_set "$vif" encryption "psk2"
 +				uci_set wireless "$vif" encryption "psk2"
 +				config_set "$vif" key "$key"
@@ -51,7 +52,7 @@
  
  		# It is far easier to delete and create the desired interface
  		case "$mode" in
-@@ -442,12 +473,25 @@
+@@ -442,12 +474,26 @@
  
  		case "$mode" in
  			adhoc)
@@ -63,8 +64,9 @@
 +				commotion_profile=$(uci_get network $network profile)
 +				if [ -n "$commotion_profile" ]; then
 +					bssid=$(commotion_get_bssid $ifname)
-+					key=$(commotion_get_wpakey $ifname)
-+					if [ ! -z "$key" ]; then 
++					wpa=$(commotion_get_wpa $ifname)
++					if [ "$wpa" = "true" ]; then 
++						key=$(commotion_get_wpakey $ifname)
 +						encryption="psk2"
 +					fi
 +				else

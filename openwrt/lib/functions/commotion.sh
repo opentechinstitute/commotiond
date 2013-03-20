@@ -81,6 +81,17 @@ commotion_get_domain() {
   return 0
 }
 
+commotion_get_wpa() {
+  local iface="$1"
+  local data=
+
+  data="$($CLIENT -b $SOCKET state $iface wpa 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  
+  echo "$data"
+  return 0
+}
+
 commotion_get_wpakey() {
   local iface="$1"
   local data=
