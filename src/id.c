@@ -33,11 +33,13 @@
 #include <stdint.h>
 #include "id.h"
 
-static nodeid_t nodeid;
+static nodeid_t nodeid = {0};
 
-void co_id_set_from_mac(const char mac[6]) {
-  for(int i = 2; i < 6; i++)
-    nodeid.bytes[i] = mac[i];
+void co_id_set_from_mac(const unsigned char mac[6]) {
+  nodeid.id = 0;
+  for(int i = 0; i < 4; i++) {
+    nodeid.bytes[i] = mac[i + 2];
+  }
   return;
 }
 

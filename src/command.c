@@ -125,7 +125,7 @@ error:
 
 char *cmd_up(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
-  char mac[6];
+  unsigned char mac[6];
   memset(mac, '\0', sizeof(mac));
   char address[16];
   memset(address, '\0', sizeof(address));
@@ -291,12 +291,13 @@ char *cmd_nodeid(void *self, char *argv[], int argc) {
   memset(ret, '\0', sizeof(ret));
   nodeid_t id = co_id_get();
   snprintf(ret, sizeof(ret), "%d", id.id);
+  DEBUG("Node ID being returned: %d", id.id);
   return ret;
 }
 
 char *cmd_set_nodeid_from_mac(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
-  char mac[6];
+  unsigned char mac[6];
   if(argc < 1) {
     return this->usage;
   }

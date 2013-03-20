@@ -182,7 +182,7 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
   return iface; 
 }
 
-int co_iface_get_mac(co_iface_t *iface, char output[6]) {
+int co_iface_get_mac(co_iface_t *iface, unsigned char output[6]) {
   co_iface_t *maciface = malloc(sizeof(co_iface_t));
   memmove(maciface, iface, sizeof(co_iface_t));
   if (0 == ioctl(iface->fd, SIOCGIFHWADDR, &maciface->ifr)) {
