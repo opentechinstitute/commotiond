@@ -36,7 +36,7 @@
 static nodeid_t nodeid;
 
 void co_id_set_from_mac(const char mac[6]) {
-  for(int i = 0; i < 4; i++)
+  for(int i = 2; i < 6; i++)
     nodeid.bytes[i] = mac[i];
   return;
 }
