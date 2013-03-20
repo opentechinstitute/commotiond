@@ -67,7 +67,7 @@ int co_iface_wpa_connect(co_iface_t *iface);
 
 int co_iface_wpa_disconnect(co_iface_t *iface);
 
-int co_iface_get_mac(co_iface_t *iface, char output[6]);
+int co_iface_get_mac(co_iface_t *iface, unsigned char output[6]);
 
 int co_iface_set_ip(co_iface_t *iface, const char *ip_addr, const char *netmask);
 
