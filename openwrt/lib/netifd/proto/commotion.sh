@@ -9,6 +9,8 @@ init_proto "$@"
 
 WIFI_DEVICE=
 TYPE=
+DEFAULT_LEASE_ZONE="wan"
+DEFAULT_NOLEASE_ZONE="lan"
 
 configure_wifi_iface() {
 	local config="$1"
@@ -42,6 +44,48 @@ configure_wifi_device() {
 	}
 }
 
+unset_fwzone() {
+  local config="$1"
+  
+  reset_cb
+  config_load firewall
+  config_cb() {
+    local type="$1"
+    local name="$2"
+    [ "$type" = "zone" ] && {
+        local networks="$(uci_get firewall "$name" network)"
+        uci_remove firewall "$name" network
+        for net in $networks; do
+          [ "$net" != "$config" ] && uci add_list firewall."$name".network="$net"
+        done
+    }
+  }
+  config_load firewall
+
+  return 0
+}
+
+set_fwzone() {
+  local config="$1"
+  local zone="$2"
+
+  reset_cb 
+  config_load firewall
+  config_cb() {
+    local type="$1"
+    local name="$2"
+    [ "$type" = "zone" ] && {
+        local fwname=$(uci_get firewall "$name" name)
+        [ "$fwname" = "$zone" ] && {
+            uci add_list firewall."$name".network="$config"
+        }
+    }
+  }
+  config_load firewall
+
+  return 0
+}
+
 proto_commotion_init_config() {
 	proto_config_add_string "profile"
 	proto_config_add_string "type"
@@ -52,6 +96,7 @@ proto_commotion_init_config() {
 	proto_config_add_string "channel"
 	proto_config_add_string "dns"
 	proto_config_add_string "domain"
+	proto_config_add_string "wpa"
 	proto_config_add_string "wpakey"
 }
 
@@ -62,22 +107,26 @@ proto_commotion_setup() {
 
 	logger -s -t commotion.proto "Running protocol handler."
 	proto_init_update "*" 1
-	local profile type ip netmask dns domain ssid bssid channel mode wpakey announce have_ip
-	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpakey announce
+	local profile type ip netmask dns domain ssid bssid channel mode wpa wpakey announce have_ip lease_zone nolease_zone
+	json_get_vars profile type ip netmask dns domain ssid bssid channel mode wpa wpakey announce lease_zone nolease_zone
 	
-	commotion_up "$iface" $(uci get network.$config.profile)
+	commotion_up "$iface" $(uci_get network $config profile)
 	type=${type:-$(commotion_get_type $iface)}
 	logger -t "commotion.proto" -s "Type: $type"
 
 
 	if [ "$type" = "plug" ]; then 
-		uci_set_state network "$config" lease 1
+    unset_fwzone "$config"
 		udhcpc -i ${iface} -t 2 -T 5 -n
 		if [ $? -eq 0 ]; then
 			# we got an IP
 			have_ip=1
 			uci_set_state network "$config" lease 0
-		fi
+      set_fwzone "$config" "$(uci_get network "$config" lease_zone "$DEFAULT_LEASE_ZONE")"	
+	  else
+		  uci_set_state network "$config" lease 1
+      set_fwzone "$config" "$(uci_get network "$config" nolease_zone "$DEFAULT_NOLEASE_ZONE")"	
+    fi
 	fi
 
 	if [ $have_ip -eq 0 ]; then
