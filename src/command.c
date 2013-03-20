@@ -138,6 +138,7 @@ char *cmd_up(void *self, char *argv[], int argc) {
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
   nodeid_t id = co_id_get();
   if(!id.id && co_iface_get_mac(iface, mac)) {
+    //print_mac(mac);
     co_id_set_from_mac(mac);
   }
   co_profile_t *prof = co_profile_find(argv[1]);
@@ -290,8 +291,8 @@ char *cmd_nodeid(void *self, char *argv[], int argc) {
   char *ret = malloc(11);
   memset(ret, '\0', sizeof(ret));
   nodeid_t id = co_id_get();
-  snprintf(ret, sizeof(ret), "%d", id.id);
-  DEBUG("Node ID being returned: %d", id.id);
+  snprintf(ret, 11, "%u", id.id);
+  INFO("Node ID: %u", id.id);
   return ret;
 }
 

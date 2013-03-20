@@ -31,12 +31,15 @@
  */
 
 #include <stdint.h>
+#include "debug.h"
 #include "id.h"
 
 static nodeid_t nodeid = {0};
 
 void co_id_set_from_mac(const unsigned char mac[6]) {
   nodeid.id = 0;
+  DEBUG("Received MAC Address : %02x:%02x:%02x:%02x:%02x:%02x\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   for(int i = 0; i < 4; i++) {
     nodeid.bytes[i] = mac[i + 2];
   }
