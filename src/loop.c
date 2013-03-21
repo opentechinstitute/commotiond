@@ -38,6 +38,7 @@
 #include <sys/wait.h>
 #include <sys/epoll.h>
 #include <signal.h>
+#include <string.h>
 #include "extern/list.h"
 #include "debug.h"
 #include "process.h"
