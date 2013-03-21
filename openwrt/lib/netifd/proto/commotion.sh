@@ -18,6 +18,7 @@ configure_wifi_iface() {
 	local ssid="$3"
 	local mode="$4"
 	local wpakey="$5"
+	local wpa="$6"
 	#local bssid="$6"
 	
 	local thisnetwork=
@@ -26,7 +27,7 @@ configure_wifi_iface() {
 		uci_set wireless "$config" ssid "$ssid"
 		#uci_set wireless "$config" bssid "$bssid"
 		uci_set wireless "$config" mode "$mode"
-		[[ -z "$wpakey" ]] || {
+		[[ "$wpa" == "true" ]] && {
 			uci_set wireless "$config" encryption "psk2"
 			uci_set wireless "$config" key "$wpakey"
 		}
@@ -150,7 +151,7 @@ proto_commotion_setup() {
 	if [ "$type" != "plug" ]; then
 		config_load wireless
 		#config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
-		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
+		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)} ${wpa:-$(commotion_get_wpa $iface)}
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
     		uci_commit wireless
     		wifi up "$config"
