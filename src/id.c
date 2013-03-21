@@ -31,6 +31,7 @@
  */
 
 #include <stdint.h>
+#include <arpa/inet.h>
 #include "debug.h"
 #include "id.h"
 
@@ -47,7 +48,7 @@ void co_id_set_from_mac(const unsigned char mac[6]) {
 }
 
 void co_id_set_from_int(const uint32_t n) {
-  nodeid.id = n;
+  nodeid.id = htonl(n);
   return;
 }
 

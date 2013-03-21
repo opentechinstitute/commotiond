@@ -31,6 +31,7 @@
  */
 
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include "extern/tst.h"
 #include "extern/list.h"
 #include "debug.h"
@@ -289,10 +290,10 @@ error:
 
 char *cmd_nodeid(void *self, char *argv[], int argc) {
   char *ret = malloc(11);
-  memset(ret, '\0', sizeof(ret));
+  memset(ret, '\0', 11);
   nodeid_t id = co_id_get();
-  snprintf(ret, 11, "%u", id.id);
-  INFO("Node ID: %u", id.id);
+  snprintf(ret, 11, "%u", ntohl(id.id));
+  INFO("Node ID: %u", ntohl(id.id));
   return ret;
 }
 
