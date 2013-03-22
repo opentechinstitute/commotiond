@@ -77,12 +77,12 @@ start() {
 
   $DEBUG service_start /usr/sbin/commotiond $args
   
-#  [ -z "$(uci_get commotiond @node[0] id)" ] && {
-#    echo "Nodeid generation!"
-#    commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"
-#    uci_set commotiond @node[0] id "$(commotion_get_nodeid)"
-#    uci_commit commotiond
-#  }
+  [ -z "$(uci_get commotiond @node[0] id)" ] && {
+    echo "Nodeid generation!"
+    commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"
+    uci_set commotiond @node[0] id "$(commotion_get_nodeid)"
+    uci_commit commotiond
+  }
   
   reset_cb
   local aname
