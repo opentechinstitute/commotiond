@@ -7,4 +7,6 @@
   patch -p0 < /usr/share/commotion/patches/mac80211.sh.patch
 }
 
+echo '192.168.1.20  thisnode' >> /etc/hosts
+
 exit 0
