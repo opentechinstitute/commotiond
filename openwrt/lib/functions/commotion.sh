@@ -170,8 +170,7 @@ commotion_get_announce() {
 }
 
 commotion_set_nodeid_from_mac() {
-  local iface="$1"
-  local mac="$2"
+  local mac="$1"
   local data=
 
   data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"

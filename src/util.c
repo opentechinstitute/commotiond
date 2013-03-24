@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <string.h>
 #include "debug.h"
 #include "util.h"
 
