@@ -9,7 +9,7 @@
  mac80211_hostapd_setup_base() {
  	local phy="$1"
  	local ifname="$2"
-@@ -340,10 +342,40 @@
+@@ -340,10 +342,43 @@
  		[ -n "$ifname" ] || {
  			[ $i -gt 0 ] && ifname="wlan${phy#phy}-$i" || ifname="wlan${phy#phy}"
  		}
@@ -22,6 +22,7 @@
 +		if [ -n "$commotion_profile" ]; then
 +			commotion_up $ifname $commotion_profile
 +			mode=$(commotion_get_mode $ifname)
++			bssid=$(commotion_get_bssid $ifname)
 +			ssid=$(commotion_get_ssid $ifname)
 +			channel=$(commotion_get_channel $ifname)
 +			wpa=$(commotion_get_wpa $ifname)
@@ -38,6 +39,8 @@
 +			uci_set wireless "$vif" channel "$channel"
 +			config_set "$vif" mode "$mode"
 +			uci_set wireless "$vif" mode "$mode"
++			config_set "$vif" bssid "$bssid"
++			uci_set wireless "$vif" bssid "$bssid"
 +			config_set "$vif" ssid "$ssid"
 +			uci_set wireless "$vif" ssid "$ssid"
 +			config_set "$vif" key "$key"
