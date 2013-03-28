@@ -1,4 +1,6 @@
-
+# Using cmake + doxygen structure described here
+# https://majewsky.wordpress.com/2010/08/14/tip-of-the-day-cmake-and-doxygen/
+#
 #---------------------------------------------------------------------------
 # Project related configuration options
 #---------------------------------------------------------------------------
@@ -107,7 +109,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = /home/areynold/Documents/Scripts/OTI/source/commotiond
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/../doxygen/
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.c \
                          *.cc \
