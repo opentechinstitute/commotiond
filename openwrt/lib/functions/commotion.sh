@@ -1,8 +1,56 @@
 #!/bin/sh
 
+. /lib/functions.sh
+. /lib/config/uci.sh
+
 #DEBUG=echo
 CLIENT="/usr/bin/commotion"
 SOCKET="/var/run/commotiond.sock"
+
+DEFAULT_LEASE_ZONE="wan"
+DEFAULT_NOLEASE_ZONE="lan"
+
+unset_fwzone() {
+  local config="$1"
+
+  reset_cb
+  config_load firewall
+  config_cb() {
+    local type="$1"
+    local name="$2"
+    [ "$type" = "zone" ] && {
+        local networks="$(uci_get firewall "$name" network)"
+        uci_remove firewall "$name" network
+        for net in $networks; do
+          [ "$net" != "$config" ] && uci add_list firewall."$name".network="$net"
+        done
+    }
+  }
+  config_load firewall
+
+  return 0
+}
+
+set_fwzone() {
+  local config="$1"
+  local zone="$2"
+
+  reset_cb
+  config_load firewall
+  config_cb() {
+    local type="$1"
+    local name="$2"
+    [ "$type" = "zone" ] && {
+        local fwname=$(uci_get firewall "$name" name)
+        [ "$fwname" = "$zone" ] && {
+            uci add_list firewall."$name".network="$config"
+        }
+    }
+  }
+  config_load firewall
+
+  return 0
+}
 
 commotion_get_ip() {
   local iface="$1"
