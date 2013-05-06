@@ -53,7 +53,7 @@ static list_t *ifaces = NULL;
 static char *wpa_control_dir = "/var/run/wpa_supplicant";
 
 static int _co_iface_is_wireless(const co_iface_t *iface) {
-	CHECK((ioctl(iface->fd, SIOCGIWNAME, iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
+	CHECK((ioctl(iface->fd, SIOCGIWNAME, &iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
   return 1;
 error: 
   return 0;
