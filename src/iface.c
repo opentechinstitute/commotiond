@@ -182,19 +182,23 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
   return iface; 
 }
 
-int co_iface_get_mac(co_iface_t *iface, unsigned char output[6]) {
-  co_iface_t *maciface = malloc(sizeof(co_iface_t));
+int co_iface_get_mac(co_iface_t *iface, unsigned char *output, int output_size) {
+  co_iface_t *maciface = NULL;
+  CHECK(output_size == 6, "output_size does not equal six");
+
+  maciface = malloc(sizeof(co_iface_t));
   memset(maciface, '\0', sizeof(co_iface_t));
   memmove(maciface, iface, sizeof(co_iface_t));
   if (0 == ioctl(iface->fd, SIOCGIFHWADDR, &maciface->ifr)) {
     DEBUG("Received MAC Address : %02x:%02x:%02x:%02x:%02x:%02x\n",
                 maciface->ifr.ifr_hwaddr.sa_data[0],maciface->ifr.ifr_hwaddr.sa_data[1],maciface->ifr.ifr_hwaddr.sa_data[2]
                 ,maciface->ifr.ifr_hwaddr.sa_data[3],maciface->ifr.ifr_hwaddr.sa_data[4],maciface->ifr.ifr_hwaddr.sa_data[5]);
-    memmove(output, maciface->ifr.ifr_addr.sa_data, sizeof(output));
+    memmove(output, maciface->ifr.ifr_addr.sa_data, output_size);
     free(maciface);
     return 1;
   }
   free(maciface);
+error:
   return 0;
 }
 
