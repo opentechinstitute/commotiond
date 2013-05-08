@@ -38,11 +38,11 @@
 +			uci_set wireless "$vif" channel "$channel"
 +			config_set "$vif" mode "$mode"
 +			uci_set wireless "$vif" mode "$mode"
-+  	if [ "$mode" = "adhoc" ]; then
-+ 			bssid=$(commotion_get_bssid $ifname)
-+  		config_set "$vif" bssid "$bssid"
-+  		uci_set wireless "$vif" bssid "$bssid"
-+ 		fi
++                       if [ "$mode" = "adhoc" ]; then
++                               bssid=$(commotion_get_bssid $ifname)
++                               config_set "$vif" bssid "$bssid"
++                               uci_set wireless "$vif" bssid "$bssid"
++                       fi
 +			config_set "$vif" ssid "$ssid"
 +			uci_set wireless "$vif" ssid "$ssid"
 +		else
