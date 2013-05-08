@@ -43,8 +43,6 @@
 +			uci_set wireless "$vif" bssid "$bssid"
 +			config_set "$vif" ssid "$ssid"
 +			uci_set wireless "$vif" ssid "$ssid"
-+			config_set "$vif" key "$key"
-+			uci_set wireless "$vif" key "$key"
 +		else
  
 -		config_get mode "$vif" mode
