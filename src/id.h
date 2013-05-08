@@ -39,7 +39,7 @@ typedef union {
   uint8_t bytes[4];
 } nodeid_t;
 
-void co_id_set_from_mac(const char unsigned mac[6]);
+void co_id_set_from_mac(const unsigned char *mac, int mac_size);
 
 void co_id_set_from_int(const uint32_t n);
 

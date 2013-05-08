@@ -138,9 +138,9 @@ char *cmd_up(void *self, char *argv[], int argc) {
   DEBUG("Bringing up iface %s", argv[0]);
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
   nodeid_t id = co_id_get();
-  if(!id.id && co_iface_get_mac(iface, mac)) {
+  if(!id.id && co_iface_get_mac(iface, mac, sizeof(mac))) {
     //print_mac(mac);
-    co_id_set_from_mac(mac);
+    co_id_set_from_mac(mac, sizeof(mac));
   }
   co_profile_t *prof = co_profile_find(argv[1]);
   CHECK(prof != NULL, "Failed to load profile %s.", argv[1]);
@@ -304,7 +304,7 @@ char *cmd_set_nodeid_from_mac(void *self, char *argv[], int argc) {
     return this->usage;
   }
   mac_string_to_bytes(argv[0], mac);
-  co_id_set_from_mac(mac);
+  co_id_set_from_mac(mac, sizeof(mac));
 
   return strdup("Set nodeid.");
 }
