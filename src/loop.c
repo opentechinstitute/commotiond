@@ -269,7 +269,7 @@ int co_loop_add_socket(void *new_sock, void *context) {
   struct epoll_event event;
 
   memset(&event, 0, sizeof(struct epoll_event));
-  event.events = EPOLLIN | EPOLLET;
+  event.events = EPOLLIN;
 
   if((node = list_find(sockets, sock->uri, _co_loop_match_socket_i))) {
     CHECK((lnode_get(node) == sock), "Different socket with URI %s already registered.", sock->uri);

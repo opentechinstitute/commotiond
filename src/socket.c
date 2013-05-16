@@ -154,8 +154,9 @@ int co_socket_receive(void *self, char *incoming, size_t length) {
     DEBUG("Receiving on listening socket.");
     if(this->rfd < 0) {
       socklen_t size = sizeof(*(this->remote));
-      DEBUG("Accepting connection.");
+      DEBUG("Accepting connection (fd=%d).", this->fd);
       CHECK((rfd = accept(this->fd, (struct sockaddr *) this->remote, &size)) != -1, "Failed to accept connection.");
+      DEBUG("Accepted connection (fd=%d).", rfd);
       this->rfd = rfd;
       int flags = fcntl(this->rfd, F_GETFL, 0);
       fcntl(this->rfd, F_SETFL, flags | O_NONBLOCK); //Set non-blocking.
