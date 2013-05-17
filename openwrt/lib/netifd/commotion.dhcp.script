@@ -37,6 +37,7 @@ setup_interface () {
 	done
 	unset_fwzone "$DHCP_INTERFACE"
 	set_fwzone "plug" "$(uci_get network "$DHCP_INTERFACE" lease_zone "$DEFAULT_LEASE_ZONE")"
+	uci_commit firewall
 	proto_send_update "$DHCP_INTERFACE"
 
 	# TODO

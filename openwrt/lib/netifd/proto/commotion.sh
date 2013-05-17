@@ -91,6 +91,7 @@ proto_commotion_setup() {
 			unset_fwzone "$config"
 			uci_set_state network "$config" lease 1
 			set_fwzone "$config" "$(uci_get network "$config" nolease_zone "$DEFAULT_NOLEASE_ZONE")"
+			uci_commit firewall
 		fi
 	fi
 	proto_init_update "*" 1
