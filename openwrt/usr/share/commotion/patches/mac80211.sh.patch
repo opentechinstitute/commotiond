@@ -1,5 +1,5 @@
---- mac80211.sh.orig	2013-03-20 12:08:29.242841716 -0400
-+++ mac80211.sh	2013-03-20 12:10:23.912836514 -0400
+--- mac80211.sh.orig	2013-05-17 15:00:14.427035173 -0400
++++ mac80211.sh	2013-05-17 16:16:20.820470694 -0400
 @@ -1,6 +1,8 @@
  #!/bin/sh
  append DRIVERS "mac80211"
@@ -9,7 +9,7 @@
  mac80211_hostapd_setup_base() {
  	local phy="$1"
  	local ifname="$2"
-@@ -340,10 +342,43 @@
+@@ -340,10 +342,45 @@
  		[ -n "$ifname" ] || {
  			[ $i -gt 0 ] && ifname="wlan${phy#phy}-$i" || ifname="wlan${phy#phy}"
  		}
@@ -21,16 +21,18 @@
  		config_set "$vif" ifname "$ifname"
 +		if [ -n "$commotion_profile" ]; then
 +			commotion_up $ifname $commotion_profile
-+			mode=$(commotion_get_mode $ifname)
-+			ssid=$(commotion_get_ssid $ifname)
-+			channel=$(commotion_get_channel $ifname)
-+			wpa=$(commotion_get_wpa $ifname)
-+			if [ "$wpa" = "true" ]; then 
-+				key=$(commotion_get_wpakey $ifname)
++			config_get mode "$vif" mode "$(commotion_get_mode $ifname)"
++			config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
++			config_get channel "$device" channel "$(commotion_get_channel $ifname)"
++			config_get encryption "$vif" encryption "$(commotion_get_wpa $ifname)"
++			if [ "$encryption" = "true" ]; then 
++				config_get key "$vif" key "$(commotion_get_wpakey $ifname)"
 +				config_set "$vif" encryption "psk2"
 +				uci_set wireless "$vif" encryption "psk2"
 +				config_set "$vif" key "$key"
 +				uci_set wireless "$vif" key "$key"
++			elif ["$encryption" = "false" ]; then
++				encryption="none"
 +			fi
 +			export channel
 +			iw dev "$ifname" set channel "$channel"
@@ -39,7 +41,7 @@
 +			config_set "$vif" mode "$mode"
 +			uci_set wireless "$vif" mode "$mode"
 +                       if [ "$mode" = "adhoc" ]; then
-+                               bssid=$(commotion_get_bssid $ifname)
++                               config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
 +                               config_set "$vif" bssid "$bssid"
 +                               uci_set wireless "$vif" bssid "$bssid"
 +                       fi
@@ -55,7 +57,7 @@
  
  		# It is far easier to delete and create the desired interface
  		case "$mode" in
-@@ -442,12 +474,27 @@
+@@ -442,12 +479,29 @@
  
  		case "$mode" in
  			adhoc)
@@ -66,12 +68,14 @@
 +				network=$(uci_get wireless $vif network)
 +				commotion_profile=$(uci_get network $network profile)
 +				if [ -n "$commotion_profile" ]; then
-+					bssid=$(commotion_get_bssid $ifname)
-+					ssid=$(commotion_get_ssid $ifname)
-+					wpa=$(commotion_get_wpa $ifname)
-+					if [ "$wpa" = "true" ]; then 
-+						key=$(commotion_get_wpakey $ifname)
++					config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
++					config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
++					config_get encryption "$vif" encryption "$(commotion_get_wpa $ifname)"
++					if [ "$encryption" = "true" ]; then 
++						config_get key "$vif" key "$(commotion_get_wpakey $ifname)"
 +						encryption="psk2"
++					elif ["$encryption" = "false" ]; then
++						encryption="none"
 +					fi
 +				else
 +					config_get ssid "$vif" ssid
