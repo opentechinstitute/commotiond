@@ -66,8 +66,13 @@ int dispatcher_cb(void *self, void *context) {
 
   int received = sock->receive(sock, buffer, sizeof(buffer));
   DEBUG("Received %d bytes.", received);
-  if(received <= 0) {
+  if(received == 0) {
     INFO("Received connection.");
+    return 1;
+  }
+  if (received < 0) {
+    INFO("Connection recvd() -1");
+    sock->hangup(sock, context);
     return 1;
   }
   co_msg_t *msgrcv = co_msg_unpack(buffer);
