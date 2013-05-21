@@ -74,7 +74,7 @@
 +					if [ "$encryption" = "true" ]; then 
 +						config_get key "$vif" key "$(commotion_get_wpakey $ifname)"
 +						encryption="psk2"
-+					elif ["$encryption" = "false" ]; then
++					elif [ "$encryption" = "false" ]; then
 +						encryption="none"
 +					fi
 +				else
