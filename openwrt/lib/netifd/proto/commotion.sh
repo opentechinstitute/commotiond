@@ -14,23 +14,27 @@ TYPE=
 configure_wifi_iface() {
 	local config="$1"
 	local network="$2"
-	local ssid="$3"
-	local mode="$4"
-	local wpakey="$5"
-	local wpa="$6"
-	#local bssid="$6"
-	
+	local ssid=
+	local mode=
+	local wpakey=
+	local wpa=
 	local thisnetwork=
 	config_get thisnetwork "$config" network	
 	[[ "$thisnetwork" == "$network" ]] && {
+		config_get ssid "$config" ssid "$(commotion_get_ssid $iface)"
 		uci_set wireless "$config" ssid "$ssid"
-		#uci_set wireless "$config" bssid "$bssid"
+		config_get mode "$config" mode "$(commotion_get_mode $iface)"
 		uci_set wireless "$config" mode "$mode"
+		config_get encryption "$config" encryption "$(commotion_get_wpa $iface)"
 		[[ "$wpa" == "true" ]] && {
+		if [ "$encryption" = "true" ]; then 
 			uci_set wireless "$config" encryption "psk2"
-			uci_set wireless "$config" key "$wpakey"
-		}
+			uci_set wireless "$config" key "$wpakey" "$(commotion_get_wpakey $iface)"
+		elif [ "$encryption" = "false" ]; then
+			uci_set wireless "$config" encryption "none"
+		fi
 		config_get WIFI_DEVICE "$config" device
+		}
 	}
 }
 
@@ -49,12 +53,8 @@ proto_commotion_init_config() {
 	proto_config_add_string "type"
 	proto_config_add_string "ip"
 	proto_config_add_string "netmask"
-	proto_config_add_string "ssid"
-	proto_config_add_string "bssid"
 	proto_config_add_string "dns"
 	proto_config_add_string "domain"
-	proto_config_add_string "wpa"
-	proto_config_add_string "wpakey"
 }
 
 proto_commotion_setup() {
@@ -63,8 +63,8 @@ proto_commotion_setup() {
 	local have_ip=0
 
 	logger -s -t commotion.proto "Running protocol handler."
-	local profile type ip netmask dns domain ssid bssid mode wpa wpakey announce have_ip lease_zone nolease_zone
-	json_get_vars profile type ip netmask dns domain ssid bssid mode wpa wpakey announce lease_zone nolease_zone
+	local profile type ip netmask dns domain announce lease_zone nolease_zone
+	json_get_vars profile type ip netmask dns domain announce lease_zone nolease_zone
 
 	commotion_up "$iface" $(uci_get network $config profile)
 	logger -t "commotion.proto" -s "Upped"
@@ -115,9 +115,8 @@ proto_commotion_setup() {
 
 	if [ "$type" != "plug" ]; then
 		config_load wireless
-		#config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${bssid:-$(commotion_get_bssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)}
-		config_foreach configure_wifi_iface wifi-iface $config ${ssid:-$(commotion_get_ssid $iface)} ${mode:-$(commotion_get_mode $iface)} ${wpakey:-$(commotion_get_wpakey $iface)} ${wpa:-$(commotion_get_wpa $iface)}
-    local channel=$(uci_get wireless "$WIFI_DEVICE" channel)
+		config_foreach configure_wifi_iface wifi-iface $config
+		local channel=$(uci_get wireless "$WIFI_DEVICE" channel)
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
     		uci_commit wireless
     		wifi up "$config"
