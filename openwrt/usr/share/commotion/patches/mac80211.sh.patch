@@ -35,7 +35,7 @@
 +				encryption="none"
 +			fi
 +			export channel
-+			iw dev "$ifname" set channel "$channel"
++			#iw dev "$ifname" set channel "$channel"
 +			config_set "$device" channel "$channel"
 +			uci_set wireless "$device" channel "$channel"
 +			config_set "$vif" mode "$mode"
