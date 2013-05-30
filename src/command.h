@@ -114,8 +114,8 @@ char *cmd_up(void *self, char *argv[], int argc);
 
 /**
  * @brief brings down wireless interface
- * @param self pointer to command struct
- * @param argv[] argument passed
+ * @param self pointer to cmd_down struct
+ * @param argv[] node id, ip address, ssid, bssid and channel, and sets ad hoc mode
  * @param argc number of arguments
  * @warning if argc is greater than 1, returns command usage
  */
@@ -123,7 +123,7 @@ char *cmd_down(void *self, char *argv[], int argc);
 
 /**
  * @brief Displays current profile
- * @param self pointer to command struct
+ * @param self pointer to cmd_status struct
  * @param argv[] argument passed
  * @param argc number of arguments
  * @warning if argc is greater than 1, returns command usage
@@ -131,7 +131,7 @@ char *cmd_down(void *self, char *argv[], int argc);
 char *cmd_status(void *self, char *argv[], int argc);
 
 /**
- * @brief Displays wireless interface configurations
+ * @brief Displays current wireless interface configurations. If using a profile, returns profile settings, else returns default settings.
  * @param self pointer to cmd_state struct
  * @param argv[] arguments passed
  * @param argc number of arguments
