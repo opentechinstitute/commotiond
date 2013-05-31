@@ -403,7 +403,17 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
    * type, then set the last byte 
    * to '1'
    * */
-  if(type) addr.bytes[3] = 1;
+  if(type) {
+    /* 
+     * shift us over by one 
+     * to ensure that we are
+     * getting maximum entropy 
+     * from the mac address.
+     */
+    addr.bytes[1] = addr.bytes[2];
+    addr.bytes[2] = addr.bytes[3];
+    addr.bytes[3] = 1;
+  }
 
   /*
    * mask out the parts of address
