@@ -82,7 +82,7 @@ proto_commotion_setup() {
 			# see commotion.dhcp.script for the rest of
 			# the setup code.
 			have_ip=1
-			uci_set_state network "$config" lease 2
+			uci_set_state network "$config" lease 0
 
 			# get out of here early.
 			return
