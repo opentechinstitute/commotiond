@@ -124,6 +124,7 @@ error:
   return ret;
 }
 
+/* Bring up wireless interface and configure it */
 char *cmd_up(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
   unsigned char mac[6];
@@ -137,15 +138,20 @@ char *cmd_up(void *self, char *argv[], int argc) {
   co_iface_t *iface = co_iface_add(argv[0], AF_INET);
   DEBUG("Bringing up iface %s", argv[0]);
   CHECK(iface != NULL, "Failed to create interface %s.", argv[0]);
+  /* Get node id */
   nodeid_t id = co_id_get();
+  /* If no node id specified, create id from mac address */
   if(!id.id && co_iface_get_mac(iface, mac, sizeof(mac))) {
     //print_mac(mac);
     co_id_set_from_mac(mac, sizeof(mac));
   }
+  /* Load profile */
   co_profile_t *prof = co_profile_find(argv[1]);
   CHECK(prof != NULL, "Failed to load profile %s.", argv[1]);
 #ifndef _OPENWRT
   co_profile_dump(prof);
+
+  /* Load interface configurations from profile */
   if(!strcmp("true", co_profile_get_string(prof, "ipgenerate", "true"))) {
     co_generate_ip(co_profile_get_string(prof, "ip", "5.0.0.0"), 
       co_profile_get_string(prof, 
@@ -157,6 +163,8 @@ char *cmd_up(void *self, char *argv[], int argc) {
        0);
   }
   DEBUG("Address: %s", address);
+  
+  /* If no profile use default configuration */
   if(iface->wireless && co_iface_wpa_connect(iface)) {
     co_iface_set_ssid(iface, co_profile_get_string(prof, "ssid", "\"commotionwireless.net\""));
     co_iface_set_bssid(iface, co_profile_get_string(prof, "bssid", "02:CA:FF:EE:BA:BE"));
@@ -165,7 +173,8 @@ char *cmd_up(void *self, char *argv[], int argc) {
     co_iface_set_apscan(iface, 0);
     co_iface_wireless_enable(iface);
   }
-
+  
+  /* Set DNS configuration */
   co_set_dns(co_profile_get_string(prof, "dns", "8.8.8.8"), co_profile_get_string(prof, "domain", "mesh.local"), "/tmp/resolv.commotion");
   co_iface_set_ip(iface, address, co_profile_get_string(prof, "netmask", "255.0.0.0"));
 #endif
@@ -179,6 +188,7 @@ error:
   return ret;
 }
 
+/* Bring down the wireless interface */
 char *cmd_down(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
   char *ret = NULL;
@@ -193,6 +203,7 @@ char *cmd_down(void *self, char *argv[], int argc) {
   }
   return ret;
 }
+
 
 char *cmd_status(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;

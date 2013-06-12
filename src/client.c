@@ -47,6 +47,11 @@
 
 extern co_socket_t unix_socket_proto;
 
+/**
+ * @brief parses command line inputs and packages into a commotion message
+ * @param argv[] commands input by the user
+ * @param argc number of commands and flags input
+ */
 static co_msg_t *cli_parse_argv(char *argv[], const int argc) {
   CHECK(argv != NULL, "No input.");
   char payload[MSG_MAX_PAYLOAD];
@@ -67,6 +72,10 @@ error:
   return NULL;
 }
 
+/**
+ * @brief checks user input for valid commands
+ * @param input user input submitted at the command prompt
+ */
 static co_msg_t *cli_parse_string(const char *input) {
   CHECK(input != NULL, "No input.");
 	char *saveptr = NULL;
@@ -94,6 +103,10 @@ error:
   return NULL;
 }
 
+/**
+ * @brief prints Commotion management shell usage
+ * @details allows user to specify management socket
+ */
 static void print_usage() {
   printf(
           "The Commotion management shell.\n"
@@ -105,6 +118,7 @@ static void print_usage() {
           " -h, --help          Print this usage message.\n"
   );
 }
+
 
 int main(int argc, char *argv[]) {
   int opt = 0;
