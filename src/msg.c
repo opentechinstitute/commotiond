@@ -40,12 +40,19 @@
 #include "util.h"
 #include "msg.h"
 
+/**
+ * @brief packages a message in a commotion-readable format (header, target and payload) and checks for valid inputs
+ * @param target the intended socket for the message
+ * @param payload the contents of the message (eg. commands, configuration information, etc.)
+ */
 co_msg_t *co_msg_create(const char *target, const char *payload) {
   size_t target_size = 0;
   size_t payload_size = 0;
 	co_msg_t *message = malloc(sizeof(co_msg_t));
+  /* Get size of message from  header */
   message->header.size = sizeof(co_msg_header_t);
   DEBUG("HEADER SIZE: %d", message->header.size);
+  /* Set message type to 0 */
   message->header.type = 0;
   CHECK(((target_size = strstrip(target, message->target, sizeof(message->target))) != -1), "Invalid target size!");
   DEBUG("TARGET SIZE: %d", (int)target_size);
@@ -60,6 +67,9 @@ error:
   return NULL;
 }
 
+/**
+ * @brief loads commotion message into buffer "tmp"
+ */
 char *co_msg_pack(const co_msg_t *input) {
   DEBUG("Packing message.");
   uint16_t tmp;
@@ -81,6 +91,10 @@ char *co_msg_pack(const co_msg_t *input) {
   return output;
 }
 
+
+/**
+ * @brief unpacks message from "tmp" buffer
+ */
 co_msg_t *co_msg_unpack(const char *input) {
   CHECK_MEM(input);
   uint16_t tmp = 0;

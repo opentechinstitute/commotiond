@@ -147,8 +147,8 @@ char *cmd_state(void *self, char *argv[], int argc);
 char *cmd_nodeid(void *self, char *argv[], int argc);
 
 /**
- * @brief sets node id from mac address (if no id specified by profile)
- * @param argv[] mac address
+ * @brief sets node id from device's mac address (if no id specified by profile)
+ * @param argv[] device's mac address
  * @param argc number of arguments
  */
 char *cmd_set_nodeid_from_mac(void *self, char *argv[], int argc);
