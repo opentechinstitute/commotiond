@@ -50,8 +50,14 @@
 
 
 static list_t *ifaces = NULL;
+
+/* Run wpa_supplicant */
 static char *wpa_control_dir = "/var/run/wpa_supplicant";
 
+/**
+ * @brief checks whether interace is wireless
+ * @param co_iface available interface
+ */
 static int _co_iface_is_wireless(const co_iface_t *iface) {
 	CHECK((ioctl(iface->fd, SIOCGIWNAME, &iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
   return 1;
@@ -108,6 +114,12 @@ error:
   return 0;
 }
 
+/**
+ * @brief sets up secure access point
+ * @param *iface name of commotion interface
+ * @param *option option to be configured
+ * @param *optval configuration value
+ */
 static int _co_iface_wpa_set(co_iface_t *iface, const char *option, const char *optval) {
 	char cmd[256];
 	int res;
@@ -165,6 +177,7 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
   strlcpy(iface->ifr.ifr_name, iface_name, IFNAMSIZ);
   
+ /* Check whether interface is IPv4 or IPv6 */
   if((family & AF_INET) == AF_INET) {
     iface->ifr.ifr_addr.sa_family = AF_INET; 
   } else if((family & AF_INET6) == AF_INET6) {
@@ -175,6 +188,7 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
     return NULL;
   }
 
+  /* Check whether interface is wireless or not */
   if(_co_iface_is_wireless(iface)) iface->wireless = true;
   iface->wpa_id = -1;
     
@@ -270,7 +284,6 @@ error:
   free(filename);
   return 0;
 }
-
 
 int co_iface_set_ssid(co_iface_t *iface, const char *ssid) {
   return _co_iface_wpa_set(iface, "ssid", ssid); 
@@ -375,6 +388,7 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
   return 0;
 }
 
+
 int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type) {
   nodeid_t addr;
   addr.id = 0;
@@ -402,7 +416,7 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
    * if address is of a gateway
    * type, then set the last byte 
    * to '1'
-   * */
+   */
   if(type) addr.bytes[3] = 1;
 
   /*
