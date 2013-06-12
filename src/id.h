@@ -34,6 +34,9 @@
 
 #include <stdint.h>
 
+/**
+ * @struct nodeid_t struct containing node id and last four bytes of MAC address
+ */
 typedef union {
   uint32_t id;
   uint8_t bytes[4];

@@ -47,11 +47,21 @@
 #define MSG_MAX_PAYLOAD 512
 #define MSG_PAYLOAD_DELIM ':'
 
+
+/**
+ * @struct co_msg_header_t
+ * @brief contains the header info (size and type) of a commotion message
+ */
 typedef struct {
   uint16_t size;
   uint8_t type;
 } co_msg_header_t;
 
+
+/**
+ * @struct co_msg_t 
+ * @brief contains the target (destination) and payload (contents) of a commotion message
+ */
 typedef struct {
   co_msg_header_t header;
   char target[MSG_TARGET_SIZE];
