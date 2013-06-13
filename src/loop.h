@@ -46,20 +46,50 @@
 
 //Public functions
 
+/**
+ * @brief sets up the event loop
+ */
 int co_loop_create(void);
 
+/**
+ * @brief closes the event loop
+ */
 int co_loop_destroy(void);
 
+/**
+ * @brief starts the event loop, listening for messages on sockets via _co_loop_poll_sockets
+ */
 void co_loop_start(void);
 
+/**
+ * @brief stops the event loop
+ */
 void co_loop_stop(void);
 
+/**
+ * @brief adds a process to the event loop (for it to listen for)
+ * @param *proc the process to be added
+ */
 int co_loop_add_process(co_process_t *proc);
 
+/**
+ * @brief removes a process from the event loop
+ * @param pid the id of the process to be removed
+ */
 int co_loop_remove_process(pid_t pid);
 
+/**
+ * @brief adds a new socket to the event loop (for it to listen on)
+ * @param *new_sock the new socket to be added
+ * @param *context a void context pointer (currently unused)
+ */
 int co_loop_add_socket(void *new_sock, void *context);
 
+/**
+ * @brief removes a socket from the event loop
+ * @param *old_sock the socket to be removed
+ * @param *context a void context pointer (currently unused)
+ */
 int co_loop_remove_socket(void *old_sock, void *context);
 
 #endif
