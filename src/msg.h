@@ -68,8 +68,23 @@ typedef struct {
   char payload[MSG_MAX_PAYLOAD];
 } co_msg_t;
 
+/**
+ * @brief packages a message in a commotion-readable format (header, target and payload) and checks for valid inputs
+ * @param target the intended socket for the message
+ * @param payload the contents of the message (eg. commands, configuration information, etc.)
+ */
 co_msg_t *co_msg_create(const char *target, const char *payload);
+
+/**
+ * @brief loads commotion message into message struct
+ * @param input input from user to be packaged as a commotion message
+ */
 char *co_msg_pack(const co_msg_t *input);
+
+/**
+ * @brief unpacks commage message from message struct
+ * @param input commotion message struct to be sent to output
+ */
 co_msg_t *co_msg_unpack(const char *input);
 
 #endif
