@@ -124,5 +124,8 @@ int co_olsrd_remove_hna(int family, char *address, char *netmask);
  */
 int co_olsrd_print_conf(const char *filename);
 
-
+/**
+ * @brief initiates the OLSR daemon when a new process gets created (currently unimplemented)
+ * @param self process to be called
+ */
 int co_olsrd_init(void *self);
