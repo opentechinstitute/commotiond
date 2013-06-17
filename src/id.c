@@ -37,11 +37,6 @@
 
 static nodeid_t nodeid = {0};
 
-/**
- * @brief sets node id using last four bytes of device's MAC address
- * @param mac the MAC address of the device
- * @param mac_size the size of the MAC address
- */
 void co_id_set_from_mac(const unsigned char *mac, int mac_size) {
   nodeid.id = 0;
   CHECK(mac_size == 6, "MAC size is not six.");
@@ -55,18 +50,11 @@ error:
   return;
 }
 
-/**
- * @brief Converts node id from host byte order to network byte order
- * @param uint32_t the node id (4 bytes)
- */
 void co_id_set_from_int(const uint32_t n) {
   nodeid.id = htonl(n);
   return;
 }
 
-/**
- * @brief Returns nodeid
- */
 nodeid_t co_id_get(void) {
   return nodeid;
 }

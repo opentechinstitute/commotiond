@@ -41,11 +41,9 @@
 #define MAX_IPPROTO 255
 #define MAX_CONNECTIONS 32
 
-/*!
- * \struct socket
- * \
- *
- * */
+/**
+ * @struct co_socket_t contains file path and state information for socket
+ */
 typedef struct {
   char *uri;
   int fd; //socket file descriptor
@@ -68,31 +66,95 @@ typedef struct {
   int (*register_cb)(void *self, void *context);
 } co_socket_t;
 
+/**
+ * @brief creates a socket from specified values or initializes defaults
+ * @param size size of socket struct
+ * @param proto socket protocol
+ */
 co_socket_t *co_socket_create(size_t size, co_socket_t proto);
 
+/**
+ * @brief creates a socket from specified values or initializes defaults
+ * @param size size of socket struct
+ * @param proto socket protocol
+ */
 int co_socket_init(void *self);
 
+/**
+ * @brief closes a socket and removes it from memory
+ * @param self socket name
+ */
 int co_socket_destroy(void *self);
 
+/**
+ * @brief closes a socket and changes its state information
+ * @param self socket name
+ * @param context void context pointer (currently unused)
+ */
 int co_socket_hangup(void *self, void *context); 
 
+/**
+ * @brief sends a message on a specified socket
+ * @param self socket name
+ * @param outgoing message to be sent
+ * @param length length of message
+ */
 int co_socket_send(void *self, char *outgoing, size_t length);
 
+/**
+ * @brief receives a message on the listening socket
+ * @param self socket name
+ * @param incoming message received
+ * @param length length of message
+ */
 int co_socket_receive(void * self, char *incoming, size_t length);
 
+/**
+ * @brief sets custom socket options, if specified by user
+ * @param self socket name
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ * @param optval the value for the new option
+ * @param optvallen the length of the value for the new option
+ */
 int co_socket_setopt(void * self, int level, int option, void *optval, socklen_t optvallen);
 
+/**
+ * @brief gets custom socket options specified from the user
+ * @param self socket name
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ * @param optval the value for the new option
+ * @param optvallen the length of the value for the new option
+ */
 int co_socket_getopt(void * self, int level, int option, void *optval, socklen_t optvallen);
 
+/**
+ * @struct unix_socket_t struct for unix sockets. Contains protocol and file path to socket library
+ */
 typedef struct {
   co_socket_t proto;
   char *path;
 } unix_socket_t;
 
+/**
+ * @brief initializes a unix socket
+ * @param self socket name
+ */
 int unix_socket_init(void *self);
 
+/**
+ * @brief binds a unix socket to a specified endpoint
+ * @param self socket name
+ * @param endpoint specified endpoint for socket (file path)
+ */
 int unix_socket_bind(void *self, const char *endpoint);
 
+/**
+ * @brief connects a socket to specified endpoint
+ * @param self socket name
+ * @param endpoint specified endpoint for socket (file path)
+ */
 int unix_socket_connect(void *self, const char *endpoint);
 
 
