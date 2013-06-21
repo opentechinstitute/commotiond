@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;
-  int newid = 0;
+  uint32_t newid = 0;
   char *pidfile = COMMOTION_PIDFILE;
   char *statedir = COMMOTION_STATEDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
         profiledir = optarg;
         break;
       case 'i':
-        newid = atoi(optarg);
+        newid = strtoul(optarg,NULL,10);
         break;
       case 'n':
         daemonize = 0;
