@@ -1,4 +1,4 @@
 config daemon
 
 config node
-	option 'dhcp_timeout' '5'
+	option 'dhcp_timeout' '20'

@@ -10,7 +10,7 @@ init_proto "$@"
 
 WIFI_DEVICE=
 TYPE=
-DHCP_TIMEOUT=5
+DHCP_TIMEOUT=20
 
 configure_wifi_iface() {
 	local config="$1"
