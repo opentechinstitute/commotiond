@@ -10,6 +10,7 @@ init_proto "$@"
 
 WIFI_DEVICE=
 TYPE=
+DHCP_TIMEOUT=5
 
 configure_wifi_iface() {
 	local config="$1"
@@ -73,8 +74,9 @@ proto_commotion_setup() {
 
 	if [ "$type" = "plug" ]; then 
 		local dhcp_status
+		local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout)"
 		export DHCP_INTERFACE="$config"
-		udhcpc -q -i ${iface} -t 2 -T 5 -n -s /lib/netifd/commotion.dhcp.script
+		udhcpc -q -i ${iface} -t 2 -T "${dhcp_timeout:-$DHCP_TIMEOUT}" -n -s /lib/netifd/commotion.dhcp.script
 		dhcp_status=$?
 		export DHCP_INTERFACE=""
 		if [ $dhcp_status -eq 0 ]; then
