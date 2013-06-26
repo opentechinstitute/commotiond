@@ -34,15 +34,30 @@
 
 #include <stdint.h>
 
+/**
+ * @struct nodeid_t struct containing node id and last four bytes of MAC address
+ */
 typedef union {
   uint32_t id;
   uint8_t bytes[4];
 } nodeid_t;
 
+/**
+ * @brief sets node id using last four bytes of device's MAC address
+ * @param mac the MAC address of the device
+ * @param mac_size the size of the MAC address
+ */
 void co_id_set_from_mac(const unsigned char *mac, int mac_size);
 
+/**
+ * @brief Converts node id from host byte order to network byte order
+ * @param n the node id (4 bytes)
+ */
 void co_id_set_from_int(const uint32_t n);
 
+/**
+ * @brief Returns nodeid
+ */
 nodeid_t co_id_get(void);
 
 #endif
