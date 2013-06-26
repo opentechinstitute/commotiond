@@ -38,6 +38,9 @@
 #include <stdbool.h>
 #include "util.h"
 
+/**
+ * @enum co_process_state_t defines the state of the process
+ */
 typedef enum {
   STOPPING = 0,
   STOPPED =1,
@@ -46,6 +49,9 @@ typedef enum {
   FAILED = -1
 } co_process_state_t;
 
+/**
+ * @struct co_process_t process struct, including process id, run path and state information
+ */
 typedef struct {
   int pid;
   bool registered;
@@ -64,14 +70,41 @@ typedef struct {
   int (*restart)(void *self);
 } co_process_t;
 
+/**
+ * @brief creates a new commotion process
+ * @param size size of the process
+ * @param co_process_t protocol
+ * @param name name of the process
+ * @param pid_file the lockfile where the process id is stored
+ * @param exec_path the execution path
+ * @param run_path the run path
+ * @return co_process_t to be registered with the daemon
+ */
 co_process_t *co_process_create(size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path);
 
+/**
+ * @brief removes a process from commotiond
+ * @param self pointer to the process' struct
+ */
 int co_process_destroy(void *self);
 
+/**
+ * @brief starts a selected process
+ * @param self pointer to the process' struct
+ * @param argv[] execution path for the process
+ */
 int co_process_start(void *self, char *argv[]);
 
+/**
+ * @brief stops a running process
+ * @param self pointer to the process' struct
+ */
 int co_process_stop(void *self);
 
+/**
+ * @brief restarts a process
+ * @param self pointer to the process' struct
+ */
 int co_process_restart(void *self);
 
 #endif

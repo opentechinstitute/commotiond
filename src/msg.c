@@ -44,8 +44,10 @@ co_msg_t *co_msg_create(const char *target, const char *payload) {
   size_t target_size = 0;
   size_t payload_size = 0;
 	co_msg_t *message = malloc(sizeof(co_msg_t));
+  /* Get size of message from  header */
   message->header.size = sizeof(co_msg_header_t);
   DEBUG("HEADER SIZE: %d", message->header.size);
+  /* Set message type to 0 */
   message->header.type = 0;
   CHECK(((target_size = strstrip(target, message->target, sizeof(message->target))) != -1), "Invalid target size!");
   DEBUG("TARGET SIZE: %d", (int)target_size);

@@ -161,6 +161,7 @@ int co_olsrd_add_iface(const char* name, int mode, const char *Ipv4Broadcast) {
   list_append(ifaces, lnode_create(new_iface));
   return 1;
 }
+
 int co_olsrd_remove_iface(char* name, int mode, char *Ipv4Broadcast) {
   co_olsrd_conf_iface_t *iface_to_remove;
   co_olsrd_conf_iface_t iface_to_find;
