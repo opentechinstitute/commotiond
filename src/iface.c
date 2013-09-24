@@ -285,6 +285,7 @@ error:
   return 0;
 }
 
+
 int co_iface_set_ssid(co_iface_t *iface, const char *ssid) {
   return _co_iface_wpa_set(iface, "ssid", ssid); 
 }
@@ -388,7 +389,6 @@ int co_set_dns(const char *dnsserver, const char *searchdomain, const char *reso
   return 0;
 }
 
-
 int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type) {
   nodeid_t addr;
   addr.id = 0;
@@ -416,8 +416,18 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
    * if address is of a gateway
    * type, then set the last byte 
    * to '1'
-   */
-  if(type) addr.bytes[3] = 1;
+   * */
+  if(type) {
+    /* 
+     * shift us over by one 
+     * to ensure that we are
+     * getting maximum entropy 
+     * from the mac address.
+     */
+    addr.bytes[1] = addr.bytes[2];
+    addr.bytes[2] = addr.bytes[3];
+    addr.bytes[3] = 1;
+  }
 
   /*
    * mask out the parts of address
