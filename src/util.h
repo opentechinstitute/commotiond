@@ -42,6 +42,9 @@
 
 #define MAX_ARGS 16
 
+#define BSSID_SIZE 6
+#define ESSID_SIZE 32
+#define FREQ_SIZE 4
 /**
  * @brief concatenates two strings
  * @param dst destination for new string
@@ -132,4 +135,13 @@ int wifi_freq(const int channel);
  * @param frequency specified frequency
   */
 int wifi_chan(const int frequency);
+
+/**
+ * @brief generates a BSSID from hash of ESSID and channel
+ * @param essid The ESSID to hash
+ * @param channel a 4-digit integer of the channel
+ * @param bbsid The returned 6-byte BSSID
+  */
+void get_bssid(const char *essid, const unsigned int channel, unsigned char bssid[BSSID_SIZE]);
+
 #endif

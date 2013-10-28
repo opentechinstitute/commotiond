@@ -16,7 +16,7 @@ SET(CMAKE_EXE_LINKER_FLAGS "-ldl")
 
 CONFIGURE_FILE( "${CMAKE_SOURCE_DIR}/src/config.h.in" "${CMAKE_SOURCE_DIR}/src/config.h" )
 
-ADD_DEFINITIONS(-Os -Wall --std=gnu99 -Wmissing-declarations -DNDEBUG)
+ADD_DEFINITIONS(-Os -Wall --std=gnu99 -Wmissing-declarations -lnacl -DNDEBUG)
 
 IF(OPENWRT)
   ADD_DEFINITIONS(-D_OPENWRT)

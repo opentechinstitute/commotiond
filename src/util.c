@@ -39,6 +39,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+#include <nacl/crypto_hash.h>
 #include "debug.h"
 #include "util.h"
 
@@ -308,3 +309,23 @@ int wifi_chan(const int frequency) {
   }
 
 }
+
+void get_bssid(const char *essid, const unsigned int freq, unsigned char bssid[BSSID_SIZE]) {
+  DEBUG("ESSID: %s, Frequency: %d", essid, freq);
+  unsigned char hash[crypto_hash_BYTES];
+  char msg[ESSID_SIZE + FREQ_SIZE];
+
+  snprintfcat(msg, ESSID_SIZE + FREQ_SIZE, "%s%d", essid, freq);
+
+  crypto_hash(hash, msg, ESSID_SIZE + FREQ_SIZE);  
+  DEBUG("Hash: %s", (char *)hash);
+
+  for(int i=0; i < BSSID_SIZE; i++)
+    bssid[i] = hash[i];
+
+  DEBUG("BSSID buffer: %s", (char *)bssid);
+
+  return;
+}
+
+
