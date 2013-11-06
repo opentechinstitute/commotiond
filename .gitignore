@@ -22,3 +22,6 @@ config.h
 
 # Vim
 Session.vim
+
+# ctags
+tags
