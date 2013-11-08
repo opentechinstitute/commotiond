@@ -51,6 +51,7 @@
 #include "olsrd.h"
 #include "iface.h"
 #include "id.h"
+#include "plugin.h"
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -296,6 +297,9 @@ int main(int argc, char *argv[]) {
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
   socket->bind(socket, socket_uri);
+  
+  ready();
+  
   co_loop_start();
   co_loop_destroy();
 

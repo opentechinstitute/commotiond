@@ -127,6 +127,7 @@ static void _co_loop_poll_socket_i(list_t *list, lnode_t *lnode, void *context) 
   int *efd = context;
 
   if((sock->fd == *efd) || (sock->rfd == *efd)) {
+    printf("Calling poll_cb for fd %d\n",sock->fd);
     sock->poll_cb(sock, context);
   }
 
@@ -169,7 +170,8 @@ static void _co_loop_poll_sockets(void) {
     } else if(events[i].events & EPOLLHUP) {
       DEBUG("Hanging up socket.");
       list_process(sockets, (void *)&events[i].data.fd, _co_loop_hangup_socket_i);
-	  } else {
+    } else {
+      printf("POLL SOCKETS\n");
       list_process(sockets, (void *)&events[i].data.fd, _co_loop_poll_socket_i);
     }
   }
