@@ -39,16 +39,16 @@
 typedef int (*hook_t)(void);
 
 typedef struct {
-  char *name;
-  char *filename;
-  char *version;
+  const char *name;
+  const char *description;
+  const char *filename;
   void *handle;
-} plugin_t;
+} co_plugin_t;
 
-int plugins_create(void);
+int co_plugins_create(void);
 
-int plugins_load_all(const char *dir_path);
+int co_plugins_load(const char *dir_path);
 
-int plugins_call(const char *hook);
+int co_plugins_call(const char *hook);
 
 #endif

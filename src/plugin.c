@@ -33,33 +33,27 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <dlfcn.h>
-#include "extern/list.h"
+#include "extern/tst.h"
 #include "debug.h"
 #include "util.h"
 #include "plugin.h"
 
-static list_t* plugins = NULL;
+static tst_t* plugins = NULL;
 
-int plugins_create(void) {
-  CHECK_MEM(plugins = list_create(MAX_PLUGINS));
-  return 1;
-error:
-  return 0;
-}
-
-static int plugins_load_i(const char *path) {
+static int _co_plugins_load_i(const char *path, const char *filename) {
+  dlerror(); //Clear existing error codes.
   void *plugin = dlopen(path, RTLD_NOW);
   CHECK(plugin != NULL, "Failed to load plugin %s: %s", path, dlerror());
 
   //TODO: API version checks.
   
-  list_append(plugins, lnode_create(plugin));
+  plugins = tst_insert(new_profile->profile, (char *)key_copy, strlen(key_copy), (void *)value_copy);
   return 1; 
 error:
   return 0;
 }
 
-static void plugins_call_i(list_t *list, lnode_t *lnode, void *context) {
+static void _co_plugins_call_i(list_t *list, lnode_t *lnode, void *context) {
   void *plugin = lnode_get(lnode);
   char *hook_name = context;
   hook_t hook_handle = dlsym(plugin, hook_name); 
@@ -68,13 +62,13 @@ static void plugins_call_i(list_t *list, lnode_t *lnode, void *context) {
   return;
 }
 
-int plugins_load_all(const char *dir_path) {
-  return process_files(dir_path, plugins_load_i);
+int co_plugins_load(const char *dir_path) {
+  return process_files(dir_path, _co_plugins_load_i);
 }
 
-int plugins_call(const char *hook) {
+int co_plugins_call(const char *hook) {
   CHECK_MEM(hook);
-  list_process(plugins, (void *)hook, plugins_call_i);
+  list_process(plugins, (void *)hook, _co_plugins_call_i);
   return 1;
 error:
   return 0;
