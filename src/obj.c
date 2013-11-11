@@ -195,6 +195,32 @@ co_bool_create(const bool input)
       return NULL; \
     }
 
+/* Type "fixint" declaration */
+typedef struct
+{
+  co_obj_t _header;
+} co_fixint_t;
+
+int 
+co_fixint_alloc(co_fixint_t *output, const int input)
+{
+  CHECK(input < 128, "Value too large for a fixint.");
+  output->_header._type = (uint8_t)input;
+  return 1;
+error:
+  return 0;
+} 
+
+co_fixint_t * 
+co_fixint_create(const int input)
+{
+  co_fixint_t *output = h_calloc(1, sizeof(co_fixint_t));
+  CHECK(co_fixint_alloc(output, input), "Failed to allocate object.");
+  return output;
+error:
+  return NULL;
+} 
+
 /* Type "float32" declaration */
 typedef struct
 {
