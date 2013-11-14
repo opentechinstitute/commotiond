@@ -104,39 +104,14 @@ co_bool_create(const bool input)
     }
 
 _DEFINE_CHAR(bin, 8);
-
-/* Type "Ext" declaration macros */
-#define _ALLOC_EXT(L) int co_ext##L##_alloc(co_ext##L##_t *output, \
-    const size_t out_size, const char *input, const size_t in_size ) \
-    { \
-      CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
-      "Object too large for type ext##L## to address."); \
-      if((in_size > 0) && (input != NULL)) \
-      { \
-        CHECK((in_size < out_size - sizeof(uint##L##_t) - sizeof(co_obj_t)), \
-        "Value too large for output buffer."); \
-        memmove(output->data, input, in_size); \
-      } \
-      output->_header._type = _EXT##L; \
-      output->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
-          sizeof(co_obj_t)); \
-      return 1; \
-    error: \
-      return 0; \
-    } 
-#define _CREATE_EXT(L) co_ext##L##_t *co_ext##L##_create(const char *input, \
-    const size_t input_size) \
-    { \
-      CHECK((input_size < UINT##L##_MAX), "Value too large for type ext##L##."); \
-      int output_size = input_size + sizeof(uint##L##_t) + sizeof(co_obj_t); \
-      co_ext##L##_t *output = h_calloc(1, output_size); \
-      CHECK_MEM(output); \
-      CHECK(co_ext##L##_alloc(output, output_size, input, input_size), \
-          "Failed to allocate object."); \
-      return output; \
-    error: \
-      return NULL; \
-    }
+_DEFINE_CHAR(bin, 16);
+_DEFINE_CHAR(bin, 32);
+_DEFINE_CHAR(ext, 8);
+_DEFINE_CHAR(ext, 16);
+_DEFINE_CHAR(ext, 32);
+_DEFINE_CHAR(str, 8);
+_DEFINE_CHAR(str, 16);
+_DEFINE_CHAR(str, 32);
 
 /* Type "fixint" declaration */
 int 
@@ -194,79 +169,35 @@ co_float64_create(const double input)
 } 
 
 /* Type "int" declaration macros */
-#define _ALLOC_INT(L) int co_int##L##_alloc(co_int##L##_t *output, \
-    const int##L##_t input) \
+#define _DEFINE_INTEGER(T, L) int co_##T##L##_alloc(co_##T##L##_t *output, \
+    const T##L##_t input) \
     { \
-      output->_header._type = _INT##L; \
+      output->_header._type = _##T##L; \
       output->data = input; \
       return 1; \
-    }
-#define _CREATE_INT(L) co_int##L##_t *co_int##L##_create(\
-    const int##L##_t input) \
+    } \
+  co_##T##L##_t *co_##T##L##_create(\
+    const T##L##_t input) \
     { \
-      int output_size = sizeof(int##L##_t) + sizeof(co_obj_t); \
-      co_str##L##_t *output = h_calloc(1, output_size); \
+      int output_size = sizeof(T##L##_t) + sizeof(co_obj_t); \
+      co_##T##L##_t *output = h_calloc(1, output_size); \
       CHECK_MEM(output); \
-      CHECK(co_int##L##_alloc(output, input), \
+      CHECK(co_##T##L##_alloc(output, input), \
           "Failed to allocate object."); \
       return output; \
     error: \
       return NULL; \
     }
 
-/* Type "str" declaration macros */
-#define _ALLOC_STR(L) int co_str##L##_alloc(co_str##L##_t *output, \
-    const size_t out_size, const char *input, const size_t in_size ) \
-    { \
-      CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
-      "Object too large for type str##L## to address."); \
-      if((in_size > 0) && (input != NULL)) \
-      { \
-        CHECK((in_size < out_size - sizeof(uint##L##_t) - sizeof(co_obj_t)), \
-        "Value too large for output buffer."); \
-        memmove(output->data, input, in_size); \
-      } \
-      output->_header._type = _STR##L; \
-      output->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
-          sizeof(co_obj_t)); \
-      return 1; \
-    error: \
-      return 0; \
-    } 
-#define _CREATE_STR(L) co_str##L##_t *co_str##L##_create(const char *input, \
-    const size_t input_size) \
-    { \
-      CHECK((input_size < UINT##L##_MAX), "Value too large for type str##L##."); \
-      int output_size = input_size + sizeof(uint##L##_t) + sizeof(co_obj_t); \
-      co_str##L##_t *output = h_calloc(1, output_size); \
-      CHECK_MEM(output); \
-      CHECK(co_str##L##_alloc(output, output_size, input, input_size), \
-          "Failed to allocate object."); \
-      return output; \
-    error: \
-      return NULL; \
-    }
+_DEFINE_INTEGER(int, 8);
+_DEFINE_INTEGER(int, 16);
+_DEFINE_INTEGER(int, 32);
+_DEFINE_INTEGER(int, 64);
+_DEFINE_INTEGER(uint, 8);
+_DEFINE_INTEGER(uint, 16);
+_DEFINE_INTEGER(uint, 32);
+_DEFINE_INTEGER(uint, 64);
 
-/* Type "uint" declaration macros */
-#define _ALLOC_UINT(L) int co_uint##L##_alloc(co_uint##L##_t *output, \
-    const uint##L##_t input) \
-    { \
-      output->_header._type = _UINT##L; \
-      output->data = input; \
-      return 1; \
-    }
-#define _CREATE_UINT(L) co_uint##L##_t *co_uint##L##_create(\
-    const uint##L##_t input) \
-    { \
-      int output_size = sizeof(uint##L##_t) + sizeof(co_obj_t); \
-      co_str##L##_t *output = h_calloc(1, output_size); \
-      CHECK_MEM(output); \
-      CHECK(co_uint##L##_alloc(output, input), \
-          "Failed to allocate object."); \
-      return output; \
-    error: \
-      return NULL; \
-    }
 
 void
 co_free(co_obj_t *object)

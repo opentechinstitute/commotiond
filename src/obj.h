@@ -1,6 +1,6 @@
 /* vim: set ts=2 expandtab: */
 /**
- *       @file  obj.c
+ *       @file  obj.h
  *      @brief  Commotion object model
  *
  *     @author  Josh King (jheretic), jking@chambana.net
@@ -92,8 +92,9 @@
 #define _OBJ_EMPTY ((1 << 1))
 #define _OBJ_REQUIRED ((1 << 2))
 
-/* Objects */
-
+/*-----------------------------------------------------------------------------
+ *  Object Declarations
+ *-----------------------------------------------------------------------------*/
 typedef uint8_t _type_t;
 
 typedef struct
@@ -106,6 +107,46 @@ typedef struct
 } co_obj_t;
 
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
+
+
+/*-----------------------------------------------------------------------------
+ *  Character-array-types Declaration Macros
+ *-----------------------------------------------------------------------------*/
+#define _DECLARE_CHAR(T, L) typedef struct { co_obj_t _header; uint##L##_t _len; \
+  char data[1]; } co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
+  const size_t out_size, const char *input, const size_t in_size ); \
+  co_##T##L##_t *co_##T##L##_create(const char *input, const size_t input_size);
+
+_DECLARE_CHAR(bin, 8);
+_DECLARE_CHAR(bin, 16);
+_DECLARE_CHAR(bin, 32);
+_DECLARE_CHAR(ext, 8);
+_DECLARE_CHAR(ext, 16);
+_DECLARE_CHAR(ext, 32);
+_DECLARE_CHAR(str, 8);
+_DECLARE_CHAR(str, 16);
+_DECLARE_CHAR(str, 32);
+
+/*-----------------------------------------------------------------------------
+ *  Integer-types Declaration Macros 
+ *-----------------------------------------------------------------------------*/
+#define _DECLARE_INTEGER(T, L) typedef struct { co_obj_t _header; T##L##_t data; }\
+  co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
+  const T##L##_t input); co_##T##L##_t *co_##T##L##_create(\
+  const T##L##_t input);
+
+_DECLARE_INTEGER(int, 8);
+_DECLARE_INTEGER(int, 16);
+_DECLARE_INTEGER(int, 32);
+_DECLARE_INTEGER(int, 64);
+_DECLARE_INTEGER(uint, 8);
+_DECLARE_INTEGER(uint, 16);
+_DECLARE_INTEGER(uint, 32);
+_DECLARE_INTEGER(uint, 64);
+
+/*-----------------------------------------------------------------------------
+ *  Declarations of other simple types
+ *-----------------------------------------------------------------------------*/
 
 /* Type "Nil" declaration */
 typedef struct
@@ -124,20 +165,6 @@ typedef struct
 
 int co_bool_alloc(co_bool_t *output);
 co_bool_t * co_bool_create(const bool input);
-
-/* Type "Bin" declaration macros */
-#define _DECLARE_CHAR(T, L) typedef struct { co_obj_t _header; uint##L##_t _len; \
-  char data[1]; } co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
-  const size_t out_size, const char *input, const size_t in_size ); \
-  co_##T##L##_t *co_##T##L##_create(const char *input, const size_t input_size);
-
-_DECLARE_CHAR(bin, 8);
-
-/* Type "Ext" declaration macros */
-#define _DEFINE_ext(L) typedef struct { co_obj_t _header; uint##L##_t _len; \
-  char data[1]; } co_ext##L##_t; int co_ext##L##_alloc(co_ext##L##_t *output, \
-  const size_t out_size, const char *input, const size_t in_size); inline \
-  co_ext##L##_t *co_ext##L##_create(const char *input, const size_t input_size);
 
 /* Type "fixint" declaration */
 typedef struct
@@ -168,22 +195,8 @@ typedef struct
 int co_float64_alloc(co_float64_t *output, const double input);
 co_float64_t * co_float64_create(const double input);
 
-/* Type "int" declaration macros */
-#define _DECLARE_INTEGER(T, L) typedef struct { co_obj_t _header; T##L##_t data } \
-  co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
-  const int##L##_t input); inline co_##T##L##_t *co_##T##L##_create(\
-  const int##L##_t input);
 
-/* Type "str" declaration macros */
-#define _DEFINE_str(L) typedef struct { co_obj_t _header; uint##L##_t _len; \
-  char data[1]; } co_str##L##_t; int co_str##L##_alloc(co_str##L##_t *output, \
-  const size_t out_size, const char *input, const size_t in_size );  inline \
-  co_str##L##_t *co_str##L##_create(const char *input, const size_t input_size);
-
-/* Type "uint" declaration macros */
-#define _DEFINE_uint(L) typedef struct { co_obj_t _header; uint##L##_t data; } \
-  co_uint##L##_t; int co_uint##L##_alloc(co_uint##L##_t *output, \
-  const uint##L##_t input); inline co_uint##L##_t *co_uint##L##_create(\
-  const uint##L##_t input);
-
+/*-----------------------------------------------------------------------------
+ *  Deconstructors
+ *-----------------------------------------------------------------------------*/
 void co_free(co_obj_t *object);
