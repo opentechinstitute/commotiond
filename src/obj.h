@@ -185,4 +185,4 @@ co_float64_t * co_float64_create(const double input);
   const uint##L##_t input); inline co_uint##L##_t *co_uint##L##_create(\
   const uint##L##_t input);
 
-inline void co_free(co_obj_t *object);
+void co_free(co_obj_t *object);
