@@ -37,40 +37,9 @@
 #include "extern/halloc.h"
 
 
-/* Type "Nil" declaration */
-int 
-co_nil_alloc(co_nil_t *output)
-{
-  output->_header._type = _nil;
-  return 1;
-} 
-
-co_nil_t * 
-co_nil_create(void)
-{
-  co_nil_t *output = h_calloc(1, sizeof(co_nil_t));
-  co_nil_alloc(output);
-  return output;
-} 
-
-/* Type "Bool" declaration */
-int 
-co_bool_alloc(co_bool_t *output)
-{
-  output->_header._type = _false;
-  return 1;
-} 
-
-co_bool_t * 
-co_bool_create(const bool input)
-{
-  co_bool_t *output = h_calloc(1, sizeof(co_bool_t));
-  co_bool_alloc(output);
-  if(input) output->_header._type = _true;
-  return output;
-} 
-
-/* Type "Bin" declaration macros */
+/*-----------------------------------------------------------------------------
+ *   Constructors of character-array-types
+ *-----------------------------------------------------------------------------*/
 #define _DEFINE_CHAR(T, L) int co_##T##L##_alloc(co_##T##L##_t *output, \
     const size_t out_size, const char *input, const size_t in_size ) \
     { \
@@ -113,62 +82,9 @@ _DEFINE_CHAR(str, 8);
 _DEFINE_CHAR(str, 16);
 _DEFINE_CHAR(str, 32);
 
-/* Type "fixint" declaration */
-int 
-co_fixint_alloc(co_fixint_t *output, const int input)
-{
-  CHECK(input < 128, "Value too large for a fixint.");
-  output->_header._type = (uint8_t)input;
-  return 1;
-error:
-  return 0;
-} 
-
-co_fixint_t * 
-co_fixint_create(const int input)
-{
-  co_fixint_t *output = h_calloc(1, sizeof(co_fixint_t));
-  CHECK(co_fixint_alloc(output, input), "Failed to allocate object.");
-  return output;
-error:
-  return NULL;
-} 
-
-/* Type "float32" declaration */
-int 
-co_float32_alloc(co_float32_t *output, const float input)
-{
-  output->_header._type = _float32;
-  output->data = input;
-  return 1;
-} 
-
-co_float32_t * 
-co_float32_create(const double input)
-{
-  co_float32_t *output = h_calloc(1, sizeof(co_float32_t));
-  co_float32_alloc(output, input);
-  return output;
-} 
-
-/* Type "float64" declaration */
-int 
-co_float64_alloc(co_float64_t *output, const double input)
-{
-  output->_header._type = _float64;
-  output->data = input;
-  return 1;
-} 
-
-co_float64_t * 
-co_float64_create(const double input)
-{
-  co_float64_t *output = h_calloc(1, sizeof(co_float64_t));
-  co_float64_alloc(output, input);
-  return output;
-} 
-
-/* Type "int" declaration macros */
+/*-----------------------------------------------------------------------------
+ *   Constructors of integer types
+ *-----------------------------------------------------------------------------*/
 #define _DEFINE_INTEGER(T, L) int co_##T##L##_alloc(co_##T##L##_t *output, \
     const T##L##_t input) \
     { \
@@ -198,7 +114,96 @@ _DEFINE_INTEGER(uint, 16);
 _DEFINE_INTEGER(uint, 32);
 _DEFINE_INTEGER(uint, 64);
 
+/* Type "Nil" constructors */
+int 
+co_nil_alloc(co_nil_t *output)
+{
+  output->_header._type = _nil;
+  return 1;
+} 
 
+co_nil_t * 
+co_nil_create(void)
+{
+  co_nil_t *output = h_calloc(1, sizeof(co_nil_t));
+  co_nil_alloc(output);
+  return output;
+} 
+
+/* Type "Bool" constructors */
+int 
+co_bool_alloc(co_bool_t *output)
+{
+  output->_header._type = _false;
+  return 1;
+} 
+
+co_bool_t * 
+co_bool_create(const bool input)
+{
+  co_bool_t *output = h_calloc(1, sizeof(co_bool_t));
+  co_bool_alloc(output);
+  if(input) output->_header._type = _true;
+  return output;
+} 
+
+
+/* Type "fixint" constructors */
+int 
+co_fixint_alloc(co_fixint_t *output, const int input)
+{
+  CHECK(input < 128, "Value too large for a fixint.");
+  output->_header._type = (uint8_t)input;
+  return 1;
+error:
+  return 0;
+} 
+
+co_fixint_t * 
+co_fixint_create(const int input)
+{
+  co_fixint_t *output = h_calloc(1, sizeof(co_fixint_t));
+  CHECK(co_fixint_alloc(output, input), "Failed to allocate object.");
+  return output;
+error:
+  return NULL;
+} 
+
+/* Type "float32" constructors */
+int 
+co_float32_alloc(co_float32_t *output, const float input)
+{
+  output->_header._type = _float32;
+  output->data = input;
+  return 1;
+} 
+
+co_float32_t * 
+co_float32_create(const double input)
+{
+  co_float32_t *output = h_calloc(1, sizeof(co_float32_t));
+  co_float32_alloc(output, input);
+  return output;
+} 
+
+/* Type "float64" constructors */
+int 
+co_float64_alloc(co_float64_t *output, const double input)
+{
+  output->_header._type = _float64;
+  output->data = input;
+  return 1;
+} 
+
+co_float64_t * 
+co_float64_create(const double input)
+{
+  co_float64_t *output = h_calloc(1, sizeof(co_float64_t));
+  co_float64_alloc(output, input);
+  return output;
+} 
+
+/* Deconstructor definition */
 void
 co_free(co_obj_t *object)
 {
