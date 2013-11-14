@@ -41,7 +41,7 @@
 int 
 co_nil_alloc(co_nil_t *output)
 {
-  output->_header._type = _NIL;
+  output->_header._type = _nil;
   return 1;
 } 
 
@@ -57,7 +57,7 @@ co_nil_create(void)
 int 
 co_bool_alloc(co_bool_t *output)
 {
-  output->_header._type = _FALSE;
+  output->_header._type = _false;
   return 1;
 } 
 
@@ -66,49 +66,44 @@ co_bool_create(const bool input)
 {
   co_bool_t *output = h_calloc(1, sizeof(co_bool_t));
   co_bool_alloc(output);
-  if(input) output->_header._type = _TRUE;
+  if(input) output->_header._type = _true;
   return output;
 } 
 
 /* Type "Bin" declaration macros */
-#define _ALLOC_BIN(L) int co_bin##L##_alloc(co_bin##L##_t *output, \
+#define _DEFINE_CHAR(T, L) int co_##T##L##_alloc(co_##T##L##_t *output, \
     const size_t out_size, const char *input, const size_t in_size ) \
     { \
       CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
-      "Object too large for type bin##L## to address."); \
+      "Object too large for type ##T##L## to address."); \
       if((in_size > 0) && (input != NULL)) \
       { \
         CHECK((in_size < out_size - sizeof(uint##L##_t) - sizeof(co_obj_t)), \
         "Value too large for output buffer."); \
         memmove(output->data, input, in_size); \
       } \
-      output->_header._type = _BIN##L; \
+      output->_header._type = _##T##L; \
       output->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
           sizeof(co_obj_t)); \
       return 1; \
     error: \
       return 0; \
-    } 
-#define _CREATE_BIN(L) co_bin##L##_t *co_bin##L##_create(const char *input, \
+    } \
+    co_##T##L##_t *co_##T##L##_create(const char *input, \
     const size_t input_size) \
     { \
-      CHECK((input_size < UINT##L##_MAX), "Value too large for type bin##L##."); \
+      CHECK((input_size < UINT##L##_MAX), "Value too large for type ##T##L##."); \
       int output_size = input_size + sizeof(uint##L##_t) + sizeof(co_obj_t); \
-      co_bin##L##_t *output = h_calloc(1, output_size); \
+      co_##T##L##_t *output = h_calloc(1, output_size); \
       CHECK_MEM(output); \
-      CHECK(co_bin##L##_alloc(output, output_size, input, input_size), \
+      CHECK(co_##T##L##_alloc(output, output_size, input, input_size), \
           "Failed to allocate object."); \
       return output; \
     error: \
       return NULL; \
     }
 
-_ALLOC_BIN(8);
-_ALLOC_BIN(16);
-_ALLOC_BIN(32);
-_CREATE_BIN(8);
-_CREATE_BIN(16);
-_CREATE_BIN(32);
+_DEFINE_CHAR(bin, 8);
 
 /* Type "Ext" declaration macros */
 #define _ALLOC_EXT(L) int co_ext##L##_alloc(co_ext##L##_t *output, \
@@ -143,13 +138,6 @@ _CREATE_BIN(32);
       return NULL; \
     }
 
-_ALLOC_EXT(8);
-_ALLOC_EXT(16);
-_ALLOC_EXT(32);
-_CREATE_EXT(8);
-_CREATE_EXT(16);
-_CREATE_EXT(32);
-
 /* Type "fixint" declaration */
 int 
 co_fixint_alloc(co_fixint_t *output, const int input)
@@ -175,7 +163,7 @@ error:
 int 
 co_float32_alloc(co_float32_t *output, const float input)
 {
-  output->_header._type = _FLOAT32;
+  output->_header._type = _float32;
   output->data = input;
   return 1;
 } 
@@ -192,7 +180,7 @@ co_float32_create(const double input)
 int 
 co_float64_alloc(co_float64_t *output, const double input)
 {
-  output->_header._type = _FLOAT64;
+  output->_header._type = _float64;
   output->data = input;
   return 1;
 } 
@@ -225,14 +213,6 @@ co_float64_create(const double input)
     error: \
       return NULL; \
     }
-_ALLOC_INT(8);
-_ALLOC_INT(16);
-_ALLOC_INT(32);
-_ALLOC_INT(64);
-_CREATE_INT(8);
-_CREATE_INT(16);
-_CREATE_INT(32);
-_CREATE_INT(64);
 
 /* Type "str" declaration macros */
 #define _ALLOC_STR(L) int co_str##L##_alloc(co_str##L##_t *output, \
@@ -267,13 +247,6 @@ _CREATE_INT(64);
       return NULL; \
     }
 
-_ALLOC_STR(8);
-_ALLOC_STR(16);
-_ALLOC_STR(32);
-_CREATE_STR(8);
-_CREATE_STR(16);
-_CREATE_STR(32);
-
 /* Type "uint" declaration macros */
 #define _ALLOC_UINT(L) int co_uint##L##_alloc(co_uint##L##_t *output, \
     const uint##L##_t input) \
@@ -294,14 +267,6 @@ _CREATE_STR(32);
     error: \
       return NULL; \
     }
-_ALLOC_UINT(8);
-_ALLOC_UINT(16);
-_ALLOC_UINT(32);
-_ALLOC_UINT(64);
-_CREATE_UINT(8);
-_CREATE_UINT(16);
-_CREATE_UINT(32);
-_CREATE_UINT(64);
 
 void
 co_free(co_obj_t *object)
