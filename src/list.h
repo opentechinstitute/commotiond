@@ -43,4 +43,31 @@
 
 _DECLARE_LIST(16);
 _DECLARE_LIST(32);
+
+size_t co_list_change_length(co_obj_t *list, const int delta);
+
+size_t co_list_length(co_obj_t *list);
+
+size_t co_list_increment(co_obj_t *list);
+
+size_t co_list_decrement(co_obj_t *list);
+
+co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
+
+static co_obj_t *_co_list_contains_i(co_obj_t *data, co_obj_t *current, void *context);
+
+int co_list_contains(co_obj_t *list, co_obj_t *item);
+
+int co_list_insert_before(co_obj_t *list, co_obj_t *new, co_obj_t *this);
+
+int co_list_insert_after(co_obj_t *list, co_obj_t *new, co_obj_t *this);
+
+int co_list_prepend(co_obj_t *list, co_obj_t *new);
+
+int co_list_append(co_obj_t *list, co_obj_t *new);
+
+static co_obj_t *_co_list_remove_i(co_obj_t *data, co_obj_t *current, void *context);
+
+co_obj_t *co_list_remove(co_obj_t *list, co_obj_t *item);
+
 #endif
