@@ -52,40 +52,41 @@ enum {
 };
 */
 
-co_obj_t *co_tree_search(co_obj_t *root, const char *s, size_t len)
+co_obj_t *
+co_tree_search(co_obj_t *root, const char *term, size_t tlen)
 {
-  _treenode_t *p = NULL;
+  _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
   {
-    p = ((co_tree16_t *)root)->root;
+    n = ((co_tree16_t *)root)->root;
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
-    p = ((co_tree32_t *)root)->root;
+    n = ((co_tree32_t *)root)->root;
   }
   else ERROR("Specified object is not a tree.");
   size_t i = 0;
 
-  while(i < len && p) 
+  while(i < tlen && n) 
   {
-    if (s[i] < p->splitchar) 
+    if (term[i] < n->splitchar) 
     {
-      p = p->low; 
+      n = n->low; 
     } 
-    else if (s[i] == p->splitchar) 
+    else if (term[i] == n->splitchar) 
     {
       i++;
-      if(i < len) p = p->equal; 
+      if(i < tlen) n = n->equal; 
     } 
     else 
     {
-      p = p->high; 
+      n = n->high; 
     }
   }
 
-  if(p) 
+  if(n) 
   {
-    return p->object;
+    return n->object;
   } 
   else 
   {
@@ -94,55 +95,57 @@ co_obj_t *co_tree_search(co_obj_t *root, const char *s, size_t len)
 }
 
 
-static inline _treenode_t *co_tree_insert_r(_treenode_t *root, _treenode_t *p, const char *s, const size_t len, co_obj_t *value)
+static inline _treenode_t *
+_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *key, const size_t klen, co_obj_t *value)
 {
-    if (p == NULL) { 
-        p = (_treenode_t *) h_calloc(sizeof(_treenode_t), 1);
+    if (current == NULL) { 
+        current = (_treenode_t *) h_calloc(sizeof(_treenode_t), 1);
 
         if(root == NULL) {
-            root = p;
+            root = current;
         } else {
-            hattach(p, root);
+            hattach(current, root);
         }
 
-        p->splitchar = *s; 
+        current->splitchar = *key; 
     }
 
-    if (*s < p->splitchar) {
-        p->low = co_tree_insert_r(root, p->low, s, len, value); 
-    } else if (*s == p->splitchar) { 
-        if (len > 1) {
+    if (*key < current->splitchar) {
+        current->low = _co_tree_insert_r(root, current->low, key, klen, value); 
+    } else if (*key == current->splitchar) { 
+        if (klen > 1) {
             // not done yet, keep going but one less
-            p->equal = co_tree_insert_r(root, p->equal, s+1, len - 1, value);
+            current->equal = _co_tree_insert_r(root, current->equal, key+1, klen - 1, value);
         } else {
-            CHECK(p->object != NULL, "Duplicate insert into tree.");
-            p->object = value;
+            CHECK(current->object != NULL, "Duplicate insert into tree.");
+            current->object = value;
         }
     } else {
-        p->high = co_tree_insert_r(root, p->high, s, len, value);
+        current->high = _co_tree_insert_r(root, current->high, key, klen, value);
     }
 
-    return p; 
+    return current; 
 error:
     return NULL;
 }
 
-int co_tree_insert(co_obj_t *root, const char *s, const size_t len, co_obj_t *value)
+int 
+co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
 {
-  _treenode_t *p = NULL;
+  _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
   {
-    p = ((co_tree16_t *)root)->root;
+    n = ((co_tree16_t *)root)->root;
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
-    p = ((co_tree32_t *)root)->root;
+    n = ((co_tree32_t *)root)->root;
   }
-  p = co_tree_insert_r(p, p, s, len, value);
-  if(p != NULL)
+  n = _co_tree_insert_r(n, n, key, klen, value);
+  if(n != NULL)
   {
-    value->_key = (co_obj_t *)co_str8_create(s, len);
-    hattach(value->_key, p);
+    value->_key = (co_obj_t *)co_str8_create(key, klen);
+    hattach(value->_key, n);
     return 1;
   }
   else return 0;
