@@ -28,9 +28,10 @@
  *
  * =====================================================================================
  */
+#ifndef _OBJ_H
+#define _OBJ_H
 #include <stdlib.h>
 #include <stddef.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include "debug.h"
 #include "extern/halloc.h"
@@ -58,18 +59,18 @@
 #define _str8 0xd9
 #define _str16 0xda
 #define _str32 0xdb
-#define _arr16 0xdc
-#define _arr32 0xdd
+#define _list16 0xdc
+#define _list32 0xdd
 #define _map16 0xde
 #define _map32 0xdf
 
 /* Convenience */
-#define CO_TYPE(J) (J->_header._type)
+#define CO_TYPE(J) (((co_obj_t *)J)->_type)
 
 /* Lists */
-#define _LIST_NEXT(J) (J->_header._next)
-#define _LIST_PREV(J) (J->_header._prev)
-#define _LIST_LAST(J) (J->_header._prev)
+#define _LIST_NEXT(J) (((co_obj_t *)J)->_next)
+#define _LIST_PREV(J) (((co_obj_t *)J)->_prev)
+#define _LIST_LAST(J) (((co_obj_t *)J)->_prev)
 
 /* Type checking */
 #define IS_NIL(J) (CO_TYPE(J) == _nil)
@@ -81,11 +82,11 @@
 #define IS_UINT(J) ((CO_TYPE(J) == _uint8) || (CO_TYPE(J) == _uint16) || (CO_TYPE(J) == _uint32) || (CO_TYPE(J) == _uint64))
 #define IS_INT(J) ((CO_TYPE(J) == _int8) || (CO_TYPE(J) == _int16) || (CO_TYPE(J) == _int32) || (CO_TYPE(J) == _int64))
 #define IS_STR(J) ((CO_TYPE(J) == _str8) || (CO_TYPE(J) == _str16) || (CO_TYPE(J) == _str32))
-#define IS_LIST(J) ((CO_TYPE(J) == _arr16) || (CO_TYPE(J) == _arr32))
+#define IS_LIST(J) ((CO_TYPE(J) == _list16) || (CO_TYPE(J) == _list32))
 #define IS_MAP(J) ((CO_TYPE(J) == _map16) || (CO_TYPE(J) == _map32))
 #define IS_CHAR(J) (IS_BIN(J) || IS_EXT(J) || IS_STR(J))
 #define IS_INTEGER(J) (IS_INT(J) || IS_UINT(J) || IS_FIXINT(J))
-#define IS_COMPLEX(J) (IS_ARR(J) || IS_MAP(J))
+#define IS_COMPLEX(J) (IS_LIST(J) || IS_MAP(J))
 
 /* Flags */
 #define _OBJ_SCHEMA ((1 << 0))
@@ -97,14 +98,16 @@
  *-----------------------------------------------------------------------------*/
 typedef uint8_t _type_t;
 
-typedef struct
+typedef struct co_obj_t co_obj_t;
+
+struct co_obj_t
 {
   uint8_t _flags;
   /*  For "array" types, which are actually lists. */
   struct co_obj_t *_prev;
   struct co_obj_t *_next;
   _type_t _type;
-} co_obj_t;
+};
 
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
 
@@ -200,3 +203,4 @@ co_float64_t * co_float64_create(const double input);
  *  Deconstructors
  *-----------------------------------------------------------------------------*/
 void co_free(co_obj_t *object);
+#endif
