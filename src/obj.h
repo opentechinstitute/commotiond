@@ -61,8 +61,8 @@
 #define _str32 0xdb
 #define _list16 0xdc
 #define _list32 0xdd
-#define _map16 0xde
-#define _map32 0xdf
+#define _tree16 0xde
+#define _tree32 0xdf
 
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
@@ -83,10 +83,10 @@
 #define IS_INT(J) ((CO_TYPE(J) == _int8) || (CO_TYPE(J) == _int16) || (CO_TYPE(J) == _int32) || (CO_TYPE(J) == _int64))
 #define IS_STR(J) ((CO_TYPE(J) == _str8) || (CO_TYPE(J) == _str16) || (CO_TYPE(J) == _str32))
 #define IS_LIST(J) ((CO_TYPE(J) == _list16) || (CO_TYPE(J) == _list32))
-#define IS_MAP(J) ((CO_TYPE(J) == _map16) || (CO_TYPE(J) == _map32))
+#define IS_TREE(J) ((CO_TYPE(J) == _tree16) || (CO_TYPE(J) == _tree32))
 #define IS_CHAR(J) (IS_BIN(J) || IS_EXT(J) || IS_STR(J))
 #define IS_INTEGER(J) (IS_INT(J) || IS_UINT(J) || IS_FIXINT(J))
-#define IS_COMPLEX(J) (IS_LIST(J) || IS_MAP(J))
+#define IS_COMPLEX(J) (IS_LIST(J) || IS_TREE(J))
 
 /* Flags */
 #define _OBJ_SCHEMA ((1 << 0))
@@ -103,9 +103,11 @@ typedef struct co_obj_t co_obj_t;
 struct co_obj_t
 {
   uint8_t _flags;
-  /*  For "array" types, which are actually lists. */
-  struct co_obj_t *_prev;
-  struct co_obj_t *_next;
+  /*  For insertion into a tree. */
+  co_obj_t *_key;
+  /*  For "list" types. */
+  co_obj_t *_prev;
+  co_obj_t *_next;
   _type_t _type;
 };
 
