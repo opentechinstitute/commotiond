@@ -47,7 +47,11 @@
       "Object too large for type ##T##L## to address."); \
       if((in_size > 0) && (input != NULL)) \
       { \
-        CHECK((in_size < out_size - sizeof(uint##L##_t) - sizeof(co_obj_t)), \
+        DEBUG("in_size: %d", in_size); \
+        DEBUG("out_size: %d", out_size); \
+        DEBUG("sizeof(uint##L##_t): %d", sizeof(uint##L##_t)); \
+        DEBUG("sizeof(co_obj_t): %d", sizeof(co_obj_t)); \
+        CHECK((in_size <= (out_size - sizeof(uint##L##_t) - sizeof(co_obj_t))), \
         "Value too large for output buffer."); \
         memmove(output->data, input, in_size); \
       } \
@@ -211,3 +215,108 @@ co_free(co_obj_t *object)
   return;
 }
 
+
+  
+
+/*-----------------------------------------------------------------------------
+ *   String operations
+ *-----------------------------------------------------------------------------*/
+
+size_t
+co_data(char *data, const co_obj_t *object)
+{
+  switch(CO_TYPE(object))
+  {
+    case _str8:
+      data = (char *)(((co_str8_t *)object)->data);
+      return (size_t)(((co_str8_t *)object)->_len);
+      break;
+    case _str16:
+      data = (char *)(((co_str16_t *)object)->data);
+      return (size_t)(((co_str16_t *)object)->_len);
+      break;
+    case _str32:
+      data = (char *)(((co_str32_t *)object)->data);
+      return (size_t)(((co_str32_t *)object)->_len);
+      break;
+    case _bin8:
+      data = (char *)(((co_bin8_t *)object)->data);
+      return (size_t)(((co_bin8_t *)object)->_len);
+      break;
+    case _bin16:
+      data = (char *)(((co_bin16_t *)object)->data);
+      return (size_t)(((co_bin16_t *)object)->_len);
+      break;
+    case _bin32:
+      data = (char *)(((co_bin32_t *)object)->data);
+      return (size_t)(((co_bin32_t *)object)->_len);
+      break;
+    case _ext8:
+      data = (char *)(((co_ext8_t *)object)->data);
+      return (size_t)(((co_ext8_t *)object)->_len);
+      break;
+    case _ext16:
+      data = (char *)(((co_ext16_t *)object)->data);
+      return (size_t)(((co_ext16_t *)object)->_len);
+      break;
+    case _ext32:
+      data = (char *)(((co_ext32_t *)object)->data);
+      return (size_t)(((co_ext32_t *)object)->_len);
+      break;
+    default:
+      WARN("Not a character object.");
+      return -1;
+  }
+}
+
+int 
+co_strcpy(co_obj_t *dst, const co_obj_t *src, const size_t size)
+{
+  char *src_data, *dst_data; 
+  size_t length = 0;
+  CHECK(((length = co_data(src_data, src)) >= 0), "Not a string object.");
+  if(length >= UINT16_MAX)
+  {
+
+  }
+  else if(length >= UINT8_MAX)
+  {
+
+  }
+  else CHECK();
+	if (size != 0) {
+		memmove(dst, src, (length > size - 1) ? size - 1 : length);
+		dst_data[size - 1] = '\0';
+	}
+	return length;
+error:
+  return 0;
+}
+
+int 
+co_strcat(co_obj_t *dst, const co_obj_t *src)
+{
+  size_t used, length, copy;
+
+  used = strlen(dst);
+  length = strlen(src);
+  if (size > 0 && used < size - 1) {
+    copy = (length >= size - used) ? size - used - 1 : length;
+    memcpy(dst + used, src, copy);
+    dst[used + copy] = '\0';
+  }
+  return used + length;
+}
+
+int 
+co_strprint(char *str, size_t size, const char *format, ...) {
+  size_t result;
+  va_list args;
+  size_t len = strnlen(str, size);
+
+  va_start(args, format);
+  result = vsnprintf(str + len, size - len, format, args);
+  va_end(args);
+
+  return result + len;
+}
