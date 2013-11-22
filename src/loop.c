@@ -300,7 +300,7 @@ error:
 int co_loop_remove_socket(void *old_sock, void *context) {
   co_socket_t *sock = old_sock;
   lnode_t *node;
-  CHECK((node = list_find(sockets, &sock->uri, _co_loop_match_socket_i)) != NULL, "Failed to delete socket %s!", sock->uri);
+  CHECK((node = list_find(sockets, sock->uri, _co_loop_match_socket_i)) != NULL, "Failed to delete socket %s!", sock->uri);
   list_delete(sockets, node);
   sock->fd_registered = false; 
   sock->rfd_registered = false; 
