@@ -37,46 +37,68 @@
 #include "tree.h"
 #include "extern/halloc.h"
 
+#define _DEFINE_TREE(L) int co_tree##L##_alloc(co_obj_t *output) \
+    { \
+      output->_type = _tree##L; \
+      output->_next = NULL; \
+      output->_prev = NULL; \
+      ((co_tree##L##_t *)output)->_len = 0; \
+      ((co_tree##L##_t *)output)->root = NULL; \
+      return 1; \
+    } \
+  co_obj_t *co_tree##L##_create(void) \
+    { \
+      co_obj_t *output = h_calloc(1, sizeof(co_tree##L##_t)); \
+      CHECK_MEM(output); \
+      CHECK(co_tree##L##_alloc(output), \
+          "Failed to allocate object."); \
+      return output; \
+    error: \
+      return NULL; \
+    }
+
+_DEFINE_TREE(16);
+_DEFINE_TREE(32);
+
 struct _treenode_t
 {
     char splitchar; 
     _treenode_t *low;
     _treenode_t *equal;
     _treenode_t *high; 
-    co_obj_t *object;
+    co_obj_t *key;
+    co_obj_t *value;
 };
-
-/*
-enum {
-    MAX_TRAVERSE_SIZE = 128
-};
-*/
 
 co_obj_t *
-co_tree_search(co_obj_t *root, const char *term, size_t tlen)
+co_tree_find(co_obj_t *root, const char *key, size_t klen)
 {
+  DEBUG("Get from tree: %s", key);
   _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
   {
+    DEBUG("Is a size 16 tree.");
     n = ((co_tree16_t *)root)->root;
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
+    DEBUG("Is a size 32 tree.");
     n = ((co_tree32_t *)root)->root;
   }
   else ERROR("Specified object is not a tree.");
   size_t i = 0;
 
-  while(i < tlen && n) 
+  while(i < klen && n) 
   {
-    if (term[i] < n->splitchar) 
+    DEBUG("Tree node: %c", key[i]);
+    if (key[i] < n->splitchar) 
     {
       n = n->low; 
     } 
-    else if (term[i] == n->splitchar) 
+    else if (key[i] == n->splitchar) 
     {
       i++;
-      if(i < tlen) n = n->equal; 
+      if(i < klen) n = n->equal; 
     } 
     else 
     {
@@ -86,7 +108,7 @@ co_tree_search(co_obj_t *root, const char *term, size_t tlen)
 
   if(n) 
   {
-    return n->object;
+    return n->value;
   } 
   else 
   {
@@ -96,37 +118,128 @@ co_tree_search(co_obj_t *root, const char *term, size_t tlen)
 
 
 static inline _treenode_t *
-_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *key, const size_t klen, co_obj_t *value)
+_co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, const size_t klen, co_obj_t *value)
 {
-    if (current == NULL) { 
-        current = (_treenode_t *) h_calloc(sizeof(_treenode_t), 1);
-
-        if(root == NULL) {
-            root = current;
-        } else {
-            hattach(current, root);
-        }
-
-        current->splitchar = *key; 
+  if (current == NULL) 
+  { 
+    current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
+    if(root == NULL) 
+    {
+      root = current;
+    } 
+    else 
+    {
+      hattach(current, root);
     }
+    current->splitchar = *key; 
+  }
 
-    if (*key < current->splitchar) {
-        current->low = _co_tree_insert_r(root, current->low, key, klen, value); 
-    } else if (*key == current->splitchar) { 
-        if (klen > 1) {
-            // not done yet, keep going but one less
-            current->equal = _co_tree_insert_r(root, current->equal, key+1, klen - 1, value);
-        } else {
-            CHECK(current->object != NULL, "Duplicate insert into tree.");
-            current->object = value;
-        }
-    } else {
-        current->high = _co_tree_insert_r(root, current->high, key, klen, value);
+  DEBUG("Tree current: %s", key);
+  if (*key < current->splitchar) 
+  {
+    current->low = _co_tree_delete_r(root, current->low, key, klen, value); 
+  } 
+  else if (*key == current->splitchar) 
+  { 
+    if (klen > 1) 
+    {
+      // not done yet, keep going but one less
+      current->equal = _co_tree_delete_r(root, current->equal, key+1, klen - 1, value);
+    } 
+    else 
+    {
+      if(current->value != NULL)
+      {
+        hattach(current->value, NULL);
+        value = current->value;
+        current->value = NULL;
+      }
     }
+  } 
+  else 
+  {
+    current->high = _co_tree_delete_r(root, current->high, key, klen, value);
+  }
 
-    return current; 
-error:
+  if(current->low == NULL && current->high == NULL && current->equal == NULL && current->value == NULL)
+  {
+    h_free(current);
     return NULL;
+  }
+  else return current; 
+}
+
+co_obj_t *
+co_tree_delete(co_obj_t *root, const char *key, const size_t klen)
+{
+  co_obj_t *value = NULL;
+  if(CO_TYPE(root) == _tree16)
+  {
+    ((co_tree16_t *)root)->root = _co_tree_delete_r(((co_tree16_t *)root)->root, \
+      ((co_tree16_t *)root)->root, key, klen, value);
+  } 
+  else if(CO_TYPE(root) == _tree32) 
+  {
+    ((co_tree32_t *)root)->root = _co_tree_delete_r(((co_tree32_t *)root)->root, \
+      ((co_tree32_t *)root)->root, key, klen, value);
+  }
+
+  CHECK(value != NULL, "Failed to delete value.");
+  return value;
+error:
+  return NULL;
+}
+
+  static inline _treenode_t *
+_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value)
+{
+  if (current == NULL) 
+  { 
+    current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
+    if(root == NULL) 
+    {
+      root = current;
+    } 
+    else 
+    {
+      hattach(current, root);
+    }
+    current->splitchar = *key; 
+  }
+
+  DEBUG("Tree current: %s", key);
+  if (*key < current->splitchar) 
+  {
+    current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value); 
+  } 
+  else if (*key == current->splitchar) 
+  { 
+    if (klen > 1) 
+    {
+      // not done yet, keep going but one less
+      current->equal = _co_tree_insert_r(root, current->equal, orig_key, orig_klen, key+1, klen - 1, value);
+    } 
+    else 
+    {
+      if(current->value != NULL)
+      {
+        co_free(current->value);
+      }
+      if(current->key != NULL) 
+      {
+        co_free(current->key);
+      }
+      current->value = value;
+      current->key = co_str8_create(orig_key, orig_klen, 0);
+      hattach(current->key, current);
+    }
+  } 
+  else 
+  {
+    current->high = _co_tree_insert_r(root, current->high, orig_key, orig_klen, key, klen, value);
+  }
+
+  return current; 
 }
 
 int 
@@ -135,20 +248,57 @@ co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *val
   _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
   {
+    ((co_tree16_t *)root)->root = _co_tree_insert_r(((co_tree16_t *)root)->root, \
+      ((co_tree16_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree16_t *)root)->root;
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
+    ((co_tree32_t *)root)->root = _co_tree_insert_r(((co_tree32_t *)root)->root, \
+      ((co_tree32_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree32_t *)root)->root;
   }
-  n = _co_tree_insert_r(n, n, key, klen, value);
-  if(n != NULL)
+
+  CHECK(n != NULL, "Failed to insert value.");
+  return 1;
+error:
+  return 0;
+}
+
+static inline void
+_co_tree_process_r(co_obj_t *tree, _treenode_t *current, const co_iter_t iter, void *context)
+{
+  CHECK(IS_TREE(tree), "Recursion target is not a tree.");
+  if(current->value != NULL)
   {
-    value->_key = (co_obj_t *)co_str8_create(key, klen);
-    hattach(value->_key, n);
-    return 1;
+    iter(tree, current->value, context);
   }
-  else return 0;
+  _co_tree_process_r(tree, current->low, iter, context); 
+  _co_tree_process_r(tree, current->low, iter, context); 
+  _co_tree_process_r(tree, current->low, iter, context); 
+  return; 
+error:
+  return;
+}
+
+int 
+co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context)
+{
+  switch(CO_TYPE(tree))
+  {
+    case _tree16:
+      _co_tree_process_r(tree, ((co_tree16_t *)tree)->root, iter, context);
+      break;
+    case _tree32:
+      _co_tree_process_r(tree, ((co_tree32_t *)tree)->root, iter, context);
+      break;
+    default:
+      SENTINEL("Object is not a tree.");
+      break;
+  }
+  return 1;
+error:
+  return 0;
 }
 
 
@@ -212,8 +362,8 @@ error:
 }
 */
 
-
-void co_tree_destroy(co_obj_t *root)
+void 
+co_tree_destroy(co_obj_t *root)
 {
     if(root) {
         h_free(root);

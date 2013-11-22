@@ -125,18 +125,18 @@ co_list_contains(co_obj_t *list, co_obj_t *item)
 }
 
 int
-co_list_insert_before(co_obj_t *list, co_obj_t *new, co_obj_t *this)
+co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new), "New node already in specified list.");
-  CHECK(co_list_contains(list, this), "Unable to find existing node in \
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
-  co_obj_t *adjacent = _LIST_PREV(this);
-  _LIST_NEXT(adjacent) = new;
-  _LIST_PREV(this) = new;
-  _LIST_NEXT(new) = this;
-  _LIST_PREV(new) = adjacent;
-  hattach(new, list);
+  co_obj_t *adjacent = _LIST_PREV(this_obj);
+  _LIST_NEXT(adjacent) = new_obj;
+  _LIST_PREV(this_obj) = new_obj;
+  _LIST_NEXT(new_obj) = this_obj;
+  _LIST_PREV(new_obj) = adjacent;
+  hattach(new_obj, list);
   co_list_increment(list);
   return 1;
 error:
@@ -144,18 +144,18 @@ error:
 }
 
 int
-co_list_insert_after(co_obj_t *list, co_obj_t *new, co_obj_t *this)
+co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new), "New node already in specified list.");
-  CHECK(co_list_contains(list, this), "Unable to find existing node in \
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
-  co_obj_t *adjacent = _LIST_NEXT(this);
-  _LIST_PREV(adjacent) = new;
-  _LIST_NEXT(this) = new;
-  _LIST_PREV(new) = this;
-  _LIST_NEXT(new) = adjacent;
-  hattach(new, list);
+  co_obj_t *adjacent = _LIST_NEXT(this_obj);
+  _LIST_PREV(adjacent) = new_obj;
+  _LIST_NEXT(this_obj) = new_obj;
+  _LIST_PREV(new_obj) = this_obj;
+  _LIST_NEXT(new_obj) = adjacent;
+  hattach(new_obj, list);
   co_list_increment(list);
   return 1;
 error:
@@ -163,15 +163,15 @@ error:
 }
 
 int
-co_list_prepend(co_obj_t *list, co_obj_t *new)
+co_list_prepend(co_obj_t *list, co_obj_t *new_obj)
 {
-  return co_list_insert_after(list, new, list);
+  return co_list_insert_after(list, new_obj, list);
 }
 
 int
-co_list_append(co_obj_t *list, co_obj_t *new)
+co_list_append(co_obj_t *list, co_obj_t *new_obj)
 {
-  return co_list_insert_before(list, new, list);
+  return co_list_insert_before(list, new_obj, list);
 }
 
 static co_obj_t *

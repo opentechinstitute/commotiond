@@ -103,8 +103,6 @@ typedef struct co_obj_t co_obj_t;
 struct co_obj_t
 {
   uint8_t _flags;
-  /*  For insertion into a tree. */
-  co_obj_t *_key;
   /*  For "list" types. */
   co_obj_t *_prev;
   co_obj_t *_next;
@@ -118,9 +116,10 @@ typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context)
  *  Character-array-types Declaration Macros
  *-----------------------------------------------------------------------------*/
 #define _DECLARE_CHAR(T, L) typedef struct { co_obj_t _header; uint##L##_t _len; \
-  char data[1]; } co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
-  const size_t out_size, const char *input, const size_t in_size ); \
-  co_##T##L##_t *co_##T##L##_create(const char *input, const size_t input_size);
+  char data[1]; } co_##T##L##_t; int co_##T##L##_alloc(co_obj_t *output, \
+  const size_t out_size, const char *input, const size_t in_size, \
+  const uint8_t flags ); co_obj_t *co_##T##L##_create(const char *input, \
+  const size_t input_size, const uint8_t flags);
 
 _DECLARE_CHAR(bin, 8);
 _DECLARE_CHAR(bin, 16);
@@ -136,9 +135,9 @@ _DECLARE_CHAR(str, 32);
  *  Integer-types Declaration Macros 
  *-----------------------------------------------------------------------------*/
 #define _DECLARE_INTEGER(T, L) typedef struct { co_obj_t _header; T##L##_t data; }\
-  co_##T##L##_t; int co_##T##L##_alloc(co_##T##L##_t *output, \
-  const T##L##_t input); co_##T##L##_t *co_##T##L##_create(\
-  const T##L##_t input);
+  co_##T##L##_t; int co_##T##L##_alloc(co_obj_t *output, \
+  const T##L##_t input, const uint8_t flags); co_obj_t *co_##T##L##_create(\
+  const T##L##_t input, const uint8_t flags);
 
 _DECLARE_INTEGER(int, 8);
 _DECLARE_INTEGER(int, 16);
@@ -159,8 +158,8 @@ typedef struct
   co_obj_t _header;
 } co_nil_t;
 
-int co_nil_alloc(co_nil_t *output);
-co_nil_t * co_nil_create(void);
+int co_nil_alloc(co_obj_t *output, const uint8_t flags);
+co_obj_t * co_nil_create(const uint8_t flags);
 
 /* Type "Bool" declaration */
 typedef struct
@@ -168,8 +167,8 @@ typedef struct
   co_obj_t _header;
 } co_bool_t;
 
-int co_bool_alloc(co_bool_t *output);
-co_bool_t * co_bool_create(const bool input);
+int co_bool_alloc(co_obj_t *output, const bool input, const uint8_t flags);
+co_obj_t * co_bool_create(const bool input, const uint8_t flags);
 
 /* Type "fixint" declaration */
 typedef struct
@@ -177,8 +176,8 @@ typedef struct
   co_obj_t _header;
 } co_fixint_t;
 
-int co_fixint_alloc(co_fixint_t *output, const int input);
-co_fixint_t * co_fixint_create(const int input);
+int co_fixint_alloc(co_obj_t *output, const int input, const uint8_t flags);
+co_obj_t * co_fixint_create(const int input, const uint8_t flags);
 
 /* Type "float32" declaration */
 typedef struct
@@ -187,8 +186,8 @@ typedef struct
   float data;
 } co_float32_t;
 
-int co_float32_alloc(co_float32_t *output, const float input);
-co_float32_t * co_float32_create(const double input);
+int co_float32_alloc(co_obj_t *output, const float input, const uint8_t flags);
+co_obj_t * co_float32_create(const double input, const uint8_t flags);
 
 /* Type "float64" declaration */
 typedef struct
@@ -197,12 +196,20 @@ typedef struct
   double data;
 } co_float64_t;
 
-int co_float64_alloc(co_float64_t *output, const double input);
-co_float64_t * co_float64_create(const double input);
+int co_float64_alloc(co_obj_t *output, const double input, const uint8_t flags);
+co_obj_t * co_float64_create(const double input, const uint8_t flags);
 
 
 /*-----------------------------------------------------------------------------
  *  Deconstructors
  *-----------------------------------------------------------------------------*/
 void co_free(co_obj_t *object);
+
+size_t co_obj_raw(void *data, const co_obj_t *object);
+
+size_t co_obj_data(char *data, const co_obj_t *object);
+
+int co_strcpy(co_obj_t *dst, const co_obj_t *src, const size_t size);
+
+int co_strcat(co_obj_t *dst, const co_obj_t *src, const size_t size);
 #endif

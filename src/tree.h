@@ -41,15 +41,17 @@ typedef struct _treenode_t _treenode_t;
 /* Type "tree" declaration macros */
 #define _DECLARE_TREE(L) typedef struct { co_obj_t _header; uint##L##_t _len; \
   _treenode_t *root;} co_tree##L##_t; int co_tree##L##_alloc(\
-  co_tree##L##_t *output); co_tree##L##_t *co_tree##L##_create(void);
+  co_obj_t *output); co_obj_t *co_tree##L##_create(void);
 
 _DECLARE_TREE(16);
 _DECLARE_TREE(32);
 
 
-
-
-
+co_obj_t *co_tree_find(co_obj_t *root, const char *key, size_t klen);
+co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
+int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+int co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context);
+void co_tree_destroy(co_obj_t *root);
 
 
 #endif
