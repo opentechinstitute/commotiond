@@ -118,22 +118,8 @@ co_tree_find(co_obj_t *root, const char *key, size_t klen)
 
 
 static inline _treenode_t *
-_co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, const size_t klen, co_obj_t *value)
+_co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, const size_t klen, co_obj_t **value)
 {
-  if (current == NULL) 
-  { 
-    current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
-    if(root == NULL) 
-    {
-      root = current;
-    } 
-    else 
-    {
-      hattach(current, root);
-    }
-    current->splitchar = *key; 
-  }
-
   DEBUG("Tree current: %s", key);
   if (*key < current->splitchar) 
   {
@@ -150,8 +136,9 @@ _co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, cons
     {
       if(current->value != NULL)
       {
+        DEBUG("Found current value.");
         hattach(current->value, NULL);
-        value = current->value;
+        *value = current->value;
         current->value = NULL;
       }
     }
@@ -176,12 +163,12 @@ co_tree_delete(co_obj_t *root, const char *key, const size_t klen)
   if(CO_TYPE(root) == _tree16)
   {
     ((co_tree16_t *)root)->root = _co_tree_delete_r(((co_tree16_t *)root)->root, \
-      ((co_tree16_t *)root)->root, key, klen, value);
+      ((co_tree16_t *)root)->root, key, klen, &value);
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
     ((co_tree32_t *)root)->root = _co_tree_delete_r(((co_tree32_t *)root)->root, \
-      ((co_tree32_t *)root)->root, key, klen, value);
+      ((co_tree32_t *)root)->root, key, klen, &value);
   }
 
   CHECK(value != NULL, "Failed to delete value.");

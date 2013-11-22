@@ -44,10 +44,6 @@
     const size_t out_size, const char *input, const size_t in_size, \
     const uint8_t flags) \
     { \
-      DEBUG("in_size: %d", in_size); \
-      DEBUG("out_size: %d", out_size); \
-      DEBUG("sizeof(uint##L##_t): %d", sizeof(uint##L##_t)); \
-      DEBUG("sizeof(co_obj_t): %d", sizeof(co_obj_t)); \
       CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
       "Object too large for type ##T##L## to address."); \
       if((in_size > 0) && (input != NULL)) \
@@ -67,14 +63,8 @@
     co_obj_t *co_##T##L##_create(const char *input, \
     const size_t input_size, const uint8_t flags) \
     { \
-      DEBUG("input_size: %d", input_size); \
-      DEBUG("sizeof(uint##L##_t): %d", sizeof(uint##L##_t)); \
-      DEBUG("sizeof(co_obj_t): %d", sizeof(co_obj_t)); \
       CHECK((input_size < UINT##L##_MAX), "Value too large for type ##T##L##."); \
       int output_size = input_size + sizeof(uint##L##_t) + sizeof(co_obj_t); \
-      DEBUG("output_size: %d", output_size); \
-      void *test = h_calloc(1, output_size); \
-      DEBUG("Alloc'd test block."); \
       co_obj_t *output = h_calloc(1, output_size); \
       CHECK_MEM(output); \
       CHECK(co_##T##L##_alloc(output, output_size, input, input_size, flags), \
