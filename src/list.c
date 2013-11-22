@@ -37,18 +37,17 @@
 #include "list.h"
 #include "extern/halloc.h"
 
-#define _DEFINE_LIST(L) int co_list##L##_alloc(co_list##L##_t *output) \
+#define _DEFINE_LIST(L) int co_list##L##_alloc(co_obj_t *output) \
     { \
-      output->_header._type = _list##L; \
-      output->_header._next = NULL; \
-      output->_header._prev = NULL; \
-      output->_len = 0; \
+      output->_type = _list##L; \
+      output->_next = NULL; \
+      output->_prev = NULL; \
+      ((co_list##L##_t *)output)->_len = 0; \
       return 1; \
     } \
-  co_list##L##_t *co_list##L##_create(void) \
+  co_obj_t *co_list##L##_create(void) \
     { \
-      co_list##L##_t *output = h_calloc(1, sizeof(uint##L##_t) + \
-          sizeof(co_obj_t)); \
+      co_obj_t *output = h_calloc(1, sizeof(co_list##L##_t)); \
       CHECK_MEM(output); \
       CHECK(co_list##L##_alloc(output), \
           "Failed to allocate object."); \
@@ -175,7 +174,7 @@ co_list_append(co_obj_t *list, co_obj_t *new_obj)
 }
 
 static co_obj_t *
-_co_list_remove_i(co_obj_t *data, co_obj_t *current, void *context)
+_co_list_delete_i(co_obj_t *data, co_obj_t *current, void *context)
 {
   if((co_obj_t *)context == current) 
   {
@@ -191,8 +190,8 @@ _co_list_remove_i(co_obj_t *data, co_obj_t *current, void *context)
 }
 
 co_obj_t *
-co_list_remove(co_obj_t *list, co_obj_t *item)
+co_list_delete(co_obj_t *list, co_obj_t *item)
 {
-  return co_list_parse(list, _co_list_remove_i, (void *)item);
+  return co_list_parse(list, _co_list_delete_i, (void *)item);
 }
 

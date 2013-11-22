@@ -38,7 +38,7 @@
 
 /* Type "list" declaration macros */
 #define _DECLARE_LIST(L) typedef struct { co_obj_t _header; uint##L##_t _len; } \
-  co_list##L##_t; int co_list##L##_alloc(co_list##L##_t *output); co_list##L##_t *\
+  co_list##L##_t; int co_list##L##_alloc(co_obj_t *output); co_obj_t *\
   co_list##L##_create(void);
 
 _DECLARE_LIST(16);
@@ -64,6 +64,6 @@ int co_list_prepend(co_obj_t *list, co_obj_t *new_obj);
 
 int co_list_append(co_obj_t *list, co_obj_t *new_obj);
 
-co_obj_t *co_list_remove(co_obj_t *list, co_obj_t *item);
+co_obj_t *co_list_delete(co_obj_t *list, co_obj_t *item);
 
 #endif
