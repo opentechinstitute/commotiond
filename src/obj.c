@@ -247,54 +247,89 @@ co_float64_create(const double input, const uint8_t flags)
   return output;
 } 
 
-/* Deconstructor definition */
+/*-----------------------------------------------------------------------------
+ *   Deconstructors
+ *-----------------------------------------------------------------------------*/
 void
-co_free(co_obj_t *object)
+co_obj_free(co_obj_t *object)
 {
   h_free(object);
   return;
 }
 
+/*-----------------------------------------------------------------------------
+ *   Accessors
+ *-----------------------------------------------------------------------------*/
 size_t
 co_obj_raw(void *data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
   {
+    case _float32:
+      data = (void *)((&(((co_float32_t *)object)->data)) - 1);
+      return sizeof(float) + 1;
+    case _float64:
+      data = (void *)((&(((co_float64_t *)object)->data)) - 1);
+      return sizeof(double) + 1;
+    case _uint8:
+      data = (void *)((&(((co_uint8_t *)object)->data)) - 1);
+      return sizeof(uint8_t) + 1;
+    case _uint16:
+      data = (void *)((&(((co_uint16_t *)object)->data)) - 1);
+      return sizeof(uint16_t) + 1;
+    case _uint32:
+      data = (void *)((&(((co_uint32_t *)object)->data)) - 1);
+      return sizeof(uint32_t) + 1;
+    case _uint64:
+      data = (void *)((&(((co_uint64_t *)object)->data)) - 1);
+      return sizeof(uint64_t) + 1;
+    case _int8:
+      data = (void *)((&(((co_int8_t *)object)->data)) - 1);
+      return sizeof(int8_t) + 1;
+    case _int16:
+      data = (void *)((&(((co_int16_t *)object)->data)) - 1);
+      return sizeof(int16_t) + 1;
+    case _int32:
+      data = (void *)((&(((co_int32_t *)object)->data)) - 1);
+      return sizeof(int32_t) + 1;
+    case _int64:
+      data = (void *)((&(((co_int64_t *)object)->data)) - 1);
+      return sizeof(int64_t) + 1;
     case _str8:
       data = (char *)(((co_str8_t *)object)->data - 1);
-      return (size_t)(((co_str8_t *)object)->_len + 1);
+      return ((co_str8_t *)object)->_len + 1;
       break;
     case _str16:
       data = (char *)(((co_str16_t *)object)->data - 1);
-      return (size_t)(((co_str16_t *)object)->_len + 1);
+      return ((co_str16_t *)object)->_len + 1;
       break;
     case _str32:
       data = (char *)(((co_str32_t *)object)->data - 1);
-      return (size_t)(((co_str32_t *)object)->_len + 1);
+      return ((co_str32_t *)object)->_len + 1;
       break;
     case _bin8:
       data = (char *)(((co_bin8_t *)object)->data - 1);
-      return (size_t)(((co_bin8_t *)object)->_len + 1);
+      return ((co_bin8_t *)object)->_len + 1;
       break;
     case _bin16:
       data = (char *)(((co_bin16_t *)object)->data - 1);
-      return (size_t)(((co_bin16_t *)object)->_len + 1);
+      return ((co_bin16_t *)object)->_len + 1;
       break;
     case _bin32:
       data = (char *)(((co_bin32_t *)object)->data - 1);
-      return (size_t)(((co_bin32_t *)object)->_len + 1);
+      return ((co_bin32_t *)object)->_len + 1;
       break;
     case _ext8:
       data = (char *)(((co_ext8_t *)object)->data - 1);
-      return (size_t)(((co_ext8_t *)object)->_len + 1);
+      return ((co_ext8_t *)object)->_len + 1;
       break;
     case _ext16:
       data = (char *)(((co_ext16_t *)object)->data - 1);
-      return (size_t)(((co_ext16_t *)object)->_len + 1);
+      return ((co_ext16_t *)object)->_len + 1;
       break;
     case _ext32:
       data = (char *)(((co_ext32_t *)object)->data - 1);
-      return (size_t)(((co_ext32_t *)object)->_len + 1);
+      return ((co_ext32_t *)object)->_len + 1;
       break;
     default:
       WARN("Not a valid object.");
@@ -302,55 +337,113 @@ co_obj_raw(void *data, const co_obj_t *object)
   }
 }
 
-/*-----------------------------------------------------------------------------
- *   String operations
- *-----------------------------------------------------------------------------*/
 size_t
-co_obj_data(char *data, const co_obj_t *object)
+co_obj_data(void *data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
   {
+    case _float32:
+      data = (void *)&(((co_float32_t *)object)->data);
+      return sizeof(float);
+    case _float64:
+      data = (void *)&(((co_float64_t *)object)->data);
+      return sizeof(double);
+    case _uint8:
+      data = (void *)&(((co_uint8_t *)object)->data);
+      return sizeof(uint8_t);
+    case _uint16:
+      data = (void *)&(((co_uint16_t *)object)->data);
+      return sizeof(uint16_t);
+    case _uint32:
+      data = (void *)&(((co_uint32_t *)object)->data);
+      return sizeof(uint32_t);
+    case _uint64:
+      data = (void *)&(((co_uint64_t *)object)->data);
+      return sizeof(uint64_t);
+    case _int8:
+      data = (void *)&(((co_int8_t *)object)->data);
+      return sizeof(int8_t);
+    case _int16:
+      data = (void *)&(((co_int16_t *)object)->data);
+      return sizeof(int16_t);
+    case _int32:
+      data = (void *)&(((co_int32_t *)object)->data);
+      return sizeof(int32_t);
+    case _int64:
+      data = (void *)&(((co_int64_t *)object)->data);
+      return sizeof(int64_t);
     case _str8:
-      data = (char *)(((co_str8_t *)object)->data);
-      return (size_t)(((co_str8_t *)object)->_len);
+      data = (void *)(((co_str8_t *)object)->data);
+      return ((co_str8_t *)object)->_len;
       break;
     case _str16:
-      data = (char *)(((co_str16_t *)object)->data);
-      return (size_t)(((co_str16_t *)object)->_len);
+      data = (void *)(((co_str16_t *)object)->data);
+      return ((co_str16_t *)object)->_len;
       break;
     case _str32:
-      data = (char *)(((co_str32_t *)object)->data);
-      return (size_t)(((co_str32_t *)object)->_len);
+      data = (void *)(((co_str32_t *)object)->data);
+      return ((co_str32_t *)object)->_len;
       break;
     case _bin8:
-      data = (char *)(((co_bin8_t *)object)->data);
-      return (size_t)(((co_bin8_t *)object)->_len);
+      data = (void *)(((co_bin8_t *)object)->data);
+      return ((co_bin8_t *)object)->_len;
       break;
     case _bin16:
-      data = (char *)(((co_bin16_t *)object)->data);
-      return (size_t)(((co_bin16_t *)object)->_len);
+      data = (void *)(((co_bin16_t *)object)->data);
+      return ((co_bin16_t *)object)->_len;
       break;
     case _bin32:
-      data = (char *)(((co_bin32_t *)object)->data);
-      return (size_t)(((co_bin32_t *)object)->_len);
+      data = (void *)(((co_bin32_t *)object)->data);
+      return ((co_bin32_t *)object)->_len;
       break;
     case _ext8:
-      data = (char *)(((co_ext8_t *)object)->data);
-      return (size_t)(((co_ext8_t *)object)->_len);
+      data = (void *)(((co_ext8_t *)object)->data);
+      return ((co_ext8_t *)object)->_len;
       break;
     case _ext16:
-      data = (char *)(((co_ext16_t *)object)->data);
-      return (size_t)(((co_ext16_t *)object)->_len);
+      data = (void *)(((co_ext16_t *)object)->data);
+      return ((co_ext16_t *)object)->_len;
       break;
     case _ext32:
-      data = (char *)(((co_ext32_t *)object)->data);
-      return (size_t)(((co_ext32_t *)object)->_len);
+      data = (void *)(((co_ext32_t *)object)->data);
+      return ((co_ext32_t *)object)->_len;
       break;
     default:
-      WARN("Not a character object.");
+      WARN("Not a valid object.");
       return -1;
   }
 }
+
+int 
+co_obj_import(co_obj_t *output, const size_t out_size, const char *input, \
+    const size_t in_size, const uint8_t flags)
+{
+  CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
+  CHECK((in_size <= (out_size - sizeof(co_obj_t) + 1)), \
+      "Value too large for output buffer.");
+  memmove(&(output->_type), input, in_size);
+  output->_flags = flags;
+  return 1;
+error:
+  return 0;
+}
+
+int
+co_obj_getflags(const co_obj_t *object)
+{
+  return object->_flags;
+}
+
+void
+co_obj_setflags(co_obj_t *object, const int flags)
+{
+  object->_flags = (uint8_t)flags;
+  return;
+}
+
+/*-----------------------------------------------------------------------------
+ *   Strings
+ *-----------------------------------------------------------------------------*/
 
 int 
 co_strcpy(co_obj_t *dst, const co_obj_t *src, const size_t size)

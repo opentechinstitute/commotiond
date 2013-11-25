@@ -210,11 +210,11 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
     {
       if(current->value != NULL)
       {
-        co_free(current->value);
+        co_obj_free(current->value);
       }
       if(current->key != NULL) 
       {
-        co_free(current->key);
+        co_obj_free(current->key);
       }
       current->value = value;
       current->key = co_str8_create(orig_key, orig_klen, 0);
