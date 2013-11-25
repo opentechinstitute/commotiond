@@ -288,67 +288,6 @@ error:
   return 0;
 }
 
-
-/*
-co_obj_t **co_tree_resize_queue(co_obj_t **queue, int q_start, int q_size, int q_max, int new_size)
-{
-    int i = 0;
-    co_obj_t ** new_queue = calloc(sizeof(co_obj_t *),  new_size);
-    CHECK(new_queue, "Failed to reallocate queue for traverse");
-
-    for(i = 0; i < q_size; i++) {
-        new_queue[i] = queue[(i + q_start) % q_max];
-    }
-
-    free(queue);
-    return new_queue;
-
-error:
-    free(queue);
-    return NULL;
-}
-
-
-void co_tree_traverse(co_obj_t *p, co_iter_t cb, void *data)
-{
-    if (!p) return;
-
-    int q_start = 0;
-    int q_size = 0;
-    int q_max = MAX_TRAVERSE_SIZE;
-    co_obj_t **queue = calloc(sizeof(co_obj_t *), MAX_TRAVERSE_SIZE);
-    CHECK(queue, "Failed to malloc queue for traverse");
-
-    queue[q_start] = p;
-    q_size++;
-
-    while(q_size > 0) {
-        _treenode_t *cur = ((co_tree16_t *)queue[q_start])->root;
-        q_start = (q_start + 1) % q_max;
-        q_size--;
-
-        // Resize if we must
-        if(q_size + 3 > q_max) {
-            queue = co_tree_resize_queue(queue, q_start, q_size, q_max, q_max * 2);
-            q_start = 0;
-            q_max = q_max * 2;
-        }
-
-        if(cur->object) cb(p, cur->object, data);
-
-        if(cur->low) queue[(q_start + (q_size++)) % q_max] = cur->low;
-        if(cur->equal) queue[(q_start + (q_size++)) % q_max] = cur->equal;
-        if(cur->high) queue[(q_start + (q_size++)) % q_max] = cur->high;
-    }
-
-    free(queue);
-    return;
-
-error:
-    if(queue) free(queue);
-}
-*/
-
 void 
 co_tree_destroy(co_obj_t *root)
 {
