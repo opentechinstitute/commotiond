@@ -16,12 +16,22 @@
 
 co_socket_t co_socket_proto = {};
 static list_t *alarms = NULL;
+static list_t *socks = NULL;
 
 /** Compares co_socket fd to serval alarm fd */
 static int alarm_match(const void *alarm, const void *fd) {
   const struct sched_ent *this_alarm = alarm;
   const int *this_fd = fd;
   if (this_alarm->poll.fd == *this_fd) return 0;
+  return -1;
+}
+
+static int socket_match(const void *sock, const void *fd) {
+  const co_socket_t *this_sock = sock;
+  const int *this_fd = fd;
+  char fd_str[6] = {0};
+  sprintf(fd_str,"%d",*this_fd);
+  if ((strcmp(this_sock->uri, fd_str)) == 0) return 0;
   return -1;
 }
 
@@ -50,7 +60,7 @@ int serval_cb(void *self, void *context) {
 /** Overridden Serval function to register sockets with event loop */
 int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
   printf("OVERRIDDEN WATCH FUNCTION!\n");
-  co_socket_t *sock = NEW(co_socket, co_socket);
+  co_socket_t *sock = NULL;
   
   /** need to set:
    * 	sock->fd
@@ -62,26 +72,36 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
    * 	sock->rfd_registered
    */
   
-  sock->fd = alarm->poll.fd;
-  sock->rfd = 0;
-  sock->listen = true;
-//   sock->uri = NULL;
-  // Aren't able to get the Serval socket uris, so instead use string representation of fd
-  sock->uri = (char*)malloc(4);
-  sprintf(sock->uri,"%d",sock->fd);
-  sock->fd_registered = false;
-  sock->rfd_registered = false;
-  sock->local = NULL;
-  sock->remote = NULL;
+  if ((alarm->_poll_index == 1) || list_find(alarms, &alarm->poll.fd, alarm_match)) {
+    WARN("Socket %d already registered: %d",alarm->poll.fd,alarm->_poll_index);
+  } else {
+    sock = NEW(co_socket, co_socket);
+    
+    sock->fd = alarm->poll.fd;
+    sock->rfd = 0;
+    sock->listen = true;
+//     sock->uri = NULL;
+    // NOTE: Aren't able to get the Serval socket uris, so instead use string representation of fd
+    sock->uri = (char*)malloc(6);
+    sprintf(sock->uri,"%d",sock->fd);
+    sock->fd_registered = false;
+    sock->rfd_registered = false;
+    sock->local = NULL;
+    sock->remote = NULL;
   
-  sock->poll_cb = serval_cb;
+    sock->poll_cb = serval_cb;
   
-  list_append(alarms, lnode_create((void *)alarm));
+    // register sock
+    CHECK(co_loop_add_socket(sock, NULL) == 1,"Failed to add socket %d",sock->fd);
   
-  // register sock
-  CHECK(co_loop_add_socket(sock, NULL) == 1,"Failed to add socket %d",sock->fd);
-  
-  sock->fd_registered = true;
+    sock->fd_registered = true;
+    // NOTE: it would be better to get the actual poll index from the event loop instead of this:
+    alarm->_poll_index = 1;
+    alarm->poll.revents = 0;
+    
+    list_append(alarms, lnode_create((void *)alarm));
+    list_append(socks, lnode_create((void *)sock));
+  }
   
 error:
   return 0;
@@ -89,9 +109,28 @@ error:
 
 int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
   printf("OVERRIDDEN UNWATCH FUNCTION!\n");
-  // find socket associated with alarm in map, close it, mark it unregistered
-  // maybe call co_socket_hangup(sock,NULL)?
-  return 0;
+  lnode_t *node = NULL;
+  co_socket_t *sock = NULL;
+  int ret = -1;
+  
+  CHECK(alarm->_poll_index == 1 && (node = list_find(alarms, &alarm->poll.fd, alarm_match)),"Attempting to unwatch socket that is not registered");
+  list_delete(alarms, node);
+  
+  // Get the socket associated with the alarm (alarm's fd is equivalent to the socket's uri)
+  CHECK((node = list_find(socks, &alarm->poll.fd, socket_match)),"Could not find socket to remove");
+  sock = lnode_get(node);
+  
+  list_delete(socks, node);
+  lnode_destroy(node);
+  CHECK(co_loop_remove_socket(sock,NULL),"Failed to remove socket");
+  CHECK(co_socket_destroy(sock),"Failed to destroy socket");
+  
+  alarm->_poll_index = -1;
+  
+  ret = 0;
+  
+error:
+  return ret;
 }
 
 static void setup_sockets() {
@@ -155,6 +194,7 @@ void ready() {
   
   // Initialize our list of Serval alarms/sockets
   alarms = list_create(LOOP_MAXSOCK);
+  socks = list_create(LOOP_MAXSOCK);
   
   setup_sockets();
   
@@ -162,4 +202,25 @@ error:
   return;
 }
 
-// TODO need cleanup/teardown functions
+static void destroy_alarms(list_t *list, lnode_t *lnode, void *context) {
+  struct sched_ent *alarm = lnode_get(lnode);
+  struct __sourceloc nil;
+  _unwatch(nil,alarm);
+  return;
+}
+
+void teardown() {
+  DEBUG("TEARDOWN");
+  
+  servalShutdown = 1;
+  
+  dna_helper_shutdown();
+  
+  list_process(alarms,NULL,destroy_alarms);
+  list_destroy_nodes(alarms);
+  list_destroy(alarms);
+  
+  keyring_free(keyring);
+  
+  return;
+}

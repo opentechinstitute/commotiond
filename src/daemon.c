@@ -299,8 +299,9 @@ int main(int argc, char *argv[]) {
   socket->bind(socket, socket_uri);
   
   ready();
-  
   co_loop_start();
+  
+  teardown();
   co_loop_destroy();
 
   return 0;
