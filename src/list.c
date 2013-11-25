@@ -97,7 +97,8 @@ co_list_parse(co_obj_t *list, co_iter_t iter, void *context)
 {
   co_obj_t *result = NULL;
   CHECK(IS_LIST(list), "Not a list object.");
-  co_obj_t *next = _LIST_NEXT(list);
+  //co_obj_t *next = _LIST_NEXT(list);
+  co_obj_t *next = list;
   while(next != NULL && result == NULL)
   {
     result = iter(list, next, context);
@@ -131,10 +132,20 @@ co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_PREV(this_obj);
-  _LIST_NEXT(adjacent) = new_obj;
-  _LIST_PREV(this_obj) = new_obj;
-  _LIST_NEXT(new_obj) = this_obj;
-  _LIST_PREV(new_obj) = adjacent;
+  if(adjacent == NULL)
+  {
+    _LIST_NEXT(list) = new_obj; //It's the first in the list.
+    _LIST_PREV(new_obj) = list;
+    _LIST_NEXT(new_obj) = NULL;
+  }
+  else
+  {
+    //List is empty.
+    _LIST_NEXT(adjacent) = new_obj;
+    _LIST_PREV(new_obj) = adjacent;
+    _LIST_NEXT(new_obj) = this_obj;
+    _LIST_PREV(this_obj) = new_obj;
+  }
   hattach(new_obj, list);
   co_list_increment(list);
   return 1;
@@ -150,10 +161,17 @@ co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_NEXT(this_obj);
-  _LIST_PREV(adjacent) = new_obj;
-  _LIST_NEXT(this_obj) = new_obj;
-  _LIST_PREV(new_obj) = this_obj;
+  if(adjacent == NULL) 
+  {
+    _LIST_PREV(list) = new_obj; //It's the last in the list.
+  }
+  else
+  {
+    _LIST_PREV(adjacent) = new_obj;
+  }
   _LIST_NEXT(new_obj) = adjacent;
+  _LIST_NEXT(this_obj) = new_obj;
+  _LIST_PREV(new_obj) = this_obj; 
   hattach(new_obj, list);
   co_list_increment(list);
   return 1;
