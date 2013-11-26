@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <net/if.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
