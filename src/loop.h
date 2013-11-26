@@ -42,7 +42,14 @@
 #define LOOP_MAXSOCK 20
 #define LOOP_MAXEVENT 64
 #define LOOP_TIMEOUT 5
+#define LOOP_MAXTIMER 20
+#define CLOCK_MONOTONIC 1
 
+typedef struct {
+  bool pending;
+  struct timeval deadline;
+  int (*timer_cb)(void *self, void *context);
+} co_timer_t;
 
 //Public functions
 
@@ -91,5 +98,19 @@ int co_loop_add_socket(void *new_sock, void *context);
  * @param context a void context pointer (currently unused)
  */
 int co_loop_remove_socket(void *old_sock, void *context);
+
+/**
+ * @brief schedules a new timer with the event loop
+ * @param timer the timer to schedule
+ * @param context a void context pointer (currently unused)
+ */
+int co_loop_add_timer(void *new_timer, void *context);
+
+/**
+ * @brief removes a timer from the event loop
+ * @param old_timer the timer to remove from list
+ * @param context a void context pointer (currently unused)
+ */
+int co_loop_remove_timer(void *old_timer, void* context);
 
 #endif
