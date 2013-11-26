@@ -288,6 +288,7 @@ int main(int argc, char *argv[]) {
   co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
   co_cmd_add("nodeid", cmd_nodeid, "nodeid <none>\n", "Print unique ID for this node\n", 0);
   co_cmd_add("nodeidset", cmd_set_nodeid_from_mac, "nodeid <mac>\n", "Use mac address to generate identifier for this node.\n", 0);
+  co_cmd_add("localipset", cmd_generate_local_ip, "localip <none>\n", "Generate the local ip address for this node\n", 0);
   //plugins_create();
   //plugins_load_all(plugindir);
   
