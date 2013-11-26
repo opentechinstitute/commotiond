@@ -111,6 +111,21 @@ int co_loop_add_timer(void *new_timer, void *context);
  * @param old_timer the timer to remove from list
  * @param context a void context pointer (currently unused)
  */
-int co_loop_remove_timer(void *old_timer, void* context);
+int co_loop_remove_timer(void *old_timer, void *context);
+
+/**
+ * @brief sets timer to expire in msecs from now
+ * @param timer the timer to set
+ * @param msecs number of milliseconds
+ * @param context a void context pointer (currently unused)
+ */
+int co_loop_set_timer(void *timer, int msecs, void *context);
+
+/**
+ * @brief malloc and initialize a timer
+ * @param size timer struct size
+ * @param proto timer protocol
+ */
+co_timer_t *co_timer_create(size_t size, co_timer_t proto);
 
 #endif

@@ -54,6 +54,12 @@ static bool loop_sigchld = false;
 static bool loop_exit = false;
 static int poll_fd = -1;
 
+co_timer_t co_timer_proto = {
+  .pending = false,
+  .timer_cb = NULL,
+  .deadline = {0}
+};
+
 //Private functions
 
 static void _co_loop_handle_signals(int sig) {
@@ -262,6 +268,7 @@ int co_loop_create(void) {
   sockets = list_create(LOOP_MAXSOCK);
   timers = list_create(LOOP_MAXTIMER);
   events = calloc(LOOP_MAXEVENT, sizeof(struct epoll_event));
+  loop_exit = false;
   return 1;
 
 error:
@@ -269,6 +276,7 @@ error:
   list_destroy(processes);
   list_destroy_nodes(sockets);
   list_destroy(sockets);
+  list_destroy_nodes(timers);
   list_destroy(timers);
   free(events);
   return 0;
@@ -287,6 +295,10 @@ int co_loop_destroy(void) {
     list_process(sockets, NULL, _co_loop_destroy_socket_i);
     list_destroy_nodes(sockets);
     list_destroy(sockets);
+  }
+  if(timers != NULL) {
+    list_destroy_nodes(timers);
+    list_destroy(timers);
   }
   return 1;
 }
@@ -395,7 +407,7 @@ int co_loop_add_timer(void *new_timer, void *context) {
   
   // each timer should have a unique timeval so we can identify them later for removal
   while ((node = list_find(timers, &timer->deadline, _co_loop_match_timer_i))) {
-    deadline->tv_usec++;
+    deadline->tv_usec += 1000;
     if (deadline->tv_usec > 1000000) {
       deadline->tv_sec++;
       deadline->tv_usec %= 1000000;
@@ -407,6 +419,8 @@ int co_loop_add_timer(void *new_timer, void *context) {
     list_ins_before(timers, lnode_create((void *)timer), node);
   else
     list_append(timers, lnode_create((void *)timer));
+  
+  DEBUG("Successfully added timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
   
   timer->pending = true;
   return 1;
@@ -432,4 +446,34 @@ int co_loop_remove_timer(void *old_timer, void* context) {
 
 error:
   return 0;
+}
+
+int co_loop_set_timer(void *_timer, int msecs, void *context) {
+  co_timer_t *timer = _timer;
+  struct timeval *deadline = &timer->deadline;
+  
+  if (timer->pending)
+    co_loop_remove_timer(timer,context);
+  
+  _co_loop_gettime(&timer->deadline);
+  
+  deadline->tv_sec += msecs / 1000;
+  deadline->tv_usec += (msecs % 1000) * 1000;
+  
+  if (deadline->tv_usec > 1000000) {
+    deadline->tv_sec++;
+    deadline->tv_usec %= 1000000;
+  }
+  
+  return co_loop_add_timer(timer,context);
+}
+
+co_timer_t *co_timer_create(size_t size, co_timer_t proto) {
+  if (!proto.timer_cb) proto.timer_cb = NULL;
+  if (proto.deadline.tv_sec == 0 && proto.deadline.tv_usec == 0) proto.deadline = (struct timeval){0};
+  proto.pending = false;
+  
+  co_timer_t *new_timer = malloc(size);
+  *new_timer = proto;
+  return new_timer;
 }
