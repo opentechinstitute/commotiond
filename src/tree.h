@@ -47,9 +47,13 @@ _DECLARE_TREE(16);
 _DECLARE_TREE(32);
 
 
-co_obj_t *co_tree_find(co_obj_t *root, const char *key, size_t klen);
+const co_obj_t *co_tree_find(const co_obj_t *root, const char *key, size_t klen);
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
 int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+int co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *value, const size_t vlen);
+int co_tree_set_int(co_obj_t *root, const char *key, const size_t klen, const signed long value);
+int co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const unsigned long value);
+int co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const double value);
 int co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context);
 void co_tree_destroy(co_obj_t *root);
 
