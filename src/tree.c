@@ -70,6 +70,27 @@ struct _treenode_t
     co_obj_t *value;
 };
 
+_treenode_t *
+_co_tree_root(const co_obj_t *tree)
+{
+  _treenode_t *n = NULL;
+  if(CO_TYPE(tree) == _tree16)
+  {
+    DEBUG("Is a size 16 tree.");
+    n = ((co_tree16_t *)tree)->root;
+  } 
+  else if(CO_TYPE(tree) == _tree32) 
+  {
+    DEBUG("Is a size 32 tree.");
+    n = ((co_tree32_t *)tree)->root;
+  }
+  else SENTINEL("Specified object is not a tree.");
+
+  return n;
+error:
+  return NULL;
+}
+
 static _treenode_t *
 _co_tree_find_node(_treenode_t *root, const char *key, size_t klen)
 {
