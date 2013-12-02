@@ -38,16 +38,9 @@
 #include <stdint.h>
 #include "obj.h"
 
-#define _cmd 2
-
 #define CMD_REGISTER(N, U, D, H) db_insert("cmd.##N##", strlen("cmd.##N##"), co_cmd_create(N, strlen(N), U, strlen(U), D, strlen(D), H));
 
 typedef struct co_cmd_t co_cmd_t;
-
-/**
- * @brief pointer to a command's function
- */
-typedef co_obj_t *(*co_cb_t)(co_obj_t *self, co_obj_t *params);
 
 /**
  * @struct co_cmd_t
