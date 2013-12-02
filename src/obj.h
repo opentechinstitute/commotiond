@@ -46,6 +46,11 @@
 #define _ext8 0xc7
 #define _ext16 0xc8
 #define _ext32 0xc9
+#define _fixext1 0xd4
+#define _fixext2 0xd5
+#define _fixext4 0xd6
+#define _fixext8 0xd7
+#define _fixext16 0xd8
 #define _float32 0xca
 #define _float64 0xcb
 #define _uint8 0xcc
@@ -78,6 +83,7 @@
 #define IS_BOOL(J) ((CO_TYPE(J) == _false) || (CO_TYPE(J) == _true))
 #define IS_BIN(J) ((CO_TYPE(J) == _bin8) || (CO_TYPE(J) == _bin16) || (CO_TYPE(J) == _bin32))
 #define IS_EXT(J) ((CO_TYPE(J) == _ext8) || (CO_TYPE(J) == _ext16) || (CO_TYPE(J) == _ext32))
+#define IS_FIXEXT(J) ((CO_TYPE(J) == _fixext1) || (CO_TYPE(J) == _fixext2) || (CO_TYPE(J) == _fixext4) || (CO_TYPE(J) == _fixext8) || (CO_TYPE(J) == _fixext16))
 #define IS_FLOAT(J) ((CO_TYPE(J) == _float32) || (CO_TYPE(J) == _float64))
 #define IS_UINT(J) ((CO_TYPE(J) == _uint8) || (CO_TYPE(J) == _uint16) || (CO_TYPE(J) == _uint32) || (CO_TYPE(J) == _uint64))
 #define IS_INT(J) ((CO_TYPE(J) == _int8) || (CO_TYPE(J) == _int16) || (CO_TYPE(J) == _int32) || (CO_TYPE(J) == _int64))
@@ -124,12 +130,36 @@ typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context)
 _DECLARE_CHAR(bin, 8);
 _DECLARE_CHAR(bin, 16);
 _DECLARE_CHAR(bin, 32);
-_DECLARE_CHAR(ext, 8);
-_DECLARE_CHAR(ext, 16);
-_DECLARE_CHAR(ext, 32);
 _DECLARE_CHAR(str, 8);
 _DECLARE_CHAR(str, 16);
 _DECLARE_CHAR(str, 32);
+
+/*-----------------------------------------------------------------------------
+ *  Extension-types Declaration Macros
+ *-----------------------------------------------------------------------------*/
+/*
+#define _DECLARE_FIXEXT(L) typedef struct { co_obj_t _header; \
+  uint8_t type; char data[L]; } co_fixext##L##_t; int co_fixext##L##_alloc(co_obj_t *output, \
+  const char *input, const size_t in_size, \
+  const uint8_t flags, const uint8_t type ); co_obj_t *co_fixext##L##_create(const char *input, \
+  const size_t input_size, const uint8_t flags, const uint8_t type);
+
+_DECLARE_FIXEXT(1);
+_DECLARE_FIXEXT(2);
+_DECLARE_FIXEXT(4);
+_DECLARE_FIXEXT(8);
+_DECLARE_FIXEXT(16);
+
+#define _DECLARE_EXT(L) typedef struct { co_obj_t _header; uint##L##_t _len; \
+  uint8_t type; char data[1]; } co_ext##L##_t; int co_ext##L##_alloc(co_obj_t *output, \
+  const size_t out_size, const char *input, const size_t in_size, \
+  const uint8_t flags, const uint8_t type ); co_obj_t *co_ext##L##_create(const char *input, \
+  const size_t input_size, const uint8_t flags, const uint8_t type);
+
+_DECLARE_EXT(8);
+_DECLARE_EXT(16);
+_DECLARE_EXT(32);
+*/
 
 /*-----------------------------------------------------------------------------
  *  Integer-types Declaration Macros 
@@ -223,7 +253,7 @@ void co_obj_setflags(co_obj_t *object, const int flags);
  *  Strings
  *-----------------------------------------------------------------------------*/
 
-int co_strcpy(co_obj_t *dst, const co_obj_t *src, const size_t size);
+int co_str_copy(co_obj_t *dst, const co_obj_t *src, const size_t size);
 
-int co_strcat(co_obj_t *dst, const co_obj_t *src, const size_t size);
+int co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size);
 #endif

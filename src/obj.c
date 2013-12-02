@@ -40,46 +40,124 @@
 /*-----------------------------------------------------------------------------
  *   Constructors of character-array-types
  *-----------------------------------------------------------------------------*/
-#define _DEFINE_CHAR(T, L) int co_##T##L##_alloc(co_obj_t *output, \
+#define _DEFINE_BIN(L) int co_bin##L##_alloc(co_obj_t *output, \
     const size_t out_size, const char *input, const size_t in_size, \
     const uint8_t flags) \
     { \
       CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
-      "Object too large for type ##T##L## to address."); \
+      "Object too large for type bin##L## to address."); \
       if((in_size > 0) && (input != NULL)) \
       { \
         CHECK((in_size <= (out_size - sizeof(uint##L##_t) - sizeof(co_obj_t))), \
         "Value too large for output buffer."); \
-        memmove(((co_##T##L##_t *)output)->data, input, in_size); \
+        memmove(((co_bin##L##_t *)output)->data, input, in_size); \
       } \
-      output->_type = _##T##L; \
+      output->_type = _bin##L; \
       output->_flags = flags; \
-      ((co_##T##L##_t *)output)->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
+      ((co_bin##L##_t *)output)->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
           sizeof(co_obj_t)); \
       return 1; \
     error: \
       return 0; \
     } \
-    co_obj_t *co_##T##L##_create(const char *input, \
+    co_obj_t *co_bin##L##_create(const char *input, \
     const size_t input_size, const uint8_t flags) \
     { \
-      CHECK((input_size < UINT##L##_MAX), "Value too large for type ##T##L##."); \
+      CHECK((input_size < UINT##L##_MAX), "Value too large for type bin##L##."); \
       int output_size = input_size + sizeof(uint##L##_t) + sizeof(co_obj_t); \
       co_obj_t *output = h_calloc(1, output_size); \
       CHECK_MEM(output); \
-      CHECK(co_##T##L##_alloc(output, output_size, input, input_size, flags), \
+      CHECK(co_bin##L##_alloc(output, output_size, input, input_size, flags), \
           "Failed to allocate object."); \
       return output; \
     error: \
       return NULL; \
     }
 
-_DEFINE_CHAR(bin, 8);
-_DEFINE_CHAR(bin, 16);
-_DEFINE_CHAR(bin, 32);
-_DEFINE_CHAR(ext, 8);
-_DEFINE_CHAR(ext, 16);
-_DEFINE_CHAR(ext, 32);
+_DEFINE_BIN(8);
+_DEFINE_BIN(16);
+_DEFINE_BIN(32);
+
+/*-----------------------------------------------------------------------------
+ *   Constructors of extension-types
+ *-----------------------------------------------------------------------------*/
+/* 
+#define _DEFINE_FIXEXT(L) int co_fixext##L##_alloc(co_obj_t *output, \
+    const char *input, const size_t in_size, \
+    const uint8_t flags, const uint8_t type) \
+    { \
+      if((in_size > 0) && (input != NULL)) \
+      { \
+        CHECK((in_size <= (sizeof(co_fixext##L##_t) - sizeof(uint8_t) - sizeof(co_obj_t))), \
+        "Value too large for output buffer."); \
+        memmove(((co_fixext##L##_t *)output)->data, input, in_size); \
+      } \
+      output->_type = _fixext##L; \
+      output->_flags = flags; \
+      ((co_fixext##L##_t *)output)->type = type; \
+      return 1; \
+    error: \
+      return 0; \
+    } \
+    co_obj_t *co_fixext##L##_create(const char *input, \
+    const size_t input_size, const uint8_t flags, const uint8_t type) \
+    { \
+      CHECK((input_size < L), "Value too large for type fixext##L##."); \
+      int output_size = sizeof(co_fixext##L##_t); \
+      co_obj_t *output = h_calloc(1, output_size); \
+      CHECK_MEM(output); \
+      CHECK(co_fixext##L##_alloc(output, input, input_size, flags, type), \
+          "Failed to allocate object."); \
+      return output; \
+    error: \
+      return NULL; \
+    }
+
+_DEFINE_FIXEXT(1);
+_DEFINE_FIXEXT(2);
+_DEFINE_FIXEXT(4);
+_DEFINE_FIXEXT(8);
+_DEFINE_FIXEXT(16);
+
+#define _DEFINE_EXT(L) int co_ext##L##_alloc(co_obj_t *output, \
+    const size_t out_size, const char *input, const size_t in_size, \
+    const uint8_t flags, const uint8_t type) \
+    { \
+      CHECK((out_size - sizeof(uint##L##_t) - sizeof(uint8_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
+      "Object too large for type ##T##L## to address."); \
+      if((in_size > 0) && (input != NULL)) \
+      { \
+        CHECK((in_size <= (out_size - sizeof(uint##L##_t) - sizeof(uint8_t) - sizeof(co_obj_t))), \
+        "Value too large for output buffer."); \
+        memmove(((co_ext##L##_t *)output)->data, input, in_size); \
+      } \
+      output->_type = _ext##L; \
+      output->_flags = flags; \
+      ((co_ext##L##_t *)output)->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
+          sizeof(uint8_t) - sizeof(co_obj_t)); \
+      ((co_ext##L##_t *)output)->type = type; \
+      return 1; \
+    error: \
+      return 0; \
+    } \
+    co_obj_t *co_ext##L##_create(const char *input, \
+    const size_t input_size, const uint8_t flags, const uint8_t type) \
+    { \
+      CHECK((input_size < UINT##L##_MAX), "Value too large for type ##T##L##."); \
+      int output_size = input_size + sizeof(uint##L##_t) + sizeof(uint8_t) + sizeof(co_obj_t); \
+      co_obj_t *output = h_calloc(1, output_size); \
+      CHECK_MEM(output); \
+      CHECK(co_ext##L##_alloc(output, output_size, input, input_size, flags, type), \
+          "Failed to allocate object."); \
+      return output; \
+    error: \
+      return NULL; \
+    }
+
+_DEFINE_EXT(8);
+_DEFINE_EXT(16);
+_DEFINE_EXT(32);
+*/
 
 #define _DEFINE_STR(L) int co_str##L##_alloc(co_obj_t *output, \
     const size_t out_size, const char *input, const size_t in_size, \
@@ -268,33 +346,43 @@ co_obj_raw(void *data, const co_obj_t *object)
     case _float32:
       data = (void *)((&(((co_float32_t *)object)->data)) - 1);
       return sizeof(float) + 1;
+      break;
     case _float64:
       data = (void *)((&(((co_float64_t *)object)->data)) - 1);
       return sizeof(double) + 1;
+      break;
     case _uint8:
       data = (void *)((&(((co_uint8_t *)object)->data)) - 1);
       return sizeof(uint8_t) + 1;
+      break;
     case _uint16:
       data = (void *)((&(((co_uint16_t *)object)->data)) - 1);
       return sizeof(uint16_t) + 1;
+      break;
     case _uint32:
       data = (void *)((&(((co_uint32_t *)object)->data)) - 1);
       return sizeof(uint32_t) + 1;
+      break;
     case _uint64:
       data = (void *)((&(((co_uint64_t *)object)->data)) - 1);
       return sizeof(uint64_t) + 1;
+      break;
     case _int8:
       data = (void *)((&(((co_int8_t *)object)->data)) - 1);
       return sizeof(int8_t) + 1;
+      break;
     case _int16:
       data = (void *)((&(((co_int16_t *)object)->data)) - 1);
       return sizeof(int16_t) + 1;
+      break;
     case _int32:
       data = (void *)((&(((co_int32_t *)object)->data)) - 1);
       return sizeof(int32_t) + 1;
+      break;
     case _int64:
       data = (void *)((&(((co_int64_t *)object)->data)) - 1);
       return sizeof(int64_t) + 1;
+      break;
     case _str8:
       data = (char *)(((co_str8_t *)object)->data - 1);
       return ((co_str8_t *)object)->_len + 1;
@@ -320,16 +408,36 @@ co_obj_raw(void *data, const co_obj_t *object)
       return ((co_bin32_t *)object)->_len + 1;
       break;
     case _ext8:
-      data = (char *)(((co_ext8_t *)object)->data - 1);
-      return ((co_ext8_t *)object)->_len + 1;
+      data = (char *)(((co_ext8_t *)object)->data - 2);
+      return ((co_ext8_t *)object)->_len + 2;
       break;
     case _ext16:
-      data = (char *)(((co_ext16_t *)object)->data - 1);
-      return ((co_ext16_t *)object)->_len + 1;
+      data = (char *)(((co_ext16_t *)object)->data - 2);
+      return ((co_ext16_t *)object)->_len + 2;
       break;
     case _ext32:
-      data = (char *)(((co_ext32_t *)object)->data - 1);
-      return ((co_ext32_t *)object)->_len + 1;
+      data = (char *)(((co_ext32_t *)object)->data - 2);
+      return ((co_ext32_t *)object)->_len + 2;
+      break;
+    case _fixext1:
+      data = (void *)(((co_fixext1_t *)object)->data - 2);
+      return 3;
+      break;
+    case _fixext2:
+      data = (void *)(((co_fixext2_t *)object)->data - 2);
+      return 4;
+      break;
+    case _fixext4:
+      data = (void *)(((co_fixext4_t *)object)->data - 2);
+      return 6;
+      break;
+    case _fixext8:
+      data = (void *)(((co_fixext8_t *)object)->data - 2);
+      return 10;
+      break;
+    case _fixext16:
+      data = (void *)(((co_fixext16_t *)object)->data - 2);
+      return 18;
       break;
     default:
       WARN("Not a valid object.");
@@ -408,6 +516,26 @@ co_obj_data(void *data, const co_obj_t *object)
       data = (void *)(((co_ext32_t *)object)->data);
       return ((co_ext32_t *)object)->_len;
       break;
+    case _fixext1:
+      data = (void *)(((co_fixext1_t *)object)->data);
+      return 1;
+      break;
+    case _fixext2:
+      data = (void *)(((co_fixext2_t *)object)->data);
+      return 2;
+      break;
+    case _fixext4:
+      data = (void *)(((co_fixext4_t *)object)->data);
+      return 4;
+      break;
+    case _fixext8:
+      data = (void *)(((co_fixext8_t *)object)->data);
+      return 8;
+      break;
+    case _fixext16:
+      data = (void *)(((co_fixext16_t *)object)->data);
+      return 16;
+      break;
     default:
       WARN("Not a valid object.");
       return -1;
@@ -446,7 +574,7 @@ co_obj_setflags(co_obj_t *object, const int flags)
  *-----------------------------------------------------------------------------*/
 
 int 
-co_strcpy(co_obj_t *dst, const co_obj_t *src, const size_t size)
+co_str_copy(co_obj_t *dst, const co_obj_t *src, const size_t size)
 {
   char *src_data = NULL;
   size_t length = 0;
@@ -475,7 +603,7 @@ error:
 }
 
 int 
-co_strcat(co_obj_t *dst, const co_obj_t *src, const size_t size)
+co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size)
 {
   char *src_data = NULL;
   char *dst_data = NULL; 
