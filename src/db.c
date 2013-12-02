@@ -34,6 +34,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <limits.h>
 #include "debug.h"
 #include "util.h"
 #include "obj.h"
@@ -134,13 +135,10 @@ co_db_get_str(char *output, const char *key, const size_t klen)
 error:
   return -1;
 }
-/*
-static int _co_db_import_files_i(const char *path, const char *filename) {
-  char key[80];
-  char value[80];
-  char line[80];
+
+static int 
+_co_db_import_files_i(const char *path, const char *filename) {
   char path_tmp[PATH_MAX] = {};
-  int line_number = 1;
   FILE *db_file = NULL;
 
   DEBUG("Importing file %s at path %s", filename, path);
@@ -148,8 +146,16 @@ static int _co_db_import_files_i(const char *path, const char *filename) {
   strlcpy(path_tmp, path, PATH_MAX);
   strlcat(path_tmp, "/", PATH_MAX);
   strlcat(path_tmp, filename, PATH_MAX);
-  db_file = fopen(path_tmp, "r");
+  db_file = fopen(path_tmp, "rb");
   CHECK(db_file != NULL, "db file %s/%s could not be opened", path, filename);
+  fseek(db_file, 0, SEEK_END);
+  long fsize = ftell(db_file);
+  rewind(db_file);
+  char *buffer = h_calloc(1, fsize + 1);
+  fread(buffer, fsize, 1, db_file);
+  fclose(db_file);
+  
+  buffer[fsize] = '\0';
 
   co_obj_t *new_profile = (co_obj_t *)co_tree16_create();
   new_profile->name = strdup(filename);
@@ -194,7 +200,6 @@ error:
   return 0;
 }
 
-*/
 
 //int profile_export_file(tst_t *profile, const char *path) {
 //  FILE *config_file = NULL;
