@@ -407,38 +407,6 @@ co_obj_raw(void *data, const co_obj_t *object)
       data = (char *)(((co_bin32_t *)object)->data - 1);
       return ((co_bin32_t *)object)->_len + 1;
       break;
-    case _ext8:
-      data = (char *)(((co_ext8_t *)object)->data - 2);
-      return ((co_ext8_t *)object)->_len + 2;
-      break;
-    case _ext16:
-      data = (char *)(((co_ext16_t *)object)->data - 2);
-      return ((co_ext16_t *)object)->_len + 2;
-      break;
-    case _ext32:
-      data = (char *)(((co_ext32_t *)object)->data - 2);
-      return ((co_ext32_t *)object)->_len + 2;
-      break;
-    case _fixext1:
-      data = (void *)(((co_fixext1_t *)object)->data - 2);
-      return 3;
-      break;
-    case _fixext2:
-      data = (void *)(((co_fixext2_t *)object)->data - 2);
-      return 4;
-      break;
-    case _fixext4:
-      data = (void *)(((co_fixext4_t *)object)->data - 2);
-      return 6;
-      break;
-    case _fixext8:
-      data = (void *)(((co_fixext8_t *)object)->data - 2);
-      return 10;
-      break;
-    case _fixext16:
-      data = (void *)(((co_fixext16_t *)object)->data - 2);
-      return 18;
-      break;
     default:
       WARN("Not a valid object.");
       return -1;
@@ -503,38 +471,6 @@ co_obj_data(void *data, const co_obj_t *object)
     case _bin32:
       data = (void *)(((co_bin32_t *)object)->data);
       return ((co_bin32_t *)object)->_len;
-      break;
-    case _ext8:
-      data = (void *)(((co_ext8_t *)object)->data);
-      return ((co_ext8_t *)object)->_len;
-      break;
-    case _ext16:
-      data = (void *)(((co_ext16_t *)object)->data);
-      return ((co_ext16_t *)object)->_len;
-      break;
-    case _ext32:
-      data = (void *)(((co_ext32_t *)object)->data);
-      return ((co_ext32_t *)object)->_len;
-      break;
-    case _fixext1:
-      data = (void *)(((co_fixext1_t *)object)->data);
-      return 1;
-      break;
-    case _fixext2:
-      data = (void *)(((co_fixext2_t *)object)->data);
-      return 2;
-      break;
-    case _fixext4:
-      data = (void *)(((co_fixext4_t *)object)->data);
-      return 4;
-      break;
-    case _fixext8:
-      data = (void *)(((co_fixext8_t *)object)->data);
-      return 8;
-      break;
-    case _fixext16:
-      data = (void *)(((co_fixext16_t *)object)->data);
-      return 16;
       break;
     default:
       WARN("Not a valid object.");

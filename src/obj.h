@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "debug.h"
 #include "extern/halloc.h"
 
@@ -69,6 +70,11 @@
 #define _tree16 0xde
 #define _tree32 0xdf
 
+/* Extension types (1-127) */
+#define _ptr 1
+#define _cmd 2
+#define _plug 3
+
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
 
@@ -90,7 +96,8 @@
 #define IS_STR(J) ((CO_TYPE(J) == _str8) || (CO_TYPE(J) == _str16) || (CO_TYPE(J) == _str32))
 #define IS_LIST(J) ((CO_TYPE(J) == _list16) || (CO_TYPE(J) == _list32))
 #define IS_TREE(J) ((CO_TYPE(J) == _tree16) || (CO_TYPE(J) == _tree32))
-#define IS_CHAR(J) (IS_BIN(J) || IS_EXT(J) || IS_STR(J))
+#define IS_CHAR(J) (IS_BIN(J) || IS_STR(J))
+#define IS_EXTENSION(J) (IS_EXT(J) || IS_FIXEXT(J))
 #define IS_INTEGER(J) (IS_INT(J) || IS_UINT(J) || IS_FIXINT(J))
 #define IS_COMPLEX(J) (IS_LIST(J) || IS_TREE(J))
 
@@ -100,7 +107,7 @@
 #define _OBJ_REQUIRED ((1 << 2))
 
 /*-----------------------------------------------------------------------------
- *  Object Declarations
+ *  Object Declaration
  *-----------------------------------------------------------------------------*/
 typedef uint8_t _type_t;
 
@@ -115,8 +122,10 @@ struct co_obj_t
   _type_t _type;
 };
 
+/* Function pointers */
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
 
+typedef co_obj_t *(*co_cb_t)(co_obj_t *self, co_obj_t *params);
 
 /*-----------------------------------------------------------------------------
  *  Character-array-types Declaration Macros
