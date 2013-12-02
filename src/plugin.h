@@ -34,7 +34,6 @@
 
 #include <stdlib.h>
 
-#define _plug 3
 
 typedef struct {
   co_obj_t _header;
@@ -46,12 +45,10 @@ typedef struct {
   void *handle;
 } co_plugin_t;
 
-co_obj_t *co_plugin_load(const char *filename, const size_t flen); 
+int co_plugins_destroy(void);
 
 int co_plugins_create(size_t index_size);
 
 int co_plugins_load(const char *dir_path);
-
-int co_plugins_call(const char *hook);
 
 #endif
