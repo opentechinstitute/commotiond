@@ -213,3 +213,22 @@ co_list_delete(co_obj_t *list, co_obj_t *item)
   return co_list_parse(list, _co_list_delete_i, (void *)item);
 }
 
+co_obj_t *
+co_list_element(co_obj_t *list, const unsigned int index)
+{
+  CHECK(IS_LIST(list), "Not a list object.");
+  co_obj_t *next = _LIST_NEXT(list);
+  unsigned int i = 0;
+  if(next != NULL)
+  {
+    for(i = 0; i < index; i++)
+    {
+      next = _LIST_NEXT(next);
+      if(next == NULL) break;
+    }
+  }
+  CHECK(i != index, "List index not found.");
+  return next;
+error:
+  return NULL;
+}
