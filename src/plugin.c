@@ -33,44 +33,95 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <dlfcn.h>
-#include "extern/tst.h"
+#include "obj.h"
+#include "cmd.h"
+#include "list.h"
+#include "db.h"
 #include "debug.h"
 #include "util.h"
 #include "plugin.h"
 
-static tst_t* plugins = NULL;
+static co_obj_t* _plugins = NULL;
 
-static int _co_plugins_load_i(const char *path, const char *filename) {
-  dlerror(); //Clear existing error codes.
-  void *plugin = dlopen(path, RTLD_NOW);
-  CHECK(plugin != NULL, "Failed to load plugin %s: %s", path, dlerror());
 
-  //TODO: API version checks.
-  
-  plugins = tst_insert(new_profile->profile, (char *)key_copy, strlen(key_copy), (void *)value_copy);
-  return 1; 
+static co_obj_t *
+_co_plugins_destroy_i(co_obj_t *data, co_obj_t *current, void *context)
+{
+  if(((co_plugin_t *)current)->shutdown != NULL)
+  {
+    ((co_plugin_t *)current)->shutdown(current, NULL);
+  }
+  dlclose(((co_plugin_t *)current)->handle);
+  co_list_decrement(data);
+  return NULL;
+}
+
+int
+co_plugins_destroy(void)
+{
+  co_list_parse(_plugins, _co_plugins_destroy_i, NULL);
+  CHECK(co_list_length(_plugins) == 0, "Failed to shutdown all plugins.");
+  co_obj_free(_plugins);
+  return 1;
 error:
+  co_obj_free(_plugins);
   return 0;
 }
 
-static void _co_plugins_call_i(list_t *list, lnode_t *lnode, void *context) {
-  void *plugin = lnode_get(lnode);
-  char *hook_name = context;
-  hook_t hook_handle = dlsym(plugin, hook_name); 
+int 
+co_plugins_create(size_t index_size)
+{
+  if(index_size == 16)
+  {
+    CHECK((_plugins = (co_obj_t *)co_list16_create()) != NULL, "Plugin list creation failed.");
+  }
+  else if(index_size == 32)
+  {
+    CHECK((_plugins = (co_obj_t *)co_list32_create()) != NULL, "Plugin list creation failed.");
+  }
+  else SENTINEL("Invalid list index size.");
 
-  hook_handle();
-  return;
+  CHECK(co_db_insert("plugins", 7, _plugins), "Failed to add plugin list to DB.");
+
+  return 1;
+
+error:
+  co_plugins_destroy();
+  return 0;
+}
+
+static int _co_plugins_load_i(const char *path, const char *filename) {
+  dlerror(); //Clear existing error codes.
+  void *handle = dlopen(path, RTLD_NOW);
+  CHECK(handle != NULL, "Failed to load plugin %s: %s", path, dlerror());
+  co_cb_t _name = dlsym(handle, "_name");
+  CHECK(_name != NULL, "Failed to name plugin %s: %s", path, dlerror());
+  co_cb_t _init = dlsym(handle, "_init");
+  CHECK(_init != NULL, "Failed to init plugin %s: %s", path, dlerror());
+  co_cb_t _shutdown = dlsym(handle, "_shutdown");
+
+  //TODO: API version checks.
+  co_plugin_t *plugin = h_calloc(1, sizeof(co_plugin_t));
+  plugin->handle = handle;
+  
+  CHECK_MEM(plugin->name = _name(NULL, NULL));
+  hattach(plugin->name, plugin);
+  CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename), 0));
+  hattach(plugin->filename, plugin);
+  if(_shutdown != NULL) plugin->shutdown = _shutdown;
+  plugin->_len = (sizeof(co_obj_t *) * 4);
+  plugin->_exttype = _plug;
+  plugin->_header._type = _ext8;
+  _init((co_obj_t *)plugin, NULL);
+  
+  co_list_append(_plugins, (co_obj_t *)plugin);
+  return 1; 
+error:
+  if(handle != NULL) dlclose(handle);
+  if(plugin != NULL) co_obj_free((co_obj_t *)plugin);
+  return 0;
 }
 
 int co_plugins_load(const char *dir_path) {
   return process_files(dir_path, _co_plugins_load_i);
 }
-
-int co_plugins_call(const char *hook) {
-  CHECK_MEM(hook);
-  list_process(plugins, (void *)hook, _co_plugins_call_i);
-  return 1;
-error:
-  return 0;
-}
-

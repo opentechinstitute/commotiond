@@ -34,18 +34,21 @@
 
 #include <stdlib.h>
 
-#define MAX_PLUGINS 32
-
-typedef int (*hook_t)(void);
+#define _plug 3
 
 typedef struct {
-  const char *name;
-  const char *description;
-  const char *filename;
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_obj_t *name; /**< command name */
+  co_obj_t *filename;
+  co_cb_t shutdown;
   void *handle;
 } co_plugin_t;
 
-int co_plugins_create(void);
+co_obj_t *co_plugin_load(const char *filename, const size_t flen); 
+
+int co_plugins_create(size_t index_size);
 
 int co_plugins_load(const char *dir_path);
 
