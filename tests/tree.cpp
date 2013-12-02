@@ -55,8 +55,8 @@ class TreeTest : public ::testing::Test
 
     ~TreeTest()
     {
-      co_free(Tree16);  
-      co_free(Tree32);  
+      co_obj_free(Tree16);  
+      co_obj_free(Tree32);  
     }
 };
 

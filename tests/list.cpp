@@ -55,8 +55,8 @@ class ListTest : public ::testing::Test
 
     ~ListTest()
     {
-      co_free(List16);  
-      co_free(List32);  
+      co_obj_free(List16);  
+      co_obj_free(List32);  
     }
 };
 
