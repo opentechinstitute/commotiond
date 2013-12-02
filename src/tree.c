@@ -70,8 +70,14 @@ struct _treenode_t
     co_obj_t *value;
 };
 
+co_obj_t *
+co_node_value(_treenode_t *node)
+{
+  return node->value;
+}
+
 _treenode_t *
-_co_tree_root(const co_obj_t *tree)
+co_tree_root(const co_obj_t *tree)
 {
   _treenode_t *n = NULL;
   if(CO_TYPE(tree) == _tree16)
@@ -91,8 +97,8 @@ error:
   return NULL;
 }
 
-static _treenode_t *
-_co_tree_find_node(_treenode_t *root, const char *key, size_t klen)
+_treenode_t *
+co_tree_find_node(_treenode_t *root, const char *key, const size_t klen)
 {
   _treenode_t *n = root;
   size_t i = 0;
@@ -125,32 +131,18 @@ _co_tree_find_node(_treenode_t *root, const char *key, size_t klen)
   }
 }
 
-const co_obj_t *
-co_tree_find(const co_obj_t *root, const char *key, size_t klen)
+co_obj_t *
+co_tree_find(const co_obj_t *root, const char *key, const size_t klen)
 {
   DEBUG("Get from tree: %s", key);
   _treenode_t *n = NULL;
-  if(CO_TYPE(root) == _tree16)
-  {
-    DEBUG("Is a size 16 tree.");
-    n = ((co_tree16_t *)root)->root;
-  } 
-  else if(CO_TYPE(root) == _tree32) 
-  {
-    DEBUG("Is a size 32 tree.");
-    n = ((co_tree32_t *)root)->root;
-  }
-  else ERROR("Specified object is not a tree.");
-  n = _co_tree_find_node(n, key, klen);
+  CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
+  n = co_tree_find_node(n, key, klen);
 
-  if(n) 
-  {
-    return n->value;
-  } 
-  else 
-  {
-    return NULL; 
-  }
+  CHECK(n != NULL, "Unable to find value.");
+  return n->value;
+error:
+  return NULL; 
 }
 
 static inline _treenode_t *
@@ -289,59 +281,91 @@ error:
 }
 
 int
+co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
+{
+  CHECK(n != NULL, "Invalid node supplied.");
+  switch(CO_TYPE(n->value) == _str8)
+  {
+    case _str8:
+      DEBUG("Is a size 8 string.");
+      CHECK(vlen <= UINT8_MAX, "Value too large for type str8.");
+      if(vlen != (((co_str8_t *)(n->value))->_len))
+      {
+        n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str8_t) - 1));
+      }
+      CHECK_MEM(memmove((((co_str8_t *)(n->value))->data), value, vlen));
+      (((co_str8_t *)(n->value))->_len) = (uint8_t)vlen;
+      break;
+    case _str16:
+      DEBUG("Is a size 16 string.");
+      CHECK(vlen <= UINT16_MAX, "Value too large for type str16.");
+      if(vlen != (((co_str16_t *)(n->value))->_len))
+      {
+        n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str16_t) - 1));
+      }
+      CHECK_MEM(memmove((((co_str16_t *)(n->value))->data), value, vlen));
+      (((co_str16_t *)(n->value))->_len) = (uint16_t)vlen;
+      break;
+    case _str32:
+      DEBUG("Is a size 32 string.");
+      CHECK(vlen <= UINT32_MAX, "Value too large for type str32.");
+      if(vlen != (((co_str32_t *)(n->value))->_len))
+      {
+        n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str32_t) - 1));
+      }
+      CHECK_MEM(memmove((((co_str32_t *)(n->value))->data), value, vlen));
+      (((co_str32_t *)(n->value))->_len) = (uint32_t)vlen;
+      break;
+    default:
+      SENTINEL("Specified object is not a string.");
+      break;
+  }
+
+  return 1;
+error:
+  return 0;
+}
+
+int
 co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *value, const size_t vlen)
 {
   DEBUG("Get from tree: %s", key);
   _treenode_t *n = NULL;
-  if(CO_TYPE(root) == _tree16)
-  {
-    DEBUG("Is a size 16 tree.");
-    n = ((co_tree16_t *)root)->root;
-  } 
-  else if(CO_TYPE(root) == _tree32) 
-  {
-    DEBUG("Is a size 32 tree.");
-    n = ((co_tree32_t *)root)->root;
-  }
-  else ERROR("Specified object is not a tree.");
-  n = _co_tree_find_node(n, key, klen);
-
+  CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
+  n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  if(CO_TYPE(n->value) == _str8)
-  {
-    DEBUG("Is a size 8 string.");
-    CHECK(vlen <= UINT8_MAX, "Value too large for type str8.");
-    if(vlen != (((co_str8_t *)(n->value))->_len))
-    {
-      n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str8_t) - 1));
-    }
-    CHECK_MEM(memmove((((co_str8_t *)(n->value))->data), value, vlen));
-    (((co_str8_t *)(n->value))->_len) = (uint8_t)vlen;
-  } 
-  else if(CO_TYPE(n->value) == _str16) 
-  {
-    DEBUG("Is a size 16 string.");
-    CHECK(vlen <= UINT16_MAX, "Value too large for type str16.");
-    if(vlen != (((co_str16_t *)(n->value))->_len))
-    {
-      n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str16_t) - 1));
-    }
-    CHECK_MEM(memmove((((co_str16_t *)(n->value))->data), value, vlen));
-    (((co_str16_t *)(n->value))->_len) = (uint16_t)vlen;
-  }
-  else if(CO_TYPE(n->value) == _str32) 
-  {
-    DEBUG("Is a size 32 string.");
-    CHECK(vlen <= UINT32_MAX, "Value too large for type str32.");
-    if(vlen != (((co_str32_t *)(n->value))->_len))
-    {
-      n->value = h_realloc(n->value, (size_t)(vlen + sizeof(co_str32_t) - 1));
-    }
-    CHECK_MEM(memmove((((co_str32_t *)(n->value))->data), value, vlen));
-    (((co_str32_t *)(n->value))->_len) = (uint32_t)vlen;
-  }
-  else ERROR("Specified object is not a string.");
+  CHECK(co_node_set_str(n, value, vlen), "Unable to set string for node.");
+  return 1;
+error:
+  return 0;
+}
 
+int
+co_node_set_int(_treenode_t *n, const signed long value)
+{
+  CHECK(n != NULL, "Invalid node supplied.");
+  switch(CO_TYPE(n->value))
+  {
+    case _int8:
+      DEBUG("Is a size 8 signed int.");
+      (((co_int8_t *)(n->value))->data) = value;
+      break;
+    case _int16:
+      DEBUG("Is a size 16 signed int.");
+      (((co_int16_t *)(n->value))->data) = value;
+      break;
+    case _int32:
+      DEBUG("Is a size 32 signed int.");
+      (((co_int32_t *)(n->value))->data) = value;
+      break;
+    case _int64:
+      DEBUG("Is a size 64 signed int.");
+      (((co_int64_t *)(n->value))->data) = value;
+      break;
+    default:
+      SENTINEL("Specified object is not a signed integer.");
+      break;
+  }
   return 1;
 error:
   return 0;
@@ -352,42 +376,41 @@ co_tree_set_int(co_obj_t *root, const char *key, const size_t klen, const signed
 {
   DEBUG("Get from tree: %s", key);
   _treenode_t *n = NULL;
-  if(CO_TYPE(root) == _tree16)
-  {
-    DEBUG("Is a size 16 tree.");
-    n = ((co_tree16_t *)root)->root;
-  } 
-  else if(CO_TYPE(root) == _tree32) 
-  {
-    DEBUG("Is a size 32 tree.");
-    n = ((co_tree32_t *)root)->root;
-  }
-  else ERROR("Specified object is not a tree.");
-  n = _co_tree_find_node(n, key, klen);
-
+  CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
+  n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  if(CO_TYPE(n->value) == _int8)
-  {
-    DEBUG("Is a size 8 signed int.");
-    (((co_int8_t *)(n->value))->data) = value;
-  } 
-  else if(CO_TYPE(n->value) == _int16) 
-  {
-    DEBUG("Is a size 16 signed int.");
-    (((co_int16_t *)(n->value))->data) = value;
-  }
-  else if(CO_TYPE(n->value) == _int32) 
-  {
-    DEBUG("Is a size 32 signed int.");
-    (((co_int32_t *)(n->value))->data) = value;
-  }
-  else if(CO_TYPE(n->value) == _int64) 
-  {
-    DEBUG("Is a size 64 signed int.");
-    (((co_int64_t *)(n->value))->data) = value;
-  }
-  else ERROR("Specified object is not a signed integer.");
+  CHECK(co_node_set_int(n, value), "Unable to set integer for node.");
+  return 1;
+error:
+  return 0;
+}
 
+int
+co_node_set_uint(_treenode_t *n, const unsigned long value)
+{
+  CHECK(n != NULL, "Invalid node supplied.");
+  switch(CO_TYPE(n->value))
+  {
+    case _uint8:
+      DEBUG("Is a size 8 unsigned uint.");
+      (((co_uint8_t *)(n->value))->data) = value;
+      break;
+    case _uint16:
+      DEBUG("Is a size 16 unsigned uint.");
+      (((co_uint16_t *)(n->value))->data) = value;
+      break;
+    case _uint32:
+      DEBUG("Is a size 32 unsigned uint.");
+      (((co_uint32_t *)(n->value))->data) = value;
+      break;
+    case _uint64:
+      DEBUG("Is a size 64 unsigned uint.");
+      (((co_uint64_t *)(n->value))->data) = value;
+      break;
+    default:
+      SENTINEL("Specified object is not a unsigned integer.");
+      break;
+  }
   return 1;
 error:
   return 0;
@@ -398,41 +421,10 @@ co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const unsig
 {
   DEBUG("Get from tree: %s", key);
   _treenode_t *n = NULL;
-  if(CO_TYPE(root) == _tree16)
-  {
-    DEBUG("Is a size 16 tree.");
-    n = ((co_tree16_t *)root)->root;
-  } 
-  else if(CO_TYPE(root) == _tree32) 
-  {
-    DEBUG("Is a size 32 tree.");
-    n = ((co_tree32_t *)root)->root;
-  }
-  else ERROR("Specified object is not a tree.");
-  n = _co_tree_find_node(n, key, klen);
-
+  CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
+  n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  if(CO_TYPE(n->value) == _uint8)
-  {
-    DEBUG("Is a size 8 unsigned int.");
-    (((co_uint8_t *)(n->value))->data) = value;
-  } 
-  else if(CO_TYPE(n->value) == _uint16) 
-  {
-    DEBUG("Is a size 16 unsigned int.");
-    (((co_uint16_t *)(n->value))->data) = value;
-  }
-  else if(CO_TYPE(n->value) == _uint32) 
-  {
-    DEBUG("Is a size 32 unsigned int.");
-    (((co_uint32_t *)(n->value))->data) = value;
-  }
-  else if(CO_TYPE(n->value) == _uint64) 
-  {
-    DEBUG("Is a size 64 unsigned int.");
-    (((co_uint64_t *)(n->value))->data) = value;
-  }
-  else ERROR("Specified object is not an unsigned integer.");
+  CHECK(co_node_set_uint(n, value), "Unable to set unsigned integer for node.");
 
   return 1;
 error:
@@ -440,24 +432,9 @@ error:
 }
 
 int
-co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const double value)
+co_node_set_float(_treenode_t *n, const double value)
 {
-  DEBUG("Get from tree: %s", key);
-  _treenode_t *n = NULL;
-  if(CO_TYPE(root) == _tree16)
-  {
-    DEBUG("Is a size 16 tree.");
-    n = ((co_tree16_t *)root)->root;
-  } 
-  else if(CO_TYPE(root) == _tree32) 
-  {
-    DEBUG("Is a size 32 tree.");
-    n = ((co_tree32_t *)root)->root;
-  }
-  else ERROR("Specified object is not a tree.");
-  n = _co_tree_find_node(n, key, klen);
-
-  CHECK(n != NULL, "Failed to find key in tree.");
+  CHECK(n != NULL, "Invalid node supplied.");
   if(CO_TYPE(n->value) == _float32)
   {
     DEBUG("Is a size 32 float.");
@@ -475,6 +452,21 @@ error:
   return 0;
 }
 
+int
+co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const double value)
+{
+  DEBUG("Get from tree: %s", key);
+  _treenode_t *n = NULL;
+  CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
+  n = co_tree_find_node(n, key, klen);
+  CHECK(n != NULL, "Failed to find key in tree.");
+  CHECK(co_node_set_float(n, value), "Unable to set float for node.");
+
+  return 1;
+error:
+  return 0;
+}
+
 static inline void
 _co_tree_process_r(co_obj_t *tree, _treenode_t *current, const co_iter_t iter, void *context)
 {
@@ -484,8 +476,8 @@ _co_tree_process_r(co_obj_t *tree, _treenode_t *current, const co_iter_t iter, v
     iter(tree, current->value, context);
   }
   _co_tree_process_r(tree, current->low, iter, context); 
-  _co_tree_process_r(tree, current->low, iter, context); 
-  _co_tree_process_r(tree, current->low, iter, context); 
+  _co_tree_process_r(tree, current->equal, iter, context); 
+  _co_tree_process_r(tree, current->high, iter, context); 
   return; 
 error:
   return;

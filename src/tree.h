@@ -46,8 +46,16 @@ typedef struct _treenode_t _treenode_t;
 _DECLARE_TREE(16);
 _DECLARE_TREE(32);
 
+co_obj_t *co_node_value(_treenode_t *node);
+int co_node_set_str(_treenode_t *n, const char *value, const size_t vlen);
+int co_node_set_int(_treenode_t *n, const signed long value);
+int co_node_set_uint(_treenode_t *n, const unsigned long value);
+int co_node_set_float(_treenode_t *n, const double value);
 
-const co_obj_t *co_tree_find(const co_obj_t *root, const char *key, size_t klen);
+_treenode_t *co_tree_find_node(_treenode_t *root, const char *key, const size_t klen);
+_treenode_t *co_tree_root(const co_obj_t *tree);
+
+co_obj_t *co_tree_find(const co_obj_t *root, const char *key, const size_t klen);
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
 int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
 int co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *value, const size_t vlen);
