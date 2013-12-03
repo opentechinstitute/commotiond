@@ -12,7 +12,7 @@ ADD_EXECUTABLE(daemon ${DAEMONSRC})
 ADD_EXECUTABLE(client ${CLIENTSRC})
 ADD_LIBRARY(commotion SHARED ${LIBSRC})
 
-TARGET_LINK_LIBRARIES(commotion servald)
+TARGET_LINK_LIBRARIES(commotion rt servald)
 TARGET_LINK_LIBRARIES(daemon commotion)
 TARGET_LINK_LIBRARIES(client commotion)
 
