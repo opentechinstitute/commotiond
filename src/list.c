@@ -232,3 +232,26 @@ co_list_element(co_obj_t *list, const unsigned int index)
 error:
   return NULL;
 }
+
+size_t
+co_list_raw(char *output, const size_t olen, co_obj_t *list)
+{
+  size_t written = 0, read = 0;
+  char *in = NULL;
+  char *out = output;
+  CHECK(IS_LIST(list), "Not a list object.");
+  co_obj_t *next = list;
+  while(next != NULL && written <= olen)
+  {
+    read = co_obj_raw(in, next);
+    CHECK(read + written < olen, "Data too large for buffer.");
+    memmove(out, in, read);
+    written += read;
+    out += read;
+    next = _LIST_NEXT(next);
+  }
+  return written;
+error:
+  return -1;
+  
+}
