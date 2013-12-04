@@ -33,56 +33,111 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
-#include "extern/tst.h"
+#include <limits.h>
+#include "obj.h"
+#include "list.h"
+#include "tree.h"
 #include "debug.h"
 #include "util.h"
 #include "profile.h"
 
-static list_t *profiles = NULL;
+static co_obj_t *_profiles = NULL;
+static co_obj_t *_schemas = NULL;
 
-int co_profiles_create(void) {
-  CHECK((profiles = list_create(PROFILES_MAX)) != NULL, "Profile loader creation failed, clearing lists.");
-  return 1;
-
+co_obj_t *
+co_schema_create(co_cb_t cb)
+{
+  co_cbptr_t *schema = NULL;
+  CHECK_MEM(schema = h_calloc(1, sizeof(co_cbptr_t)));
+  schema->_header._type = _ext8;
+  schema->_exttype = _cbptr;
+  schema->_len = sizeof(co_cb_t *);
+  schema->cb = cb;
+  return (co_obj_t *)schema;
 error:
-  list_destroy(profiles);
-  free(profiles);
+  return NULL;
+}
+
+int
+co_schema_register(co_cb_t cb)
+{
+  if(_schemas == NULL)
+  {
+    CHECK((_schemas = (co_obj_t *)co_list16_create()) != NULL, "Schema list creation failed.");
+  }
+  co_list_append(_schemas, co_schema_create(cb));
+  return 1;
+error:
   return 0;
 }
 
-int co_profiles_destroy(void) {
-  if(profiles != NULL) {
-    //list_process(profiles, NULL, _co_loop_destroy_profile_i);
-    list_destroy_nodes(profiles);
-    list_destroy(profiles);
+static co_obj_t *
+_co_schemas_load_i(co_obj_t *list, co_obj_t *current, void *context) 
+{
+  if(IS_CBPTR(current) && IS_PROFILE(context) && ((co_cbptr_t *)current)->cb != NULL)
+  {
+    ((co_cbptr_t *)current)->cb((co_obj_t *)context, NULL);
   }
+  return NULL;
+}
+
+int
+co_schemas_load(co_obj_t *profile) 
+{
+  CHECK(IS_TREE(profile), "Not a valid search index.");
+  CHECK(_schemas != NULL, "Schemas not initialized.");
+  co_list_parse(_schemas, _co_schemas_load_i, profile);
   return 1;
+error:
+  return 0;
 }
 
-static int _co_profile_find_i(const void *prof, const void *name) {
-  const co_profile_t *this_profile = prof;
-  const char *this_name = name;
-  if((strcmp(this_profile->name, this_name)) == 0) return 0;
-  return -1;
+void 
+co_profiles_destroy(void) 
+{
+  if(_profiles != NULL) co_obj_free(_profiles);
+  return;
 }
 
+int 
+co_profiles_create(const size_t index_size) 
+{
+  if(index_size == 16)
+  {
+    CHECK((_profiles = (co_obj_t *)co_list16_create()) != NULL, "Plugin list creation failed.");
+  }
+  else if(index_size == 32)
+  {
+    CHECK((_profiles = (co_obj_t *)co_list32_create()) != NULL, "Plugin list creation failed.");
+  }
+  else SENTINEL("Invalid list index size.");
+
+  return 1;
+
+error:
+  co_profiles_destroy();
+  return 0;
+}
+/*
 static int _co_profile_import_files_i(const char *path, const char *filename) {
-  char key[80];
-  char value[80];
-  char line[80];
   char path_tmp[PATH_MAX] = {};
-  int line_number = 1;
-  //int strings = 0;
   FILE *config_file = NULL;
-  //tst_t *config_tree = NULL;
 
   DEBUG("Importing file %s at path %s", filename, path);
 
   strlcpy(path_tmp, path, PATH_MAX);
   strlcat(path_tmp, "/", PATH_MAX);
   strlcat(path_tmp, filename, PATH_MAX);
-  config_file = fopen(path_tmp, "r");
-  CHECK(config_file != NULL, "Config file %s/%s could not be opened", path, filename);
+  config_file = fopen(path_tmp, "rb");
+  CHECK(config_file != NULL, "File %s/%s could not be opened", path, filename);
+  fseek(config_file, 0, SEEK_END);
+  long fsize = ftell(config_file);
+  rewind(config_file);
+  char *buffer = h_calloc(1, fsize + 1);
+  CHECK(fread(buffer, fsize, 1, config_file) != 0, "Failed to read from file.");
+  fclose(config_file);
+  
+  buffer[fsize] = '\0';
 
   co_profile_t *new_profile = calloc(1, sizeof(co_profile_t));
   new_profile->name = strdup(filename);
@@ -126,7 +181,151 @@ int co_profile_import_files(const char *path) {
 error:
   return 0;
 }
+*/
 
+int 
+co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen) 
+{
+    CHECK(co_tree_set_str(profile->data, key, klen, value, vlen), 
+            "No corresponding key %s in schema, can't set %s:%s",
+            key, key, value);
+    return 1;
+
+error:
+    return 0;
+}
+
+size_t
+co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen) 
+{
+  CHECK_MEM(profile->data);
+  CHECK_MEM(key);
+  co_obj_t *obj = NULL;
+  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK(IS_STR(obj), "Object is not a string.");
+  return co_obj_data(output, obj);
+
+error:
+  return -1;
+}
+
+int 
+co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value) 
+{
+    CHECK(co_tree_set_int(profile->data, key, klen, value), 
+            "No corresponding key %s in schema, can't set %s:%ld",
+            key, key, value);
+    return 1;
+
+error:
+    return 0;
+}
+
+signed long
+co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen) 
+{
+  CHECK_MEM(profile->data);
+  CHECK_MEM(key);
+  co_obj_t *obj = NULL;
+  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK(IS_INT(obj), "Object is not a signed integer.");
+  signed long output;
+  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
+  return output;
+
+error:
+  return -1;
+}
+
+int 
+co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value) 
+{
+    CHECK(co_tree_set_uint(profile->data, key, klen, value), 
+            "No corresponding key %s in schema, can't set %s:%lu",
+            key, key, value);
+    return 1;
+
+error:
+    return 0;
+}
+
+unsigned long
+co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen) 
+{
+  CHECK_MEM(profile->data);
+  CHECK_MEM(key);
+  co_obj_t *obj = NULL;
+  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK(IS_UINT(obj), "Object is not an unsigned integer.");
+  unsigned long output;
+  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
+  return output;
+
+error:
+  return -1;
+}
+
+int 
+co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value) 
+{
+    CHECK(co_tree_set_float(profile->data, key, klen, value), 
+            "No corresponding key %s in schema, can't set %s:%lf",
+            key, key, value);
+    return 1;
+
+error:
+    return 0;
+}
+
+double
+co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen) 
+{
+  CHECK_MEM(profile->data);
+  CHECK_MEM(key);
+  co_obj_t *obj = NULL;
+  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK(IS_FLOAT(obj), "Object is not a floating point value.");
+  double output;
+  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
+  return output;
+
+error:
+  return -1;
+}
+/*
+static void _co_list_profiles_i(list_t *list, lnode_t *lnode, void *context) {
+  co_profile_t *profile = lnode_get(lnode);
+  char *data = context;
+  strcat((char *)data, profile->name);
+  return;
+}
+
+char *co_list_profiles(void) {
+  char *ret = calloc(1024, sizeof(char));
+  list_process(profiles, (void *)ret, _co_list_profiles_i);
+  if(strlen(ret) > 0) {
+    return ret;
+  } else return NULL;
+}
+*/
+
+static co_obj_t *
+_co_profile_find_i(co_obj_t *list, co_obj_t *current, void *context) 
+{
+  if(!co_str_cmp(((co_profile_t *)current)->name, ((co_profile_t *)context)->name)) return current;
+  return NULL;
+}
+
+co_profile_t *
+co_profile_find(co_obj_t *name) 
+{
+  CHECK(IS_STR(name), "Not a valid search index.");
+  co_obj_t *result = NULL;
+  CHECK((result = co_list_parse(_profiles, _co_profile_find_i, name)) != NULL, "Failed to find profile.");
+  return (co_profile_t *)result;
+error:
+  return NULL;
+}
 
 //int profile_export_file(tst_t *profile, const char *path) {
 //  FILE *config_file = NULL;
@@ -145,74 +344,3 @@ error:
 //  return 0;
 //}
 
-int co_profile_set(co_profile_t *profile, const char *key, const char *value) {
-    char *value_str = NULL;
-    CHECK(!tst_search(profile->profile, key, strlen(key)), 
-            "Setting key %s already exists, can't add %s:%s",
-            key, key, value);
-
-    value_str = strdup(value);
-    profile->profile = tst_insert(profile->profile, key,
-            strlen(key), value_str);
-
-    free(value_str);
-    return 1;
-
-error:
-    free(value_str);
-    return 0;
-}
-
-int co_profile_get_int(co_profile_t *profile, const char *key, const int def) {
-  char *value = tst_search(profile->profile, key, strlen(key));
-
-  if(value) {
-    return atoi((const char *)value);
-  } else {
-    return def;
-  }
-}
-
-char *co_profile_get_string(co_profile_t *profile, const char *key, char *def) {
-  CHECK_MEM(profile->profile);
-  char *value = tst_search(profile->profile, key, strlen(key));
-  //DEBUG("profile: %s, key:%s, value: %s", profile->name, key, value);
-
-  return value == NULL ? def : value;
-
-error:
-  return NULL;
-}
-
-static void _co_list_profiles_i(list_t *list, lnode_t *lnode, void *context) {
-  co_profile_t *profile = lnode_get(lnode);
-  char *data = context;
-  strcat((char *)data, profile->name);
-  return;
-}
-
-char *co_list_profiles(void) {
-  char *ret = calloc(1024, sizeof(char));
-  list_process(profiles, (void *)ret, _co_list_profiles_i);
-  if(strlen(ret) > 0) {
-    return ret;
-  } else return NULL;
-}
-
-co_profile_t *co_profile_find(const char *name) {
-  lnode_t *node;
-  CHECK((node = list_find(profiles, name, _co_profile_find_i)) != NULL, "Failed to find profile %s!", name);
-  return lnode_get(node);
-error:
-  return NULL;
-}
-
-static void _co_profile_dump_i(void *value, void *data) {
-  DEBUG("Value: %s", (char *)value);
-  return;
-}
-
-void co_profile_dump(co_profile_t *profile) {
-  tst_traverse(profile->profile, _co_profile_dump_i, NULL);
-  return;
-}

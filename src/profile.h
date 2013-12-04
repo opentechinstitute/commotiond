@@ -35,29 +35,52 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include "extern/tst.h"
+#include "obj.h"
 
-#define PROFILES_MAX 128
+typedef struct co_cbptr_t co_cbptr_t;
 
 /**
  * @struct co_profile_t a linked list for profile structs
  * @param name name of the struct
  * @param profile pointer to a profile struct
  */
-typedef struct {
-  char *name;
-  tst_t *profile;
-} co_profile_t;
+struct co_cbptr_t {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_cb_t cb;
+};
+
+typedef struct co_profile_t co_profile_t;
+
+/**
+ * @struct co_profile_t a linked list for profile structs
+ * @param name name of the struct
+ * @param profile pointer to a profile struct
+ */
+struct co_profile_t {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_obj_t *name; /**< command name */
+  co_obj_t *data;
+};
+
+co_obj_t *co_schema_create(co_cb_t cb);
+int co_schema_register(co_cb_t cb);
+int co_schemas_load(co_obj_t *profile);
+void co_profiles_destroy(void);
+int co_profiles_create(const size_t index_size);
 
 /**
  * @brief creates a list of available profiles
  */
-int co_profiles_create(void);
+int co_profiles_create(const size_t index_size);
 
 /**
  * @brief removes the list of available profiles
  */
-int co_profiles_destroy(void);
+void co_profiles_destroy(void);
 
 /**
  * @brief imports available profiles from profiles directory
@@ -83,7 +106,7 @@ int co_profile_set(co_profile_t *profile, const char *key, const char *value);
  * @param key key in profile
  * @param def default key value
  */
-int co_profile_get_int(co_profile_t *profile, const char *key, const int def);
+signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
 
 /**
  * @brief returns the key value (if a string) from the profile. If no value set, returns the default value
@@ -102,11 +125,20 @@ char *co_list_profiles(void);
  * @brief searches the profile list for a specified profile
  * @param name profile name (search key)
  */
-co_profile_t *co_profile_find(const char *name);
+co_profile_t *co_profile_find(co_obj_t *name);
 
 /**
  * @brief dumps profile data 
  * @param profile profile struct
  */
 void co_profile_dump(co_profile_t *profile);
+
+int co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
+size_t co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen);
+int co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value);
+signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
+int co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value);
+unsigned long co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen);
+int co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value);
+double co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen);
 #endif
