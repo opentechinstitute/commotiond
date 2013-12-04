@@ -27,7 +27,8 @@ schedule(&_sched_##X); }
 extern co_timer_t co_timer_proto;
 
 co_socket_t co_socket_proto = {};
-static list_t *alarms = NULL;
+static list_t *sock_alarms = NULL;
+static list_t *timer_alarms = NULL;
 static list_t *socks = NULL;
 static list_t *timers = NULL;
 
@@ -51,6 +52,7 @@ static int socket_fd_match(const void *sock, const void *fd) {
 static int alarm_ptr_match(const void *alarm, const void *ptr) {
   const struct sched_ent *this_alarm = alarm;
   const void *this_ptr = ptr;
+  DEBUG("ALARM_PTR_MATCH: %p %p",this_alarm,this_ptr);
   if (this_alarm == this_ptr) return 0;
   return -1;
 }
@@ -69,7 +71,7 @@ int serval_socket_cb(void *self, void *context) {
   struct sched_ent *alarm = NULL;
   
   // find alarm associated w/ sock, call alarm->function(alarm)
-  if ((node = list_find(alarms, &sock->fd, alarm_fd_match))) {
+  if ((node = list_find(sock_alarms, &sock->fd, alarm_fd_match))) {
     alarm = lnode_get(node);
     alarm->poll.revents = POLLIN; /** Need to set this since Serval is using poll(2), but would
                                       probably be better to get the actual flags from the
@@ -90,7 +92,7 @@ int serval_timer_cb(void *self, void *context) {
   struct sched_ent *alarm = NULL;
   
   // find alarm associated w/ timer, call alarm->function(alarm)
-  CHECK((node = list_find(alarms, timer->ptr, alarm_ptr_match)),"Failed to find alarm for callback");
+  CHECK((node = list_find(timer_alarms, timer->ptr, alarm_ptr_match)),"Failed to find alarm for callback");
   alarm = lnode_get(node);
     
   struct __sourceloc nil;
@@ -112,7 +114,7 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   lnode_t *node = NULL;
   
   CHECK(alarm->function,"No callback function associated with timer");
-  CHECK(!(node = list_find(alarms, alarm, alarm_ptr_match)),"Trying to schedule duplicate alarm");
+  CHECK(!(node = list_find(timer_alarms, alarm, alarm_ptr_match)),"Trying to schedule duplicate alarm %p",alarm);
   CHECK(!(node = list_find(timers,alarm,timer_ptr_match)),"Timer for alarm already exists");
   
   if (alarm->deadline < alarm->alarm)
@@ -133,7 +135,7 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   
   timer = NEW(co_timer,co_timer);
   timer->ptr = alarm;
-  DEBUG("NEW TIMER: ALARM %lld %lld",alarm->alarm,now);
+  DEBUG("NEW TIMER: ALARM %lld %p",alarm->alarm - now,alarm);
   time_ms_t deadline;
   if (alarm->alarm - now > 1)
     deadline = alarm->alarm;
@@ -147,7 +149,7 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
     timer->deadline.tv_usec %= 1000000;
   }
   CHECK(co_loop_add_timer(timer,(void*)NULL),"Failed to add timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
-  list_append(alarms, lnode_create((void *)alarm));
+  list_append(timer_alarms, lnode_create((void *)alarm));
 
   list_append(timers, lnode_create((void *)timer));
   
@@ -164,13 +166,16 @@ int _unschedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   lnode_t *node = NULL;
   co_timer_t *timer = NULL;
   
-  CHECK((node = list_find(alarms, alarm, alarm_ptr_match)),"Attempting to unschedule timer that is not scheduled");
-  list_delete(alarms, node);
+  CHECK((node = list_find(timer_alarms, alarm, alarm_ptr_match)),"Attempting to unschedule timer that is not scheduled");
+  list_delete(timer_alarms, node);
   lnode_destroy(node);
+  DEBUG("# TIMER ALARMS: %lu",list_count(timer_alarms));
   
   // Get the timer associated with the alarm
   CHECK((node = list_find(timers, alarm, timer_ptr_match)),"Could not find timer to remove");
   timer = lnode_get(node);
+  if (!co_loop_remove_timer(timer,NULL))  // this is only useful when timers are unscheduled before expiring
+    DEBUG("Failed to remove timer from event loop");
   free(timer);
   list_delete(timers, node);
   lnode_destroy(node);
@@ -196,7 +201,7 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
    * 	sock->rfd_registered
    */
   
-  if ((alarm->_poll_index == 1) || list_find(alarms, &alarm->poll.fd, alarm_fd_match)) {
+  if ((alarm->_poll_index == 1) || list_find(sock_alarms, &alarm->poll.fd, alarm_fd_match)) {
     WARN("Socket %d already registered: %d",alarm->poll.fd,alarm->_poll_index);
   } else {
     sock = NEW(co_socket, co_socket);
@@ -223,7 +228,7 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     alarm->_poll_index = 1;
     alarm->poll.revents = 0;
     
-    list_append(alarms, lnode_create((void *)alarm));
+    list_append(sock_alarms, lnode_create((void *)alarm));
     list_append(socks, lnode_create((void *)sock));
   }
   
@@ -236,8 +241,8 @@ int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
   lnode_t *node = NULL;
   co_socket_t *sock = NULL;
   
-  CHECK(alarm->_poll_index == 1 && (node = list_find(alarms, &alarm->poll.fd, alarm_fd_match)),"Attempting to unwatch socket that is not registered");
-  list_delete(alarms, node);
+  CHECK(alarm->_poll_index == 1 && (node = list_find(sock_alarms, &alarm->poll.fd, alarm_fd_match)),"Attempting to unwatch socket that is not registered");
+  list_delete(sock_alarms, node);
   
   // Get the socket associated with the alarm (alarm's fd is equivalent to the socket's uri)
   CHECK((node = list_find(socks, &alarm->poll.fd, socket_fd_match)),"Could not find socket to remove");
@@ -314,7 +319,8 @@ void ready() {
   overlay_queue_init();
   
   // Initialize our list of Serval alarms/sockets
-  alarms = list_create(LOOP_MAXSOCK);
+  sock_alarms = list_create(LOOP_MAXSOCK);
+  timer_alarms = list_create(LOOP_MAXSOCK);
   socks = list_create(LOOP_MAXSOCK);
   timers = list_create(LOOP_MAXTIMER);
   
@@ -329,7 +335,7 @@ static void destroy_alarms(list_t *list, lnode_t *lnode, void *context) {
   struct __sourceloc nil;
   if (alarm->alarm)
     _unschedule(nil,alarm);
-  else
+  if (alarm->_poll_index)
     _unwatch(nil,alarm);
   return;
 }
@@ -341,9 +347,13 @@ void teardown() {
   
   dna_helper_shutdown();
   
-  list_process(alarms,NULL,destroy_alarms);
-  list_destroy_nodes(alarms);
-  list_destroy(alarms);
+  list_process(sock_alarms,NULL,destroy_alarms);
+  list_destroy_nodes(sock_alarms);
+  list_destroy(sock_alarms);
+  
+  list_process(timer_alarms,NULL,destroy_alarms);
+  list_destroy_nodes(timer_alarms);
+  list_destroy(timer_alarms);
   
   list_destroy_nodes(socks);
   list_destroy(socks);
