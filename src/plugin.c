@@ -36,7 +36,6 @@
 #include "obj.h"
 #include "cmd.h"
 #include "list.h"
-#include "db.h"
 #include "debug.h"
 #include "util.h"
 #include "plugin.h"
@@ -45,7 +44,7 @@ static co_obj_t* _plugins = NULL;
 
 
 static co_obj_t *
-_co_plugins_destroy_i(co_obj_t *data, co_obj_t *current, void *context)
+_co_plugins_shutdown_i(co_obj_t *data, co_obj_t *current, void *context)
 {
   if(((co_plugin_t *)current)->shutdown != NULL)
   {
@@ -57,9 +56,9 @@ _co_plugins_destroy_i(co_obj_t *data, co_obj_t *current, void *context)
 }
 
 int
-co_plugins_destroy(void)
+co_plugins_shutdown(void)
 {
-  co_list_parse(_plugins, _co_plugins_destroy_i, NULL);
+  co_list_parse(_plugins, _co_plugins_shutdown_i, NULL);
   CHECK(co_list_length(_plugins) == 0, "Failed to shutdown all plugins.");
   co_obj_free(_plugins);
   return 1;
@@ -69,7 +68,7 @@ error:
 }
 
 int 
-co_plugins_create(size_t index_size)
+co_plugins_init(size_t index_size)
 {
   if(index_size == 16)
   {
@@ -81,12 +80,10 @@ co_plugins_create(size_t index_size)
   }
   else SENTINEL("Invalid list index size.");
 
-  CHECK(co_db_insert("plugins", 7, _plugins), "Failed to add plugin list to DB.");
-
   return 1;
 
 error:
-  co_plugins_destroy();
+  co_plugins_shutdown();
   return 0;
 }
 

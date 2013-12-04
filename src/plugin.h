@@ -45,9 +45,9 @@ typedef struct {
   void *handle;
 } co_plugin_t;
 
-int co_plugins_destroy(void);
+int co_plugins_shutdown(void);
 
-int co_plugins_create(size_t index_size);
+int co_plugins_init(size_t index_size);
 
 int co_plugins_load(const char *dir_path);
 
