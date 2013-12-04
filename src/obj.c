@@ -571,3 +571,15 @@ co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size)
 error:
   return -1;
 }
+
+int 
+co_str_cmp(const co_obj_t *a, const co_obj_t *b)
+{
+  char *a_data = NULL;
+  char *b_data = NULL; 
+  size_t alen, blen;
+
+  alen = co_obj_data(a_data, a);
+  blen = co_obj_data(b_data, b);
+  return strncmp(a_data, b_data, alen + blen);
+}

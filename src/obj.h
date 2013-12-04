@@ -74,6 +74,8 @@
 #define _ptr 1
 #define _cmd 2
 #define _plug 3
+#define _profile 4
+#define _cbptr 4
 
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
@@ -100,6 +102,12 @@
 #define IS_EXTENSION(J) (IS_EXT(J) || IS_FIXEXT(J))
 #define IS_INTEGER(J) (IS_INT(J) || IS_UINT(J) || IS_FIXINT(J))
 #define IS_COMPLEX(J) (IS_LIST(J) || IS_TREE(J))
+
+/* Extension type checking */
+#define IS_CMD(J) (IS_EXT(J) && ((co_cmd_t *)J)->_exttype == _cmd)
+#define IS_PLUG(J) (IS_EXT(J) && ((co_plug_t *)J)->_exttype == _plug)
+#define IS_PROFILE(J) (IS_EXT(J) && ((co_profile_t *)J)->_exttype == _profile)
+#define IS_CBPTR(J) (IS_EXT(J) && ((co_cbptr_t *)J)->_exttype == _cbptr)
 
 /* Flags */
 #define _OBJ_SCHEMA ((1 << 0))
@@ -265,4 +273,6 @@ void co_obj_setflags(co_obj_t *object, const int flags);
 int co_str_copy(co_obj_t *dst, const co_obj_t *src, const size_t size);
 
 int co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size);
+
+int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
 #endif
