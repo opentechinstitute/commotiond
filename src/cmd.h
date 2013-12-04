@@ -38,9 +38,11 @@
 #include <stdint.h>
 #include "obj.h"
 
-#define CMD_REGISTER(N, U, D, H) db_insert("cmd.##N##", strlen("cmd.##N##"), co_cmd_create(N, strlen(N), U, strlen(U), D, strlen(D), H));
-
 typedef struct co_cmd_t co_cmd_t;
+
+void co_cmds_shutdown(void);
+
+int co_cmds_init(const size_t index_size);
 
 /**
  * @struct co_cmd_t
@@ -57,7 +59,7 @@ struct co_cmd_t {
   co_obj_t *hooks;
 };
 
-co_obj_t *co_cmd_create(const char *name, const size_t nlen, const char *usage, const size_t ulen, const char *desc, const size_t dlen, co_cb_t handler); 
+int co_cmd_register(const char *name, const size_t nlen, const char *usage, const size_t ulen, const char *desc, const size_t dlen, co_cb_t handler); 
 
 /**
  * @brief executes a command by running the function linked to in the command struct
