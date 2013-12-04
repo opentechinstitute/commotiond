@@ -119,7 +119,7 @@ static int _co_loop_match_process_i(const void *proc, const void *pid) {
   return -1;
 }
 
-static int _co_loop_tv_diff(const struct timeval *t1, const struct timeval *t2)
+static long _co_loop_tv_diff(const struct timeval *t1, const struct timeval *t2)
 {
   return
   (t1->tv_sec - t2->tv_sec) * 1000 +
@@ -133,10 +133,10 @@ static int _co_loop_compare_timer_i(const void *timer, const void *time) {
   return -1;
 }
 
-static int _co_loop_match_timer_i(const void *timer, const void *time) {
+static int _co_loop_match_timer_i(const void *timer, const void *ptr) {
   const co_timer_t *this_timer = timer;
-  const struct timeval *this_time = time;
-  if(_co_loop_tv_diff(&this_timer->deadline, this_time) == 0) return 0;
+  const void *match_ptr = ptr;
+  if(this_timer->ptr == match_ptr) return 0;
   return -1;
 }
 
@@ -156,7 +156,6 @@ static void _co_loop_poll_socket_i(list_t *list, lnode_t *lnode, void *context) 
   int *efd = context;
 
   if((sock->fd == *efd) || (sock->rfd == *efd)) {
-    printf("Calling poll_cb for fd %d\n",sock->fd);
     sock->poll_cb(sock, context);
   }
 
@@ -201,7 +200,6 @@ static void _co_loop_poll_sockets(int deadline) {
       DEBUG("Hanging up socket.");
       list_process(sockets, (void *)&events[i].data.fd, _co_loop_hangup_socket_i);
     } else {
-      printf("POLL SOCKETS\n");
       list_process(sockets, (void *)&events[i].data.fd, _co_loop_poll_socket_i);
     }
   }
@@ -239,7 +237,7 @@ static void _co_loop_gettime(struct timeval *tv)
 {
   struct timespec ts;
   
-  clock_gettime(CLOCK_MONOTONIC, &ts);
+  clock_gettime(CLOCK_REALTIME, &ts);
   tv->tv_sec = ts.tv_sec;
   tv->tv_usec = ts.tv_nsec / 1000;
 }
@@ -399,22 +397,15 @@ int co_loop_add_timer(void *new_timer, void *context) {
   co_timer_t *timer = new_timer;
   lnode_t *node = NULL;
   struct timeval now;
-  struct timeval *deadline = &timer->deadline;
   
   if (timer->pending)
     return 0;
   
   _co_loop_gettime(&now);
-  CHECK(timer->timer_cb && _co_loop_tv_diff(&timer->deadline,&now) > 0,"Invalid timer");
-  
-  // each timer should have a unique timeval so we can identify them later for removal
-  while ((node = list_find(timers, &timer->deadline, _co_loop_match_timer_i))) {
-    deadline->tv_usec += 1000;
-    if (deadline->tv_usec > 1000000) {
-      deadline->tv_sec++;
-      deadline->tv_usec %= 1000000;
-    }
-  }
+  CHECK(timer->timer_cb,"No callback function associated with timer");
+  CHECK(_co_loop_tv_diff(&timer->deadline,&now) > 0,"Invalid timer deadline");
+    
+  CHECK(list_find(timers,timer->ptr,_co_loop_match_timer_i) == NULL,"Timer already scheduled");
   
   // insert into list in chronological order
   if((node = list_find(timers, &timer->deadline, _co_loop_compare_timer_i)))
@@ -439,8 +430,8 @@ int co_loop_remove_timer(void *old_timer, void* context) {
     return 0;
   
   // remove from list
-  CHECK((node = list_find(timers, &timer->deadline, _co_loop_match_timer_i)),
-	"Failed to delete timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
+  CHECK((node = list_find(timers, timer->ptr, _co_loop_match_timer_i)),
+	"Failed to delete timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
   list_delete(timers,node);
   
   timer->pending = false;
@@ -450,7 +441,7 @@ error:
   return 0;
 }
 
-int co_loop_set_timer(void *_timer, int msecs, void *context) {
+int co_loop_set_timer(void *_timer, long msecs, void *context) {
   co_timer_t *timer = _timer;
   struct timeval *deadline = &timer->deadline;
   
@@ -477,5 +468,6 @@ co_timer_t *co_timer_create(size_t size, co_timer_t proto) {
   
   co_timer_t *new_timer = malloc(size);
   *new_timer = proto;
+  new_timer->ptr = (void*)new_timer;
   return new_timer;
 }

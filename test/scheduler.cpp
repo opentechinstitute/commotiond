@@ -95,6 +95,8 @@ TEST_F(SchedulerTests, Scheduler) {
   co_loop_start();
   EXPECT_TRUE(executed);
   EXPECT_TRUE(executed2);
+  free(timer1);
+  free(timer2);
 }
 
 TEST_F(SchedulerTests, Scheduler2) {
@@ -103,13 +105,15 @@ TEST_F(SchedulerTests, Scheduler2) {
   co_timer_t *timer2 = NEW(co_timer,co_timer);
   timer1->timer_cb = timer_callback;
   timer2->timer_cb = timer_callback2;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
+  clock_gettime(CLOCK_REALTIME, &ts);
   timer1->deadline = {ts.tv_sec + 6,1000};
   co_loop_add_timer(timer1,NULL);
   co_loop_set_timer(timer2,7000,(void*)NULL);
   co_loop_start();
   EXPECT_TRUE(executed);
   EXPECT_TRUE(executed2);
+  free(timer1);
+  free(timer2);
 }
 
 TEST_F(SchedulerTests, Scheduler3) {
@@ -126,6 +130,19 @@ TEST_F(SchedulerTests, Scheduler3) {
   EXPECT_TRUE(executed);
   EXPECT_FALSE(executed2);
   EXPECT_TRUE(executed3);
+  free(timer1);
+  free(timer_cancel);
+  free(timer_reset);
+}
+
+TEST_F(SchedulerTests, Scheduler4) {
+  co_timer_t *timer1 = NEW(co_timer,co_timer);
+  timer1->timer_cb = timer_callback6;
+  co_loop_set_timer(timer1,1000,(void*)NULL);
+  EXPECT_FALSE(co_loop_add_timer(timer1,(void*)NULL));
+  co_loop_start();
+  EXPECT_TRUE(executed3);
+  free(timer1);
 }
 
 int main(int argc, char **argv) {
