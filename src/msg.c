@@ -39,74 +39,84 @@
 #include "debug.h"
 #include "util.h"
 #include "msg.h"
+#include "obj.h"
+#include "list.h"
 
-co_msg_t *co_msg_create(const char *target, const char *payload) {
-  size_t target_size = 0;
-  size_t payload_size = 0;
-	co_msg_t *message = malloc(sizeof(co_msg_t));
-  /* Get size of message from  header */
-  message->header.size = sizeof(co_msg_header_t);
-  DEBUG("HEADER SIZE: %d", message->header.size);
-  /* Set message type to 0 */
-  message->header.type = 0;
-  CHECK(((target_size = strstrip(target, message->target, sizeof(message->target))) != -1), "Invalid target size!");
-  DEBUG("TARGET SIZE: %d", (int)target_size);
-  if(payload != NULL) CHECK(((payload_size = strstrip(payload, message->payload, sizeof(message->payload))) != -1), "Invalid payload size!");
-  DEBUG("PAYLOAD SIZE: %d", (int)payload_size);
-  message->header.size += target_size + payload_size;
-  DEBUG("Created message with size %d, command #%s, type %d, and payload %s", message->header.size, message->target, message->header.type, message->payload);
-  return message;
+static uint32_t _id = 0;
 
+static struct 
+{
+  uint8_t list_type;
+  uint8_t list_len;
+  uint8_t type_type;
+  uint8_t type_value;
+  uint8_t id_type;
+} _req_header = {
+  .list_type = _list16,
+  .list_len = 4,
+  .type_type = _uint8,
+  .type_value = 0,
+  .id_type = _uint32
+};
+
+size_t
+co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj_t *param)
+{
+  CHECK(((output != NULL) && (method != NULL) && (param != NULL)), "Invalid request components.");
+  CHECK(olen > sizeof(_req_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
+  size_t written = 0;
+  memmove(output, &_req_header, sizeof(_req_header));
+  written += sizeof(_req_header);
+  memmove(output + sizeof(_req_header), &_id, sizeof(uint32_t));
+  written += sizeof(uint32_t);
+  _id++;
+  CHECK(IS_STR(method), "Not a valid method name.");
+  written += co_obj_raw(output, method);
+  CHECK(written < olen, "Output buffer too small.");
+  CHECK(IS_LIST(method), "Not a valid parameter list.");
+  written += co_list_raw(output, olen - written, param);
+  CHECK(written < olen, "Output buffer too small.");
+
+  return written;
 error:
-  free(message);
-  return NULL;
+  return -1;
+  
 }
 
-char *co_msg_pack(const co_msg_t *input) {
-  DEBUG("Packing message.");
-  uint16_t tmp;
-  char *output = malloc(input->header.size);
-  char *cursor = output;
+static struct 
+{
+  uint8_t list_type;
+  uint8_t list_len;
+  uint8_t type_type;
+  uint8_t type_value;
+  uint8_t id_type;
+} _resp_header = {
+  .list_type = _list16,
+  .list_len = 4,
+  .type_type = _uint8,
+  .type_value = 1,
+  .id_type = _uint32
+};
 
-  tmp = htons(input->header.size);
-  memmove(cursor, &tmp, sizeof(input->header.size));
-  cursor += sizeof(input->header.size);
+size_t
+co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_obj_t *error, co_obj_t *result)
+{
+  CHECK(((output != NULL) && (error != NULL) && (result != NULL)), "Invalid request components.");
+  CHECK(olen > sizeof(_resp_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
+  size_t written = 0;
+  memmove(output, &_resp_header, sizeof(_resp_header));
+  written += sizeof(_resp_header);
+  memmove(output + sizeof(_resp_header), &id, sizeof(uint32_t));
+  written += sizeof(uint32_t);
+  CHECK(IS_STR(error), "Not a valid error name.");
+  written += co_obj_raw(output, error);
+  CHECK(written < olen, "Output buffer too small.");
+  CHECK(IS_LIST(error), "Not a valid result list.");
+  written += co_list_raw(output, olen - written, result);
+  CHECK(written < olen, "Output buffer too small.");
 
-  tmp = htons(input->header.type);
-  memmove(cursor, &tmp, sizeof(input->header.type));
-  cursor += sizeof(input->header.type);
-
-  memmove(cursor, input->target, sizeof(input->target));
-  cursor += sizeof(input->target);
-
-  memmove(cursor, input->payload, sizeof(input->payload));
-  return output;
-}
-
-co_msg_t *co_msg_unpack(const char *input) {
-  CHECK_MEM(input);
-  uint16_t tmp = 0;
-  co_msg_t *output = malloc(sizeof(co_msg_t));
-  //char input_tmp[strlen(input) + 1];
-  //strcpy(input_tmp, input);
-  ///DEBUG("input_tmp: %s", input_tmp);
-  const char *cursor = input;
-
-  memmove(&tmp, cursor, sizeof(output->header.size));
-  output->header.size = ntohs(tmp);
-  DEBUG("output->header.size: %d", output->header.size);
-  cursor += sizeof(output->header.size);
-
-  memmove(&tmp, cursor, sizeof(output->header.type));
-  output->header.type = ntohs(tmp);
-  cursor += sizeof(output->header.type);
-
-  memmove(output->target, cursor, sizeof(output->target));
-  cursor += sizeof(output->target);
-
-  memmove(output->payload, cursor, sizeof(output->payload));
-
-  return output;
+  return written;
 error:
-  return NULL;
+  return -1;
+  
 }
