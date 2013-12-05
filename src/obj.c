@@ -477,7 +477,7 @@ co_obj_data(void *data, const co_obj_t *object)
       return -1;
   }
 }
-
+/*
 int 
 co_obj_import(co_obj_t *output, const size_t out_size, const char *input, \
     const size_t in_size, const uint8_t flags)
@@ -490,6 +490,87 @@ co_obj_import(co_obj_t *output, const size_t out_size, const char *input, \
   return 1;
 error:
   return 0;
+}
+*/
+
+size_t
+co_obj_import(co_obj_t *output, const char *input, const size_t in_size, const uint8_t flags)
+{
+  CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
+  size_t read = 0;
+  switch((uint8_t)input[0])
+  {
+    case _float32:
+      output = co_float32_create(((co_float32_t *)input)->data, flags);
+      read += sizeof(co_float32_t);
+      break;
+    case _float64:
+      output = co_float64_create(((co_float64_t *)input)->data, flags);
+      read += sizeof(co_float64_t);
+      break;
+    case _uint8:
+      output = co_uint8_create(((co_uint8_t *)input)->data, flags);
+      read += sizeof(co_uint8_t);
+      break;
+    case _uint16:
+      output = co_uint16_create(((co_uint16_t *)input)->data, flags);
+      read += sizeof(co_uint16_t);
+      break;
+    case _uint32:
+      output = co_uint32_create(((co_uint32_t *)input)->data, flags);
+      read += sizeof(co_uint32_t);
+      break;
+    case _uint64:
+      output = co_uint64_create(((co_uint64_t *)input)->data, flags);
+      read += sizeof(co_uint64_t);
+      break;
+    case _int8:
+      output = co_int8_create(((co_int8_t *)input)->data, flags);
+      read += sizeof(co_int8_t);
+      break;
+    case _int16:
+      output = co_int16_create(((co_int16_t *)input)->data, flags);
+      read += sizeof(co_int16_t);
+      break;
+    case _int32:
+      output = co_int32_create(((co_int32_t *)input)->data, flags);
+      read += sizeof(co_int32_t);
+      break;
+    case _int64:
+      output = co_int64_create(((co_int64_t *)input)->data, flags);
+      read += sizeof(co_int64_t);
+      break;
+    case _str8:
+      output = co_str8_create(((co_str8_t *)input)->data, ((co_str8_t *)input)->_len, flags);
+      read += sizeof(co_str8_t) + ((co_str8_t *)input)->_len - 1;
+      break;
+    case _str16:
+      output = co_str16_create(((co_str16_t *)input)->data, ((co_str16_t *)input)->_len, flags);
+      read += sizeof(co_str16_t) + ((co_str16_t *)input)->_len - 1;
+      break;
+    case _str32:
+      output = co_str32_create(((co_str32_t *)input)->data, ((co_str32_t *)input)->_len, flags);
+      read += sizeof(co_str32_t) + ((co_str32_t *)input)->_len - 1;
+      break;
+    case _bin8:
+      output = co_bin8_create(((co_bin8_t *)input)->data, ((co_bin8_t *)input)->_len, flags);
+      read += sizeof(co_bin8_t) + ((co_bin8_t *)input)->_len - 1;
+      break;
+    case _bin16:
+      output = co_bin16_create(((co_bin16_t *)input)->data, ((co_bin16_t *)input)->_len, flags);
+      read += sizeof(co_bin16_t) + ((co_bin16_t *)input)->_len - 1;
+      break;
+    case _bin32:
+      output = co_bin32_create(((co_bin32_t *)input)->data, ((co_bin32_t *)input)->_len, flags);
+      read += sizeof(co_bin32_t) + ((co_bin32_t *)input)->_len - 1;
+      break;
+    default:
+      SENTINEL("Not a list.");
+      break;
+  }
+  return read;
+error:
+  return -1;
 }
 
 int

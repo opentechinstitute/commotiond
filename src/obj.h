@@ -259,8 +259,7 @@ size_t co_obj_raw(void *data, const co_obj_t *object);
 
 size_t co_obj_data(void *data, const co_obj_t *object);
 
-int co_obj_import(co_obj_t *output, const size_t out_size, const char *input, \
-    const size_t in_size, const uint8_t flags);
+size_t co_obj_import(co_obj_t *output, const char *input, const size_t in_size, const uint8_t flags);
 
 int co_obj_getflags(const co_obj_t *object);
 
