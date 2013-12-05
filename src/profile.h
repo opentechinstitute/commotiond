@@ -69,7 +69,6 @@ struct co_profile_t {
 co_obj_t *co_schema_create(co_cb_t cb);
 int co_schema_register(co_cb_t cb);
 int co_schemas_load(co_obj_t *profile);
-void co_profiles_destroy(void);
 int co_profiles_create(const size_t index_size);
 
 /**

@@ -115,7 +115,7 @@ co_profiles_init(const size_t index_size)
   return 1;
 
 error:
-  co_profiles_destroy();
+  co_profiles_shutdown();
   return 0;
 }
 
