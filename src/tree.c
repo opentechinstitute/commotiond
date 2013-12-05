@@ -510,3 +510,46 @@ co_tree_destroy(co_obj_t *root)
         h_free(root);
     }
 }
+/*
+static inline void
+_co_tree_raw_r(char *output, size_t olen, _treenode_t *current)
+{
+  size_t written = 0, read = 0;
+  char *in = NULL;
+  if(current->value != NULL)
+  {
+    read = co_obj_raw(in, next);
+    CHECK(read + written < olen, "Data too large for buffer.");
+    memmove(out, in, read);
+    written += read;
+    out += read;
+    next = _LIST_NEXT(next);
+  }
+  _co_tree_raw_r(tree, current->low, iter, context); 
+  _co_tree_raw_r(tree, current->equal, iter, context); 
+  _co_tree_raw_r(tree, current->high, iter, context); 
+  return; 
+error:
+  return;
+}
+
+size_t
+co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
+{
+  char *out = output;
+  CHECK(IS_TREE(tree), "Not a tree object.");
+  co_obj_t *next = list;
+  while(next != NULL && written <= olen)
+  {
+    read = co_obj_raw(in, next);
+    CHECK(read + written < olen, "Data too large for buffer.");
+    memmove(out, in, read);
+    written += read;
+    out += read;
+    next = _LIST_NEXT(next);
+  }
+  return written;
+error:
+  return -1;
+}
+*/
