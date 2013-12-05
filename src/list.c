@@ -255,3 +255,39 @@ error:
   return -1;
   
 }
+
+size_t
+co_list_import(co_obj_t *list, const char *input, const size_t ilen)
+{
+  size_t length = 0, olen = 0, read = 0;
+  co_obj_t *obj = NULL;
+  const char *cursor = input;
+  switch((uint8_t)input[0])
+  {
+    case _list16:
+      length = ((co_list16_t *)input)->_len;
+      list = co_list16_create();
+      cursor += sizeof(co_list16_t);
+      read += sizeof(co_list16_t);
+      break;
+    case _list32:
+      length = ((co_list32_t *)input)->_len;
+      list = co_list32_create();
+      cursor += sizeof(co_list32_t);
+      read += sizeof(co_list32_t);
+      break;
+    default:
+      SENTINEL("Not a list.");
+      break;
+  }
+  for(int i = 0; (i < length && read <= ilen); i++)
+  {
+    olen = co_obj_import(obj, cursor, ilen - read, 0);
+    CHECK(olen > 0, "Failed to import object.");
+    read += olen;
+    CHECK(co_list_append(list, obj), "Failed to add object to list.");
+  }
+  return read;
+error:
+  return -1;
+}
