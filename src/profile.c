@@ -93,14 +93,14 @@ error:
 }
 
 void 
-co_profiles_destroy(void) 
+co_profiles_shutdown(void) 
 {
   if(_profiles != NULL) co_obj_free(_profiles);
   return;
 }
 
 int 
-co_profiles_create(const size_t index_size) 
+co_profiles_init(const size_t index_size) 
 {
   if(index_size == 16)
   {
@@ -116,6 +116,78 @@ co_profiles_create(const size_t index_size)
 
 error:
   co_profiles_destroy();
+  return 0;
+}
+
+static co_obj_t *
+_co_profile_create(const char *name, const size_t nlen) 
+{
+  DEBUG("Creating profile %s", name);
+  co_profile_t *profile = h_calloc(1, sizeof(co_profile_t));
+  CHECK_MEM(profile->name = co_str8_create(name, nlen, 0));
+  hattach(profile->name, profile);
+  CHECK_MEM(profile->data = co_tree16_create());
+  hattach(profile->data, profile);
+  CHECK(co_schemas_load(profile->data), "Failed to initialize profile with schema.");
+  profile->_len = (sizeof(co_obj_t *) * 2);
+  profile->_exttype = _profile;
+  profile->_header._type = _ext8;
+  return (co_obj_t *)profile;
+error:
+  DEBUG("Failed to create profile %s.", name);
+  return NULL;
+}
+
+static int _co_profile_import_files_i(const char *path, const char *filename) {
+  char key[80];
+  char value[80];
+  char line[80];
+  char path_tmp[PATH_MAX] = {};
+  int line_number = 1;
+  FILE *config_file = NULL;
+
+  DEBUG("Importing file %s at path %s", filename, path);
+
+  strlcpy(path_tmp, path, PATH_MAX);
+  strlcat(path_tmp, "/", PATH_MAX);
+  strlcat(path_tmp, filename, PATH_MAX);
+  config_file = fopen(path_tmp, "rb");
+  CHECK(config_file != NULL, "Config file %s/%s could not be opened", path, filename);
+
+  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
+  while(fgets(line, 80, config_file) != NULL) {
+    if(strlen(line) > 1) {
+      char *key_copy, *value_copy;
+      sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
+
+      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
+      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
+      strcpy(key_copy, key);
+      strcpy(value_copy, value);
+
+      DEBUG("Setting key: %s and value: %s into profile tree.", key_copy, value_copy);
+      CHECK(co_tree_set_str(((co_profile_t *)new_profile)->data, key_copy, strlen(key_copy), value_copy, strlen(value_copy)), "Could not load line %d of %s.", line_number, path);
+      line_number++;
+    }
+  }
+
+  fclose(config_file);
+  co_list_append(_profiles, new_profile);
+
+  return 1;
+
+error:
+  if(config_file) fclose(config_file);
+  return 0;
+}
+
+int co_profile_import_files(const char *path) {
+  DEBUG("Importing files from %s", path);
+  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
+
+  return 1;
+
+error:
   return 0;
 }
 /*
@@ -165,20 +237,6 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
 error:
   if(config_file) fclose(config_file);
-  //if(new_profile != NULL) {
-  //  tst_destroy(new_profile->profile);
-  //  free(new_profile);
-  //}
-  return 0;
-}
-
-int co_profile_import_files(const char *path) {
-  DEBUG("Importing files from %s", path);
-  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
-
-  return 1;
-
-error:
   return 0;
 }
 */

@@ -75,12 +75,12 @@ int co_profiles_create(const size_t index_size);
 /**
  * @brief creates a list of available profiles
  */
-int co_profiles_create(const size_t index_size);
+int co_profiles_init(const size_t index_size);
 
 /**
  * @brief removes the list of available profiles
  */
-void co_profiles_destroy(void);
+void co_profiles_shutdown(void);
 
 /**
  * @brief imports available profiles from profiles directory
