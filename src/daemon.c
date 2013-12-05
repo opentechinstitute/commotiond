@@ -276,10 +276,11 @@ int main(int argc, char *argv[]) {
   DEBUG("Node ID: %d", (int) id.id);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
-  co_profiles_create(); /* Set up profiles */
+  co_profiles_create(16); /* Set up profiles */
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
   
   /* Add standard commands */
+  /*
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
   co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
   co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
@@ -288,6 +289,7 @@ int main(int argc, char *argv[]) {
   co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
   co_cmd_add("nodeid", cmd_nodeid, "nodeid <none>\n", "Print unique ID for this node\n", 0);
   co_cmd_add("nodeidset", cmd_set_nodeid_from_mac, "nodeid <mac>\n", "Use mac address to generate identifier for this node.\n", 0);
+  */
   //plugins_create();
   //plugins_load_all(plugindir);
   
