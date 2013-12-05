@@ -84,4 +84,6 @@ co_obj_t *co_cmd_usage(co_obj_t *key);
  */
 co_obj_t *co_cmd_desc(co_obj_t *key);
 
+int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
+
 #endif
