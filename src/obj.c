@@ -331,7 +331,7 @@ co_float64_create(const double input, const uint8_t flags)
 void
 co_obj_free(co_obj_t *object)
 {
-  h_free(object);
+  if(object != NULL) h_free(object);
   return;
 }
 
