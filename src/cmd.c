@@ -142,4 +142,10 @@ co_cmd_desc(co_obj_t *key)
 error:
   return NULL;
 }
+/*
+int
+co_cmd_hook(const co_obj_t *key, co_obj_t *cb)
+{
 
+}
+*/
