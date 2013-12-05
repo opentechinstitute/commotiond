@@ -52,6 +52,3 @@ if(NOT OPENWRT)
     )
   endif(DOXYGEN_FOUND)
 endif()
-
-enable_testing()
-ADD_SUBDIRECTORY(test)
