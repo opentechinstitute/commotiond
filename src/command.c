@@ -124,6 +124,26 @@ error:
   return ret;
 }
 
+/* Set link local ip */
+char *cmd_generate_local_ip() {
+
+  unsigned char mac[6];
+  memset(mac, '\0', sizeof(mac));
+  
+  char *address = calloc(16, sizeof(char)); 
+    
+  /* Get node id */
+  nodeid_t id = co_id_get();
+
+  /* Generate local ip */
+  co_generate_ip ("169.254.0.0", "255.255.0.0", id, address, 0);   
+    
+  DEBUG("Local address for this node: %s", address);
+  
+// NOTE: whoever calls this function must then free the heap space for "address"
+return address; 
+}  
+
 /* Bring up wireless interface and configure it */
 char *cmd_up(void *self, char *argv[], int argc) {
   co_cmd_t *this = self;
