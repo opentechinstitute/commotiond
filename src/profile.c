@@ -61,11 +61,7 @@ error:
 int
 co_schema_register(co_cb_t cb)
 {
-  if(_schemas == NULL)
-  {
-    CHECK((_schemas = (co_obj_t *)co_list16_create()) != NULL, "Schema list creation failed.");
-  }
-  co_list_append(_schemas, co_schema_create(cb));
+  CHECK(co_list_append(_schemas, co_schema_create(cb)), "Failed to register schema.");
   return 1;
 error:
   return 0;
@@ -111,6 +107,11 @@ co_profiles_init(const size_t index_size)
     CHECK((_profiles = (co_obj_t *)co_list32_create()) != NULL, "Plugin list creation failed.");
   }
   else SENTINEL("Invalid list index size.");
+
+  if(_schemas == NULL)
+  {
+    CHECK((_schemas = (co_obj_t *)co_list16_create()) != NULL, "Schema list creation failed.");
+  }
 
   return 1;
 
