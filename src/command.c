@@ -130,7 +130,7 @@ char *cmd_generate_local_ip() {
   unsigned char mac[6];
   memset(mac, '\0', sizeof(mac));
   
-  char *address = calloc(16 * sizeof(char)); 
+  char *address = calloc(16, sizeof(char)); 
     
   /* Get node id */
   nodeid_t id = co_id_get();
