@@ -65,16 +65,31 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   CHECK(((output != NULL) && (method != NULL) && (param != NULL)), "Invalid request components.");
   CHECK(olen > sizeof(_req_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
   size_t written = 0;
+
+  /* Pack request header */
   memmove(output, &_req_header, sizeof(_req_header));
   written += sizeof(_req_header);
-  memmove(output + sizeof(_req_header), &_id, sizeof(uint32_t));
+  DEBUG("Request bytes written: %d", (int)written);
+
+  /* Pack request ID */
+  memmove(output + written, &_id, sizeof(uint32_t));
   written += sizeof(uint32_t);
+  DEBUG("Request bytes written: %d", (int)written);
   _id++;
+
+  /* Pack method call */
   CHECK(IS_STR(method), "Not a valid method name.");
-  written += co_obj_raw(output, method);
+  char *buffer = NULL;
+  size_t buffer_write = co_obj_raw((void **)&buffer, method);
+  memmove(output + written, buffer, buffer_write);
+  written += buffer_write;
+  DEBUG("Request bytes written: %d", (int)written);
+
+  /* Pack parameters */
   CHECK(written < olen, "Output buffer too small.");
-  CHECK(IS_LIST(method), "Not a valid parameter list.");
-  written += co_list_raw(output, olen - written, param);
+  CHECK(IS_LIST(param), "Not a valid parameter list.");
+  written += co_list_raw(output + written, olen - written, param);
+  DEBUG("Request bytes written: %d", (int)written);
   CHECK(written < olen, "Output buffer too small.");
 
   return written;
@@ -101,20 +116,34 @@ static struct
 size_t
 co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_obj_t *error, co_obj_t *result)
 {
-  CHECK(((output != NULL) && (error != NULL) && (result != NULL)), "Invalid request components.");
-  CHECK(olen > sizeof(_resp_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
+  CHECK(((output != NULL) && (error != NULL) && (result != NULL)), "Invalid response components.");
+  CHECK(olen > sizeof(_req_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
   size_t written = 0;
+
+  /* Pack response header */
   memmove(output, &_resp_header, sizeof(_resp_header));
   written += sizeof(_resp_header);
-  memmove(output + sizeof(_resp_header), &id, sizeof(uint32_t));
-  written += sizeof(uint32_t);
-  CHECK(IS_STR(error), "Not a valid error name.");
-  written += co_obj_raw(output, error);
-  CHECK(written < olen, "Output buffer too small.");
-  CHECK(IS_LIST(error), "Not a valid result list.");
-  written += co_list_raw(output, olen - written, result);
-  CHECK(written < olen, "Output buffer too small.");
+  DEBUG("Response bytes written: %d", (int)written);
 
+  /* Pack response ID */
+  memmove(output + written, &id, sizeof(uint32_t));
+  written += sizeof(uint32_t);
+  DEBUG("Response bytes written: %d", (int)written);
+
+  /* Pack error code */
+  CHECK(IS_STR(error), "Not a valid error name.");
+  char *buffer = NULL;
+  size_t buffer_write = co_obj_raw((void **)&buffer, error);
+  memmove(output + written, buffer, buffer_write);
+  written += buffer_write;
+  DEBUG("Response bytes written: %d", (int)written);
+
+  /* Pack method result */
+  CHECK(written < olen, "Output buffer too small.");
+  CHECK(IS_LIST(result), "Not a valid result list.");
+  written += co_list_raw(output + written, olen - written, result);
+  DEBUG("Response bytes written: %d", (int)written);
+  CHECK(written < olen, "Output buffer too small.");
   return written;
 error:
   return -1;
