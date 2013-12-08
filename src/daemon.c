@@ -93,10 +93,10 @@ int dispatcher_cb(void *self, void *context) {
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
-  CHECK(co_list_import(request, reqbuf, reqlen) > 0, "Failed to import request.");
-  co_obj_raw(type, co_list_element(request, 0)); 
+  CHECK(co_list_import(&request, reqbuf, reqlen) > 0, "Failed to import request.");
+  co_obj_data((void **)&type, co_list_element(request, 0)); 
   CHECK(*type == 0, "Not a valid request.");
-  CHECK(co_obj_raw(id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
+  CHECK(co_obj_data((void **)&id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
   co_obj_t *ret = co_cmd_exec(co_list_element(request, 2), co_list_element(request, 3));
   if(ret != NULL)
   {

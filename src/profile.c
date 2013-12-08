@@ -255,14 +255,14 @@ error:
 }
 
 size_t
-co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen) 
+co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen) 
 {
   CHECK_MEM(profile->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_STR(obj), "Object is not a string.");
-  return co_obj_data(output, obj);
+  return co_obj_data((void **)output, obj);
 
 error:
   return -1;
@@ -288,9 +288,9 @@ co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_INT(obj), "Object is not a signed integer.");
-  signed long output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  signed long *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;
@@ -316,9 +316,9 @@ co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_UINT(obj), "Object is not an unsigned integer.");
-  unsigned long output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  unsigned long *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;
@@ -344,9 +344,9 @@ co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_FLOAT(obj), "Object is not a floating point value.");
-  double output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  double *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;

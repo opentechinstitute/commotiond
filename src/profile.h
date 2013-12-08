@@ -113,7 +113,6 @@ signed long co_profile_get_int(co_profile_t *profile, const char *key, const siz
  * @param key key in profile
  * @param def default key value
  */
-char *co_profile_get_string(co_profile_t *profile, const char *key, char *def);
 
 /**
  * @brief returns list of available profiles
@@ -133,7 +132,7 @@ co_profile_t *co_profile_find(co_obj_t *name);
 void co_profile_dump(co_profile_t *profile);
 
 int co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
-size_t co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen);
+size_t co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen);
 int co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value);
 signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
 int co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value);

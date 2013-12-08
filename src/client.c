@@ -92,9 +92,11 @@ cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
     {
       CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]), 0)), "Failed to add to argument list.");
     }
+    DEBUG("Parameter list size: %d", (int)co_list_length(params));
   }
   co_obj_t *method = co_str8_create(argv[0], strlen(argv[0]), 0);
   size_t retval = co_request_alloc(output, olen, method, params);
+  DEBUG("Request: %s", output);
   co_obj_free(params);
   co_obj_free(method);
   return retval;
