@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include "config.h"
 #include "debug.h"
-#include "command.h"
+#include "cmd.h"
 #include "util.h"
 #include "loop.h"
 #include "process.h"
@@ -51,7 +51,11 @@
 #include "olsrd.h"
 #include "iface.h"
 #include "id.h"
-#include "plugin.h"
+#include "obj.h"
+#include "list.h"
+
+#define REQUEST_MAX 1024
+#define RESPONSE_MAX 1024
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -65,45 +69,47 @@ int dispatcher_cb(void *self, void *context);
  */
 int dispatcher_cb(void *self, void *context) {
   co_socket_t *sock = self;
-  char buffer[1024];
-  char *cmdargv[MAX_ARGS];
-  int cmdargc;
-  memset((void *)buffer, '\0', sizeof(buffer));
+  char reqbuf[REQUEST_MAX];
+  memset(reqbuf, '\0', sizeof(reqbuf));
+  size_t reqlen = 0;
+  char respbuf[RESPONSE_MAX];
+  memset(respbuf, '\0', sizeof(respbuf));
+  size_t resplen = 0;
+  co_obj_t *request = NULL;
+  int *type = NULL;
+  uint32_t *id = NULL;
+  co_obj_t *nil = co_nil_create(0);
 
   /* Incoming message on socket */
-  int received = sock->receive(sock, buffer, sizeof(buffer));
-  DEBUG("Received %d bytes.", received);
-  if(received == 0) {
+  reqlen = sock->receive(sock, reqbuf, sizeof(reqbuf));
+  DEBUG("Received %d bytes.", (int)reqlen);
+  if(reqlen == 0) {
     INFO("Received connection.");
     return 1;
   }
-  if (received < 0) {
+  if (reqlen < 0) {
     INFO("Connection recvd() -1");
     sock->hangup(sock, context);
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
-  co_msg_t *msgrcv = co_msg_unpack(buffer);
-  if(msgrcv->header.size <= (sizeof(co_msg_header_t) + strlen(msgrcv->target))) {
-    DEBUG("Received message with target %s and empty payload.", msgrcv->target);
-    cmdargc = 0;
-    cmdargv[0] = NULL;
-  } else {
-    DEBUG("Received target %s and payload %s", msgrcv->target, msgrcv->payload);
-    string_to_argv(msgrcv->payload, cmdargv, &cmdargc, MAX_ARGS);
-  }
-  /*  */
-  char *ret = co_cmd_exec(msgrcv->target, cmdargv, cmdargc, 0);
-  if(ret) {
-    sock->send(sock, ret, strlen(ret));
-    free(ret);
-  } else {
-    sock->send(sock, "No such command.\n", 17);
+  CHECK(co_list_import(request, reqbuf, reqlen) > 0, "Failed to import request.");
+  co_obj_raw(type, co_list_element(request, 0)); 
+  CHECK(*type == 0, "Not a valid request.");
+  CHECK(co_obj_raw(id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
+  co_obj_t *ret = co_cmd_exec(co_list_element(request, 2), co_list_element(request, 3));
+  if(ret != NULL)
+  {
+    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
+    sock->send(sock, respbuf, resplen);
   }
 
- // for(int i = 0; i < cmdargc; i++) {
- //   if(cmdargv[i]) free(cmdargv[i]);
- // }
+  co_obj_free(nil);
+  co_obj_free(request);
+  return 1;
+error:
+  co_obj_free(nil);
+  co_obj_free(request);
   return 1;
 }
 
@@ -277,10 +283,11 @@ int main(int argc, char *argv[]) {
   DEBUG("Node ID: %d", (int) id.id);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
-  co_profiles_create(); /* Set up profiles */
+  co_profiles_init(16); /* Set up profiles */
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
   
   /* Add standard commands */
+  /*
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
   co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
   co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
@@ -289,6 +296,7 @@ int main(int argc, char *argv[]) {
   co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
   co_cmd_add("nodeid", cmd_nodeid, "nodeid <none>\n", "Print unique ID for this node\n", 0);
   co_cmd_add("nodeidset", cmd_set_nodeid_from_mac, "nodeid <mac>\n", "Use mac address to generate identifier for this node.\n", 0);
+  */
   //plugins_create();
   //plugins_load_all(plugindir);
   
@@ -298,10 +306,7 @@ int main(int argc, char *argv[]) {
   socket->register_cb = co_loop_add_socket;
   socket->bind(socket, socket_uri);
   
-  ready();
   co_loop_start();
-  
-  teardown();
   co_loop_destroy();
 
   return 0;

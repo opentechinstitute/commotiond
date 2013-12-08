@@ -26,7 +26,7 @@ set(GTEST_LIBS_DIR ${binary_dir})
 #-------------------
 enable_testing()
 set(PROJECT_TEST_NAME ${PROJECT_NAME_STR}_test)
-include_directories(${GTEST_INCLUDE_DIRS} ${COMMON_INCLUDES} ../src)
+include_directories(${GTEST_INCLUDE_DIRS} ${COMMON_INCLUDES})
 
 file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})

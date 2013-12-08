@@ -1,16 +1,15 @@
 /* vim: set ts=2 expandtab: */
 /**
- *       @file  msg.h
- *      @brief  a simple message serialization library
+ *       @file  plugin.h
+ *      @brief  The commotiond plugin loader.
  *
  *     @author  Josh King (jheretic), jking@chambana.net
  *
  *   @internal
- *     Created  03/07/2013
- *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
- *    Compiler  gcc/g++
- *     Company  The Open Technology Institute
- *   Copyright  Copyright (c) 2013, Josh King
+ *      Created  11/04/2013 10:47:37 AM
+ *     Compiler  gcc/g++
+ * Organization  The Open Technology Institute
+ *    Copyright  Copyright (c) 2013, Josh King
  *
  * This file is part of Commotion, Copyright (c) 2013, Josh King 
  * 
@@ -30,15 +29,26 @@
  * =====================================================================================
  */
 
-#ifndef _MSG_H
-#define _MSG_H
+#ifndef _PLUGIN_H
+#define _PLUGIN_H
 
 #include <stdlib.h>
-#include <stddef.h>
-#include <inttypes.h>
-#include "obj.h"
 
-size_t co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj_t *param);
-size_t co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_obj_t *error, co_obj_t *result);
+
+typedef struct {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_obj_t *name; /**< command name */
+  co_obj_t *filename;
+  co_cb_t shutdown;
+  void *handle;
+} co_plugin_t;
+
+int co_plugins_shutdown(void);
+
+int co_plugins_init(size_t index_size);
+
+int co_plugins_load(const char *dir_path);
 
 #endif

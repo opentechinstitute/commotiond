@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 2.6)
 
-PROJECT(commotion)
+set(PROJECT_NAME_STR commotion)
+PROJECT(${PROJECT_NAME_STR})
 SET(NO_OPTIMIZE 1)
 SET(DEBUG 1)
 SET(OPENWRT 1)
+SET(UNITTEST 1)
 SET(COMMOTION_VERSION_MAJOR 0)
 SET(COMMOTION_VERSION_MINOR 1)
 SET(COMMOTION_VERSION_PATCH 0)
@@ -13,6 +15,8 @@ SET(COMMOTION_MANAGESOCK \"/var/run/commotiond.sock\")
 SET(COMMOTION_PLUGINDIR \"/usr/lib/commotion/plugins\")
 SET(COMMOTION_PROFILEDIR \"/etc/commotion/profiles.d\")
 SET(CMAKE_EXE_LINKER_FLAGS "-ldl")
+
+SET(COMMON_INCLUDES ${PROJECT_SOURCE_DIR}/src)
 
 CONFIGURE_FILE( "${CMAKE_SOURCE_DIR}/src/config.h.in" "${CMAKE_SOURCE_DIR}/src/config.h" )
 
@@ -32,6 +36,11 @@ ENDIF()
 
 ADD_SUBDIRECTORY(src)
 
+IF(UNITTEST)
+  ENABLE_TESTING()
+  ADD_SUBDIRECTORY(tests)
+ENDIF()
+
 if(NOT OPENWRT)
   find_package(Doxygen)
   if(DOXYGEN_FOUND)
@@ -43,6 +52,3 @@ if(NOT OPENWRT)
     )
   endif(DOXYGEN_FOUND)
 endif()
-
-enable_testing()
-ADD_SUBDIRECTORY(test)

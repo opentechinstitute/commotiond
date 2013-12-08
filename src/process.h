@@ -45,7 +45,7 @@ typedef enum {
   STOPPING = 0,
   STOPPED =1,
   STARTING = 2,
-  CO_STARTED = 3,  /** Had to rename this b/c Serval uses STARTED in an enum as well...breaks compile :( */
+  STARTED = 3,
   FAILED = -1
 } co_process_state_t;
 

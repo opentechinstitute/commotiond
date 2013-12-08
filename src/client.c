@@ -44,6 +44,12 @@
 #include "debug.h"
 #include "util.h"
 #include "socket.h"
+#include "obj.h"
+#include "list.h"
+
+#define REQUEST_MAX 1024
+#define RESPONSE_MAX 1024
+#define INPUT_MAX 255
 
 extern co_socket_t unix_socket_proto;
 
@@ -52,6 +58,7 @@ extern co_socket_t unix_socket_proto;
  * @param argv[] commands input by the user
  * @param argc number of commands and flags input
  */
+/*
 static co_msg_t *cli_parse_argv(char *argv[], const int argc) {
   CHECK(argv != NULL, "No input.");
   char payload[MSG_MAX_PAYLOAD];
@@ -71,36 +78,73 @@ error:
   free(message);
   return NULL;
 }
+*/
+
+static size_t 
+cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
+{
+  CHECK(((argv != NULL) && (argc > 0)), "No input.");
+  co_obj_t *params = NULL;
+  if(argc > 1) 
+  {
+    params = co_list16_create();
+    for(int i = 1; i < argc; i++)
+    {
+      CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]), 0)), "Failed to add to argument list.");
+    }
+  }
+  co_obj_t *method = co_str8_create(argv[0], strlen(argv[0]), 0);
+  size_t retval = co_request_alloc(output, olen, method, params);
+  co_obj_free(params);
+  co_obj_free(method);
+  return retval;
+error:
+  if(params != NULL) co_obj_free(params);
+  return -1; 
+}
 
 /**
  * @brief checks user input for valid commands
  * @param input user input submitted at the command prompt
  */
-static co_msg_t *cli_parse_string(const char *input) {
-  CHECK(input != NULL, "No input.");
+static size_t
+cli_parse_string(char *output, const size_t olen, const char *input, const size_t ilen) 
+{
+  CHECK(((input != NULL) && (ilen > 0)), "No input.");
 	char *saveptr = NULL;
-  int inputsize = strlen(input);
-  char *input_tmp = NULL;
-  co_msg_t *message = NULL;
-  if(inputsize > 2) {
-    input_tmp = malloc(inputsize);
-    strstrip(input, input_tmp, inputsize);
-    if(input_tmp[inputsize - 1] == '\n') input_tmp[inputsize - 1] ='\0';
-	  char *command = strtok_r(input_tmp, " ", &saveptr);
-    if(strlen(command) < 2) command = "help";
-    char *payload = strchr(input, ' ');
-    message = co_msg_create(command, payload);
-  } else {
-    message = co_msg_create("help", NULL);
+  char *buf = NULL;
+  size_t blen = ilen; 
+  co_obj_t *method = NULL;
+  co_obj_t *params = NULL;
+  if(ilen > 2) /* Make sure it's not just, say, a null byte and a newline. */
+  {
+    buf = h_calloc(1, ilen);
+    strstrip(input, buf, blen);
+    if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
+	  char *token = strtok_r(buf, " ", &saveptr);
+    if(strlen(token) < 2) token = "help";
+    method = co_str8_create(token, strlen(token), 0);
+    token = strtok_r(NULL, " ", &saveptr);
+    if(token != NULL) params = co_list16_create();
+    while(token != NULL)
+    {
+      CHECK(co_list_append(params, co_str8_create(token, strlen(token), 0)), "Failed to add to argument list.");
+      token = strtok_r(NULL, " ", &saveptr);
+    }
+  } 
+  else 
+  {
+    SENTINEL("Message too short.");
   }
-  CHECK(message != NULL, "Invalid message.");
-  free(input_tmp);
-  return message;
+  size_t retval = co_request_alloc(output, olen, method, params);
+  co_obj_free(method);
+  if(buf != NULL) h_free(buf);
+  return retval;
 
 error:
-  free(input_tmp);
-  free(message);
-  return NULL;
+  co_obj_free(method);
+  if(buf != NULL) h_free(buf);
+  return -1;
 }
 
 /**
@@ -152,28 +196,35 @@ int main(int argc, char *argv[]) {
 
   CHECK((socket->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
   DEBUG("opt_index: %d argc: %d", optind, argc);
-  int received = 0;
-  char str[1024];
-  memset(str, '\0', sizeof(str));
-  if(optind < argc) {
-    co_msg_t *message = cli_parse_argv(argv + optind, argc - optind - 1);
-    char *msgstr = co_msg_pack(message);
-    CHECK(socket->send(socket, msgstr, sizeof(co_msg_t)) != -1, "Send error!");
-    if((received = socket->receive(socket, str, sizeof(str))) > 0) {
-      str[received] = '\0';
-      printf("%s", str);
+  char request[REQUEST_MAX];
+  memset(request, '\0', sizeof(request));
+  size_t reqlen = 0;
+  char response[RESPONSE_MAX];
+  memset(response, '\0', sizeof(response));
+  size_t resplen = 0;
+  if(optind < argc) 
+  {
+    reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
+    CHECK(socket->send(socket, request, reqlen) != -1, "Send error!");
+    if((resplen = socket->receive(socket, response, sizeof(response))) > 0) 
+    {
+      response[resplen] = '\0';
+      printf("%s\n", response);
     }
-  } else {
+  } 
+  else 
+  {
     printf("Connected to commotiond at %s\n", socket_uri);
-    while(printf("Co$ "), fgets(str, 100, stdin), !feof(stdin)) {
-      //if(str[strlen(str) - 1] == '\n') {
-      //  str[strlen(str) - 1] = '\0';
-      //}
-      char *msgstr = co_msg_pack(cli_parse_string(str));
-      CHECK(socket->send(socket, msgstr, sizeof(co_msg_t)) != -1, "Send error!");
-      if((received = socket->receive(socket, str, sizeof(str))) > 0) {
-        str[received] = '\0';
-        printf("%s", str);
+    char input[INPUT_MAX];
+    memset(input, '\0', sizeof(input));
+    while(printf("Co$ "), fgets(input, 100, stdin), !feof(stdin)) 
+    {
+      reqlen = cli_parse_string(request, REQUEST_MAX, input, strlen(input));
+      CHECK(socket->send(socket, request, reqlen) != -1, "Send error!");
+      if((resplen = socket->receive(socket, response, sizeof(response))) > 0) 
+      {
+        response[resplen] = '\0';
+        printf("%s\n", response);
       }
     }
   }
