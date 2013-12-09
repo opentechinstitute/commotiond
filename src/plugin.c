@@ -50,7 +50,10 @@ _co_plugins_shutdown_i(co_obj_t *data, co_obj_t *current, void *context)
   {
     ((co_plugin_t *)current)->shutdown(current, NULL);
   }
-  dlclose(((co_plugin_t *)current)->handle);
+  if(((co_plugin_t *)current)->handle != NULL)
+  {
+    dlclose(((co_plugin_t *)current)->handle);
+  }
   co_list_decrement(data);
   return NULL;
 }
