@@ -104,6 +104,11 @@ char *cmd_help(void *self, char *argv[], int argc);
 char *cmd_list_profiles(void *self, char *argv[], int argc);
 
 /**
+ * @brief Generates a local ip in the 169.254.0.0 address range (to be used for the "thisnode" alias)
+ */
+char *cmd_generate_local_ip();
+
+/**
  * @brief Brings up the wireless interface and configures it using the default settings or a specified profile.
  * @details sets node id, ip address, ssid, bssid and channel, and sets ad hoc mode.
  * @param self pointer to cmd_up struct
