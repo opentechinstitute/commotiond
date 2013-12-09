@@ -69,24 +69,29 @@
 #include <string.h>
 
 #ifdef USESYSLOG
+#include <syslog.h>
 #define LOG(M, ...) syslog(M, ##__VA_ARGS__)
 #else
 #define LOG(M, N, ...) fprintf(stderr, "["M"] " N, ##__VA_ARGS__)
+#define LOG_INFO "LOG_INFO"
+#define LOG_WARNING "LOG_WARNING"
+#define LOG_ERR "LOG_ERR"
+#define LOG_DEBUG "LOG_DEBUG"
 #endif
 
 #if defined(NDEBUG) && !defined(OPENWRT)
 #define DEBUG(M, ...)
 #else
-#define DEBUG(M, ...) LOG("LOG_DEBUG", "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define DEBUG(M, ...) LOG(LOG_DEBUG, "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #endif
 
 #define CLEAN_ERRNO() (errno == 0 ? "None" : strerror(errno))
 
-#define ERROR(M, ...) LOG("LOG_ERR", "(%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, CLEAN_ERRNO(), ##__VA_ARGS__)
+#define ERROR(M, ...) LOG(LOG_ERR, "(%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, CLEAN_ERRNO(), ##__VA_ARGS__)
 
-#define WARN(M, ...) LOG("LOG_WARN", "(%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, CLEAN_ERRNO(), ##__VA_ARGS__)
+#define WARN(M, ...) LOG(LOG_WARNING, "(%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, CLEAN_ERRNO(), ##__VA_ARGS__)
 
-#define INFO(M, ...) LOG("LOG_INFO", "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define INFO(M, ...) LOG(LOG_INFO, "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
 #define CHECK(A, M, ...) if(!(A)) { ERROR(M, ##__VA_ARGS__); errno=0; goto error; }
 
