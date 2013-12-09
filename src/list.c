@@ -128,7 +128,8 @@ int
 co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+      list.");
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_PREV(this_obj);
@@ -157,7 +158,8 @@ int
 co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+      list.");
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_NEXT(this_obj);

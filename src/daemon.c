@@ -44,6 +44,7 @@
 #include "cmd.h"
 #include "util.h"
 #include "loop.h"
+#include "plugin.h"
 #include "process.h"
 #include "profile.h"
 #include "socket.h"
@@ -199,11 +200,12 @@ static void daemon_start(char *statedir, char *pidfile) {
 static void print_usage() {
   printf(
           "The Commotion management daemon.\n"
-          "http://commotionwireless.net\n\n"
+          "https://commotionwireless.net\n\n"
           "Usage: commotiond [options]\n"
           "\n"
           "Options:\n"
           " -b, --bind <uri>      Specify management socket.\n"
+          " -d, --plugins <dir>   Specify plugin directory.\n"
           " -f, --profiles <dir>  Specify profile directory.\n"
           " -i, --id <nodeid>     Specify unique id number for this node.\n"
           " -n, --nodaemonize     Do not fork into the background.\n"
@@ -233,7 +235,7 @@ int main(int argc, char *argv[]) {
   char *pidfile = COMMOTION_PIDFILE;
   char *statedir = COMMOTION_STATEDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
-  //char *plugindir = COMMOTION_PLUGINDIR;
+  char *plugindir = COMMOTION_PLUGINDIR;
   char *profiledir = COMMOTION_PROFILEDIR;
 
   static const char *opt_string = "b:d:f:i:np:s:h";
@@ -259,7 +261,7 @@ int main(int argc, char *argv[]) {
         socket_uri = optarg;
         break;
       case 'd':
-        //plugindir = optarg;
+        plugindir = optarg;
         break;
       case 'f':
         profiledir = optarg;
@@ -290,6 +292,8 @@ int main(int argc, char *argv[]) {
   co_id_set_from_int(newid);
   nodeid_t id = co_id_get();
   DEBUG("Node ID: %d", (int) id.id);
+  co_plugins_init(16);
+  co_plugins_load(plugindir);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */

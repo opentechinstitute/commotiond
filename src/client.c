@@ -58,27 +58,6 @@ extern co_socket_t unix_socket_proto;
  * @param argv[] commands input by the user
  * @param argc number of commands and flags input
  */
-/*
-static co_msg_t *cli_parse_argv(char *argv[], const int argc) {
-  CHECK(argv != NULL, "No input.");
-  char payload[MSG_MAX_PAYLOAD];
-  memset(payload, '\0', sizeof(payload));
-  co_msg_t *message;
-  if(argc > 0) {
-    char **args = argv + 1;
-    CHECK(argv_to_string(args, argc, payload, MSG_MAX_PAYLOAD), "Failed to parse argv.");
-    message = co_msg_create(argv[0], payload);
-  } else {
-    message = co_msg_create(argv[0], NULL);
-  }
-  CHECK(message != NULL, "Invalid message.");
-  return message;
-
-error:
-  free(message);
-  return NULL;
-}
-*/
 
 static size_t 
 cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)

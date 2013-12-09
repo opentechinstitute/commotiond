@@ -167,7 +167,7 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   /* Pack error code */
   CHECK(IS_STR(error), "Not a valid error name.");
   char *buffer = NULL;
-  size_t buffer_write = co_obj_raw((void **)&buffer, error);
+  size_t buffer_write = co_obj_raw(&buffer, error);
   memmove(output + written, buffer, buffer_write);
   written += buffer_write;
   DEBUG("Response bytes written: %d", (int)written);

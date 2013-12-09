@@ -479,21 +479,6 @@ co_obj_data(void **data, const co_obj_t *object)
       return -1;
   }
 }
-/*
-int 
-co_obj_import(co_obj_t *output, const size_t out_size, const char *input, \
-    const size_t in_size, const uint8_t flags)
-{
-  CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
-  CHECK((in_size <= (out_size - sizeof(co_obj_t) + 1)), \
-      "Value too large for output buffer.");
-  memmove(&(output->_type), input, in_size);
-  output->_flags = flags;
-  return 1;
-error:
-  return 0;
-}
-*/
 
 size_t
 co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags)
