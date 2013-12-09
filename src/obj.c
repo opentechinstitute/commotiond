@@ -164,6 +164,7 @@ _DEFINE_EXT(32);
     const size_t out_size, const char *input, const size_t in_size, \
     const uint8_t flags ) \
     { \
+      CHECK(out_size > sizeof(co_obj_t) + sizeof(uint##L##_t), "Output buffer is too small."); \
       CHECK((out_size - sizeof(uint##L##_t) - sizeof(co_obj_t) < UINT##L##_MAX), \
       "Object too large for type str##L## to address."); \
       if((in_size > 0) && (input != NULL)) \
@@ -176,7 +177,7 @@ _DEFINE_EXT(32);
       output->_flags = flags; \
       ((co_str##L##_t *)output)->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
           sizeof(co_obj_t)); \
-      ((co_str##L##_t *)output)->data[out_size - 1] = '\0'; \
+      ((co_str##L##_t *)output)->data[in_size - 1] = '\0'; \
       return 1; \
     error: \
       return 0; \
@@ -207,7 +208,7 @@ _DEFINE_STR(32);
     { \
       output->_type = _##T##L; \
       output->_flags = flags; \
-      ((co_##T##L##_t *)output)->data = input; \
+      (((co_##T##L##_t *)output)->data) = (uint32_t)input; \
       return 1; \
     } \
   co_obj_t *co_##T##L##_create(\
@@ -340,73 +341,73 @@ co_obj_free(co_obj_t *object)
  *   Accessors
  *-----------------------------------------------------------------------------*/
 size_t
-co_obj_raw(void **data, const co_obj_t *object)
+co_obj_raw(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
   {
     case _float32:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(float) + 1;
       break;
     case _float64:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(double) + 1;
       break;
     case _uint8:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(uint8_t) + 1;
       break;
     case _uint16:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(uint16_t) + 1;
       break;
     case _uint32:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(uint32_t) + 1;
       break;
     case _uint64:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(uint64_t) + 1;
       break;
     case _int8:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(int8_t) + 1;
       break;
     case _int16:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(int16_t) + 1;
       break;
     case _int32:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(int32_t) + 1;
       break;
     case _int64:
-      *data = (void *)&(object->_type);
+      *data = (char *)&(object->_type);
       return sizeof(int64_t) + 1;
       break;
     case _str8:
-      *data = (void *)&(object->_type);
-      return ((co_str8_t *)object)->_len + 1;
+      *data = (char *)&(((co_str8_t *)object)->_header._type);
+      return ((co_str8_t *)object)->_len + sizeof(uint8_t) + 1;
       break;
     case _str16:
-      *data = (void *)&(object->_type);
-      return ((co_str16_t *)object)->_len + 1;
+      *data = (char *)&(((co_str16_t *)object)->_header._type);
+      return ((co_str16_t *)object)->_len + sizeof(uint16_t) + 1;
       break;
     case _str32:
-      *data = (void *)&(object->_type);
-      return ((co_str32_t *)object)->_len + 1;
+      *data = (char *)&(((co_str32_t *)object)->_header._type);
+      return ((co_str32_t *)object)->_len + sizeof(uint32_t) + 1;
       break;
     case _bin8:
-      *data = (void *)&(object->_type);
-      return ((co_bin8_t *)object)->_len + 1;
+      *data = (char *)&(((co_bin8_t *)object)->_header._type);
+      return ((co_bin8_t *)object)->_len + sizeof(uint8_t) + 1;
       break;
     case _bin16:
-      *data = (void *)&(object->_type);
-      return ((co_bin16_t *)object)->_len + 1;
+      *data = (char *)&(((co_bin16_t *)object)->_header._type);
+      return ((co_bin16_t *)object)->_len + sizeof(uint16_t) + 1;
       break;
     case _bin32:
-      *data = (void *)&(object->_type);
-      return ((co_bin32_t *)object)->_len + 1;
+      *data = (char *)&(((co_bin32_t *)object)->_header._type);
+      return ((co_bin32_t *)object)->_len + sizeof(uint32_t) + 1;
       break;
     default:
       WARN("Not a valid object.");
@@ -499,6 +500,7 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
 {
   CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
   size_t read = 0;
+  co_obj_t *obj = NULL;
   switch((uint8_t)input[0])
   {
     case _float32:
@@ -546,28 +548,29 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       read += sizeof(uint8_t) + 1 + (uint8_t)(*(input + 1));
       break;
     case _str16:
-      *output = co_str16_create(((co_str16_t *)input)->data, ((co_str16_t *)input)->_len, flags);
+      *output = co_str16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(input + 1)), flags);
       read += sizeof(uint16_t) + 1 + (uint16_t)(*(input + 1));
       break;
     case _str32:
-      *output = co_str32_create(((co_str32_t *)input)->data, ((co_str32_t *)input)->_len, flags);
+      *output = co_str32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(input + 1)), flags);
       read += sizeof(uint32_t) + 1 + (uint32_t)(*(input + 1));
       break;
     case _bin8:
-      *output = co_bin8_create(((co_bin8_t *)input)->data, ((co_bin8_t *)input)->_len, flags);
+      *output = co_bin8_create(input + sizeof(uint8_t) + 1, (uint8_t)(*(input + 1)), flags);
       read += sizeof(uint8_t) + 1 + (uint8_t)(*(input + 1));
       break;
     case _bin16:
-      *output = co_bin16_create(((co_bin16_t *)input)->data, ((co_bin16_t *)input)->_len, flags);
+      *output = co_bin16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(input + 1)), flags);
       read += sizeof(uint16_t) + 1 + (uint16_t)(*(input + 1));
       break;
     case _bin32:
-      *output = co_bin32_create(((co_bin32_t *)input)->data, ((co_bin32_t *)input)->_len, flags);
+      *output = co_bin32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(input + 1)), flags);
       read += sizeof(uint32_t) + 1 + (uint32_t)(*(input + 1));
       break;
     case _list16:
     case _list32:
-      read += co_list_import(output, input, in_size);
+      read += co_list_import(&obj, input, in_size);
+      *output = obj;
       break;
     default:
       SENTINEL("Not a simple object.");

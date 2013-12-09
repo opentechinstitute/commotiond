@@ -76,7 +76,7 @@ int dispatcher_cb(void *self, void *context) {
   memset(respbuf, '\0', sizeof(respbuf));
   size_t resplen = 0;
   co_obj_t *request = NULL;
-  int *type = NULL;
+  uint8_t *type = NULL;
   uint32_t *id = NULL;
   co_obj_t *nil = co_nil_create(0);
 
@@ -212,11 +212,20 @@ static void print_usage() {
           " -h, --help            Print this usage message.\n"
   );
 }
+
+void *debug_alloc(void *ptr, size_t len)
+{
+  void *ret = realloc(ptr, len);
+  DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, len);
+  return ret;
+}
+
 /**
  * @brief Creates sockets for event loop, daemon and dispatcher. Starts/stops event loop.
  * 
  */
 int main(int argc, char *argv[]) {
+  /*  halloc_allocator = debug_alloc; */
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;

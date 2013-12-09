@@ -268,11 +268,20 @@ co_list_raw(char *output, const size_t olen, co_obj_t *list)
   co_obj_t *next = _LIST_NEXT(list);
   while(next != NULL && written <= olen)
   {
-    read = co_obj_raw((void **)&in, next);
-    CHECK(read >= 0, "Failed to dump object.");
+    if((CO_TYPE(next) == _list16) || (CO_TYPE(next) == _list32))
+    {
+        read = co_list_raw(out, olen - written, next);
+        CHECK(read >= 0, "Failed to dump object.");
+        CHECK(read + written < olen, "Data too large for buffer.");
+    }
+    else
+    {
+        read = co_obj_raw(&in, next);
+        CHECK(read >= 0, "Failed to dump object.");
+        CHECK(read + written < olen, "Data too large for buffer.");
+        memmove(out, in, read);
+    }
     DEBUG("List in: %s, read: %d", in, (int)read);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
     written += read;
     out += read;
     next = _LIST_NEXT(next);
@@ -309,7 +318,14 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
   }
   for(int i = 0; (i < length && read <= ilen); i++)
   {
-    olen = co_obj_import(&obj, cursor, ilen - read, 0);
+    if(((uint8_t)cursor[0] == _list16) || ((uint8_t)cursor[0] == _list32))
+    {
+      olen = co_list_import(&obj, cursor, ilen - read);
+    }
+    else
+    {
+      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+    }
     CHECK(olen > 0, "Failed to import object.");
     cursor +=olen;
     read += olen;

@@ -96,7 +96,7 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   /* Pack method call */
   CHECK(IS_STR(method), "Not a valid method name.");
   char *buffer = NULL;
-  size_t buffer_write = co_obj_raw((void **)&buffer, method);
+  size_t buffer_write = co_obj_raw(&buffer, method);
   CHECK(buffer_write >= 0, "Failed to pack object.");
   memmove(output + written, buffer, buffer_write);
   written += buffer_write;

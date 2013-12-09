@@ -79,6 +79,7 @@ co_node_value(_treenode_t *node)
 _treenode_t *
 co_tree_root(const co_obj_t *tree)
 {
+  CHECK_MEM(tree);
   _treenode_t *n = NULL;
   if(CO_TYPE(tree) == _tree16)
   {

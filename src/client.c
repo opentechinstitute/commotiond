@@ -90,11 +90,11 @@ cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
     params = co_list16_create();
     for(int i = 1; i < argc; i++)
     {
-      CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]), 0)), "Failed to add to argument list.");
+      CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]) + 1, 0)), "Failed to add to argument list.");
     }
     DEBUG("Parameter list size: %d", (int)co_list_length(params));
   }
-  co_obj_t *method = co_str8_create(argv[0], strlen(argv[0]), 0);
+  co_obj_t *method = co_str8_create(argv[0], strlen(argv[0]) + 1, 0);
   size_t retval = co_request_alloc(output, olen, method, params);
   DEBUG("Request: %s", output);
   co_obj_free(params);
@@ -124,13 +124,15 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
     strstrip(input, buf, blen);
     if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
 	  char *token = strtok_r(buf, " ", &saveptr);
+    DEBUG("Token: %s, Length: %d", token, strlen(token));
     if(strlen(token) < 2) token = "help";
-    method = co_str8_create(token, strlen(token), 0);
+    method = co_str8_create(token, strlen(token) + 1, 0);
     token = strtok_r(NULL, " ", &saveptr);
     if(token != NULL) params = co_list16_create();
     while(token != NULL)
     {
-      CHECK(co_list_append(params, co_str8_create(token, strlen(token), 0)), "Failed to add to argument list.");
+      CHECK(co_list_append(params, co_str8_create(token, strlen(token) + 1, 0)), "Failed to add to argument list.");
+      DEBUG("Token: %s, Length: %d", token, strlen(token));
       token = strtok_r(NULL, " ", &saveptr);
     }
   } 

@@ -39,7 +39,7 @@
 typedef struct _treenode_t _treenode_t;
 
 /* Type "tree" declaration macros */
-#define _DECLARE_TREE(L) typedef struct { co_obj_t _header; uint##L##_t _len; \
+#define _DECLARE_TREE(L) typedef struct __attribute__((packed)) { co_obj_t _header; uint##L##_t _len; \
   _treenode_t *root;} co_tree##L##_t; int co_tree##L##_alloc(\
   co_obj_t *output); co_obj_t *co_tree##L##_create(void);
 

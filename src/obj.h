@@ -128,7 +128,7 @@ struct co_obj_t
   co_obj_t *_prev;
   co_obj_t *_next;
   _type_t _type;
-};
+} __attribute__ ((packed));
 
 /* Function pointers */
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
@@ -138,7 +138,7 @@ typedef co_obj_t *(*co_cb_t)(co_obj_t *self, co_obj_t *params);
 /*-----------------------------------------------------------------------------
  *  Character-array-types Declaration Macros
  *-----------------------------------------------------------------------------*/
-#define _DECLARE_CHAR(T, L) typedef struct { co_obj_t _header; uint##L##_t _len; \
+#define _DECLARE_CHAR(T, L) typedef struct __attribute__((packed)) { co_obj_t _header; uint##L##_t _len; \
   char data[1]; } co_##T##L##_t; int co_##T##L##_alloc(co_obj_t *output, \
   const size_t out_size, const char *input, const size_t in_size, \
   const uint8_t flags ); co_obj_t *co_##T##L##_create(const char *input, \
@@ -181,7 +181,7 @@ _DECLARE_EXT(32);
 /*-----------------------------------------------------------------------------
  *  Integer-types Declaration Macros 
  *-----------------------------------------------------------------------------*/
-#define _DECLARE_INTEGER(T, L) typedef struct { co_obj_t _header; T##L##_t data; }\
+#define _DECLARE_INTEGER(T, L) typedef struct __attribute__((packed)) { co_obj_t _header; T##L##_t data; }\
   co_##T##L##_t; int co_##T##L##_alloc(co_obj_t *output, \
   const T##L##_t input, const uint8_t flags); co_obj_t *co_##T##L##_create(\
   const T##L##_t input, const uint8_t flags);
@@ -255,7 +255,7 @@ void co_obj_free(co_obj_t *object);
 /*-----------------------------------------------------------------------------
  *  Accessors
  *-----------------------------------------------------------------------------*/
-size_t co_obj_raw(void **data, const co_obj_t *object);
+size_t co_obj_raw(char **data, const co_obj_t *object);
 
 size_t co_obj_data(void **data, const co_obj_t *object);
 

@@ -37,7 +37,7 @@
 #include "extern/halloc.h"
 
 /* Type "list" declaration macros */
-#define _DECLARE_LIST(L) typedef struct { co_obj_t _header; uint##L##_t _len; } \
+#define _DECLARE_LIST(L) typedef struct __attribute__((packed)) { co_obj_t _header; uint##L##_t _len; } \
   co_list##L##_t; int co_list##L##_alloc(co_obj_t *output); co_obj_t *\
   co_list##L##_create(void);
 
