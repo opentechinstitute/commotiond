@@ -57,7 +57,7 @@ struct co_cmd_t {
   co_obj_t *usage; /**< usage syntax */
   co_obj_t *desc; /**< description */
   co_obj_t *hooks;
-};
+} __attribute__((packed));
 
 int co_cmd_register(const char *name, const size_t nlen, const char *usage, const size_t ulen, const char *desc, const size_t dlen, co_cb_t handler); 
 
