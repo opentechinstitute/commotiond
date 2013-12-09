@@ -40,6 +40,7 @@
 #include "debug.h"
 #include "util.h"
 #include "profile.h"
+#include "extern/jsmn.h"
 
 static co_obj_t *_profiles = NULL;
 static co_obj_t *_schemas = NULL;
