@@ -49,7 +49,7 @@ struct co_cbptr_t {
   uint8_t _exttype;
   uint8_t _len;
   co_cb_t cb;
-};
+} __attribute__((packed));
 
 typedef struct co_profile_t co_profile_t;
 
@@ -64,7 +64,7 @@ struct co_profile_t {
   uint8_t _len;
   co_obj_t *name; /**< command name */
   co_obj_t *data;
-};
+} __attribute__((packed));
 
 co_obj_t *co_schema_create(co_cb_t cb);
 int co_schema_register(co_cb_t cb);

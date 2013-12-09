@@ -42,6 +42,8 @@
 #include "profile.h"
 #include "extern/jsmn.h"
 
+#define DEFAULT_TOKENS 128
+
 static co_obj_t *_profiles = NULL;
 static co_obj_t *_schemas = NULL;
 
@@ -139,7 +141,7 @@ error:
   DEBUG("Failed to create profile %s.", name);
   return NULL;
 }
-
+/*  
 static int _co_profile_import_files_i(const char *path, const char *filename) {
   char key[80];
   char value[80];
@@ -182,17 +184,42 @@ error:
   if(config_file) fclose(config_file);
   return 0;
 }
+*/
 
-int co_profile_import_files(const char *path) {
-  DEBUG("Importing files from %s", path);
-  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
+static jsmntok_t *_co_json_string_tokenize(const char *js)
+{
+  jsmn_parser parser;
+  jsmn_init(&parser);
 
-  return 1;
+  unsigned int t = DEFAULT_TOKENS;
+  jsmntok_t *tokens = h_calloc(t, sizeof(jsmntok_t));
+  CHECK_MEM(tokens);
 
+  int ret = jsmn_parse(&parser, js, tokens, t);
+
+  while (ret == JSMN_ERROR_NOMEM)
+  {
+      t = t * 2 + 1;
+      tokens = h_realloc(tokens, sizeof(jsmntok_t) * t);
+      CHECK_MEM(tokens);
+      ret = jsmn_parse(&parser, js, tokens, t);
+  }
+
+  CHECK(ret != JSMN_ERROR_INVAL, "Invalid JSON.");
+  CHECK(ret != JSMN_ERROR_PART, "Incomplete JSON.");
+
+  return tokens;
 error:
-  return 0;
+  if(tokens != NULL) h_free(tokens);
+  return NULL;
 }
-/*
+
+static char *_co_json_token_stringify(char *json, const jsmntok_t *token)
+{
+  json[token->end] = '\0';
+  return json + token->start;
+}
+
 static int _co_profile_import_files_i(const char *path, const char *filename) {
   char path_tmp[PATH_MAX] = {};
   FILE *config_file = NULL;
@@ -212,36 +239,100 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   fclose(config_file);
   
   buffer[fsize] = '\0';
+  jsmntok_t *tokens = _co_json_string_tokenize(buffer);
 
-  co_profile_t *new_profile = calloc(1, sizeof(co_profile_t));
-  new_profile->name = strdup(filename);
-  while(fgets(line, 80, config_file) != NULL) {
-    if(strlen(line) > 1) {
-      char *key_copy, *value_copy;
-      sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
+  typedef enum { START, KEY, VALUE, STOP } parse_state;
+  parse_state state = START;
 
-      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
-      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
-      strcpy(key_copy, key);
-      strcpy(value_copy, value);
+  size_t object_tokens = 0;
+  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
+  char *key = NULL;
+  size_t klen = 0;
 
-      DEBUG("Inserting key: %s and value: %s into profile tree.", key_copy, value_copy);
-      new_profile->profile = tst_insert(new_profile->profile, (char *)key_copy, strlen(key_copy), (void *)value_copy);
-      CHECK(new_profile->profile != NULL, "Could not load line %d of %s.", line_number, path);
-      line_number++;
+  for (size_t i = 0, j = 1; j > 0; i++, j--)
+  {
+    jsmntok_t *t = &tokens[i];
+
+    // Should never reach uninitialized tokens
+    CHECK(t->start != -1 && t->end != -1, "Tokens uninitialized.");
+
+    if (t->type == JSMN_ARRAY || t->type == JSMN_OBJECT)
+      j += t->size;
+
+    switch (state)
+    {
+      case START:
+        CHECK(t->type == JSMN_OBJECT, "Invalid root element.");
+
+        state = KEY;
+        object_tokens = t->size;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        CHECK(object_tokens % 2 == 0, "Object must have even number of children.");
+        break;
+
+      case KEY:
+        object_tokens--;
+
+        CHECK(t->type == JSMN_STRING, "Keys must be strings.");
+        state = VALUE;
+        key = _co_json_token_stringify(buffer, t);
+        klen = t->end - t->start;
+
+        break;
+
+      case VALUE:
+        CHECK(t->type == JSMN_STRING, "Values must be strings.");
+
+        if(key != NULL && klen > 0)
+        {
+          if(!co_profile_set_str((co_profile_t *)new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
+          {
+            INFO("Value not in schema.");
+          }
+          
+        }
+
+        key = NULL;
+        klen = 0;
+        object_tokens--;
+        state = KEY;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        break;
+
+      case STOP:
+        // Just consume the tokens
+        break;
+
+      default:
+        SENTINEL("Invalid state %u", state);
     }
   }
 
-  fclose(config_file);
-  list_append(profiles, lnode_create((void *)new_profile));
+  co_list_append(_profiles, new_profile);
 
   return 1;
 
 error:
-  if(config_file) fclose(config_file);
+  if(config_file != NULL) fclose(config_file);
+  if(new_profile != NULL) co_obj_free(new_profile);
   return 0;
 }
-*/
+
+int co_profile_import_files(const char *path) {
+  DEBUG("Importing files from %s", path);
+  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
+
+  return 1;
+
+error:
+  return 0;
+}
 
 int 
 co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen) 
