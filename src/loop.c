@@ -45,10 +45,11 @@
 #include "process.h"
 #include "socket.h"
 #include "loop.h"
+#include "list.h"
 
-static list_t *processes = NULL;
-static list_t *sockets = NULL;
-static list_t *timers = NULL;
+static co_obj_t *processes = NULL;
+static co_obj_t *sockets = NULL;
+static co_obj_t *timers = NULL;
 static struct epoll_event *events = NULL;
 static bool loop_sigchld = false;
 static bool loop_exit = false;
@@ -105,18 +106,18 @@ static void _co_loop_setup_signals(void) {
   sigaction(SIGINT, &new_sigaction, NULL); //catch interrupt signal
 }
 
-static int _co_loop_match_socket_i(const void *sock, const void *uri) {
-  const co_socket_t *this_sock = sock;
+static co_obj_t *_co_loop_match_socket_i(co_obj_t *list, co_obj_t *sock, void *uri) {
+  const co_socket_t *this_sock = (co_socket_t*)sock;
   const char *this_uri = uri;
-  if((strcmp(this_sock->uri, this_uri)) == 0) return 0;
-  return -1;
+  if((strcmp(this_sock->uri, this_uri)) == 0) return sock;
+  return NULL;
 }
 
-static int _co_loop_match_process_i(const void *proc, const void *pid) {
-  const co_process_t *this_proc = proc;
+static co_obj_t *_co_loop_match_process_i(co_obj_t *list, co_obj_t *proc, void *pid) {
+  const co_process_t *this_proc = (co_process_t*)proc;
   const pid_t *this_pid = pid;
-  if(this_proc->pid == *this_pid) return 0;
-  return -1;
+  if(this_proc->pid == *this_pid) return proc;
+  return NULL;
 }
 
 static long _co_loop_tv_diff(const struct timeval *t1, const struct timeval *t2)
@@ -126,64 +127,64 @@ static long _co_loop_tv_diff(const struct timeval *t1, const struct timeval *t2)
   (t1->tv_usec - t2->tv_usec) / 1000;
 }
 
-static int _co_loop_compare_timer_i(const void *timer, const void *time) {
-  const co_timer_t *this_timer = timer;
+static co_obj_t *_co_loop_compare_timer_i(co_obj_t *list, co_obj_t *timer, void *time) {
+  const co_timer_t *this_timer = (co_timer_t*)timer;
   const struct timeval *this_time = time;
-  if(_co_loop_tv_diff(&this_timer->deadline, this_time) > 0) return 0;
-  return -1;
+  if(_co_loop_tv_diff(&this_timer->deadline, this_time) > 0) return timer;
+  return NULL;
 }
 
-static int _co_loop_match_timer_i(const void *timer, const void *ptr) {
-  const co_timer_t *this_timer = timer;
+static co_obj_t *_co_loop_match_timer_i(co_obj_t *list, co_obj_t *timer, void *ptr) {
+  const co_timer_t *this_timer = (co_timer_t*)timer;
   const void *match_ptr = ptr;
-  if(this_timer->ptr == match_ptr) return 0;
-  return -1;
+  if(this_timer->ptr == match_ptr) return timer;
+  return NULL;
 }
 
-static void _co_loop_hangup_socket_i(list_t *list, lnode_t *lnode, void *context) {
-  co_socket_t *sock = lnode_get(lnode);
-  int *efd = context;
+static co_obj_t *_co_loop_hangup_socket_i(co_obj_t *list, co_obj_t *sock, void *efd) {
+  co_socket_t *this_sock = (co_socket_t*)sock;
+  int *this_efd = efd;
 
-  if((sock->fd == *efd) || (sock->rfd == *efd)) {
-    sock->hangup((co_obj_t*)sock, context);
+  if((this_sock->fd == *this_efd) || (this_sock->rfd == *this_efd)) {
+    this_sock->hangup(sock, efd);
   }
 
-  return;
+  return NULL;
 }
 
-static void _co_loop_poll_socket_i(list_t *list, lnode_t *lnode, void *context) {
-  co_socket_t *sock = lnode_get(lnode);
-  int *efd = context;
+static co_obj_t *_co_loop_poll_socket_i(co_obj_t *list, co_obj_t *sock, void *efd) {
+  co_socket_t *this_sock = (co_socket_t*)sock;
+  int *this_efd = efd;
 
-  if((sock->fd == *efd) || (sock->rfd == *efd)) {
-    sock->poll_cb((co_obj_t*)sock, context);
+  if((this_sock->fd == *this_efd) || (this_sock->rfd == *this_efd)) {
+    this_sock->poll_cb(sock, efd);
   }
 
-  return;
+  return NULL;
 }
 
-static void _co_loop_poll_process_i(list_t *list, lnode_t *lnode, void *context) {
-  pid_t *pid = context;
-  co_process_t *proc = lnode_get(lnode);
+static co_obj_t *_co_loop_poll_process_i(co_obj_t *list, co_obj_t *proc, void *pid) {
+  pid_t *this_pid = pid;
+  co_process_t *this_proc = (co_process_t*)proc;
   
-  if(proc->pid == *pid) {
-    co_loop_remove_process(*pid);
-    proc->destroy((co_obj_t*)proc);
+  if(this_proc->pid == *this_pid) {
+    co_loop_remove_process(*this_pid);
+    this_proc->destroy(proc);
   }
 
-  return;
+  return NULL;
 }
 
-static void _co_loop_destroy_socket_i(list_t *list, lnode_t *lnode, void *context) {
-  co_socket_t *sock = lnode_get(lnode);
-  sock->destroy((co_obj_t*)sock);
-  return;
+static co_obj_t *_co_loop_destroy_socket_i(co_obj_t *list, co_obj_t *sock, void *context) {
+  if (IS_SOCK(sock))
+    ((co_socket_t*)sock)->destroy(sock);
+  return NULL;
 }
 
-static void _co_loop_destroy_process_i(list_t *list, lnode_t *lnode, void *context) {
-  co_process_t *proc = lnode_get(lnode);
-  proc->destroy((co_obj_t*)proc);
-  return;
+static co_obj_t *_co_loop_destroy_process_i(co_obj_t *list, co_obj_t *proc, void *context) {
+  if (IS_PROCESS(proc))
+    ((co_process_t*)proc)->destroy(proc);
+  return NULL;
 }
 
 static void _co_loop_poll_sockets(int deadline) {
@@ -198,9 +199,9 @@ static void _co_loop_poll_sockets(int deadline) {
 	    continue;
     } else if(events[i].events & EPOLLHUP) {
       DEBUG("Hanging up socket.");
-      list_process(sockets, (void *)&events[i].data.fd, _co_loop_hangup_socket_i);
+      co_list_parse(sockets, _co_loop_hangup_socket_i, &events[i].data.fd);
     } else {
-      list_process(sockets, (void *)&events[i].data.fd, _co_loop_poll_socket_i);
+      co_list_parse(sockets, _co_loop_poll_socket_i, &events[i].data.fd);
     }
   }
 
@@ -211,24 +212,22 @@ static void _co_loop_poll_processes(void) {
   loop_sigchld = false;
   pid_t pid;
   if((pid = waitpid(-1, NULL, WNOHANG)) <= 0) return;
-  list_process(processes, (void *)&pid, _co_loop_poll_process_i);
+  co_list_parse(processes, _co_loop_poll_process_i, &pid);
   return;
 }
 
 static void _co_loop_process_timers(struct timeval *now) {
   co_timer_t *timer = NULL;
-  lnode_t *node = NULL;
   
-  while (!list_isempty(timers)) {
-    node = list_first(timers);
-    timer = lnode_get(node);
+  while (co_list_length(timers)) {
+    timer = (co_timer_t*)_LIST_FIRST(timers);
     if (_co_loop_tv_diff(&timer->deadline,now) > 0)
       break;
-    if (co_loop_remove_timer(timer,(void*)NULL) == 0) {
+    if (co_loop_remove_timer((co_obj_t*)timer,NULL) == 0) {
       ERROR("Failed to process timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
     }
     // call the timer's callback function:
-    timer->timer_cb(timer,(void*)NULL);
+    timer->timer_cb((co_obj_t*)timer,NULL);
   }
 }
 
@@ -244,13 +243,11 @@ static void _co_loop_gettime(struct timeval *tv)
 
 static int _co_loop_get_next_deadline(struct timeval *now) {
   co_timer_t *timer;
-  lnode_t *node;
   
-  if (list_isempty(timers))
+  if (co_list_length(timers) == 0)
     return 0;
   
-  node = list_first(timers);
-  timer = lnode_get(node);
+  timer = (co_timer_t*)_LIST_FIRST(timers);
   return _co_loop_tv_diff(&timer->deadline,now);
 }
 
@@ -264,20 +261,18 @@ int co_loop_create(void) {
 
   CHECK((poll_fd = epoll_create1(EPOLL_CLOEXEC)) != -1, "Failed to create epoll event.");
 	
-  processes = list_create(LOOP_MAXPROC);
-  sockets = list_create(LOOP_MAXSOCK);
-  timers = list_create(LOOP_MAXTIMER);
+  processes = co_list16_create();
+  sockets = co_list16_create();
+  timers = co_list16_create();
   events = calloc(LOOP_MAXEVENT, sizeof(struct epoll_event));
   loop_exit = false;
   return 1;
 
 error:
   ERROR("Event loop creation failed, clearing lists.");
-  list_destroy(processes);
-  list_destroy_nodes(sockets);
-  list_destroy(sockets);
-  list_destroy_nodes(timers);
-  list_destroy(timers);
+  co_obj_free(processes);
+  co_obj_free(sockets);
+  co_obj_free(timers);
   free(events);
   return 0;
 }
@@ -287,18 +282,15 @@ int co_loop_destroy(void) {
   free(events);
   poll_fd = -1;
   if(processes != NULL) {
-    list_process(processes, NULL, _co_loop_destroy_process_i);
-    list_destroy_nodes(processes);
-    list_destroy(processes);
+    co_list_parse(processes, _co_loop_destroy_process_i, NULL);
+    co_obj_free(processes);
   }
   if(sockets != NULL) {
-    list_process(sockets, NULL, _co_loop_destroy_socket_i);
-    list_destroy_nodes(sockets);
-    list_destroy(sockets);
+    co_list_parse(sockets, _co_loop_destroy_socket_i, NULL);
+    co_obj_free(sockets);
   }
   if(timers != NULL) {
-    list_destroy_nodes(timers);
-    list_destroy(timers);
+    co_obj_free(timers);
   }
   return 1;
 }
@@ -325,18 +317,20 @@ void co_loop_stop(void) {
   return;
 }
 
-int co_loop_add_process(co_process_t *proc) {
-  list_append(processes, lnode_create((void *)proc));
-  proc->registered = true; 
+int co_loop_add_process(co_obj_t *proc) {
+  CHECK(IS_PROCESS(proc),"Not a process.");
+  CHECK(co_list_append(processes,proc),"Failed to add process %d",((co_process_t*)proc)->pid);
+  ((co_process_t*)proc)->registered = true; 
   return 1;
+error:
+  return 0;
 }
 
 int co_loop_remove_process(pid_t pid) {
-  lnode_t *node;
-  CHECK((node = list_find(processes, &pid, _co_loop_match_process_i)) != NULL, "Failed to delete process %d!", pid);
-  node = list_delete(processes, node);
-  co_process_t *proc = lnode_get(node);
-  proc->registered = false; 
+  co_obj_t *proc = NULL;
+  CHECK((proc = co_list_parse(processes, _co_loop_match_process_i, &pid)), "Failed to delete process %d!", pid);
+  proc = co_list_delete(processes, proc);
+  ((co_process_t*)proc)->registered = false; 
   return 1;
 
 error:
@@ -347,14 +341,14 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
   DEBUG("Adding socket to event loop.");
   CHECK(IS_SOCK(new_sock),"Not a socket.");
   co_socket_t *sock = (co_socket_t*)new_sock;
-  lnode_t *node;
+  co_obj_t *node = NULL;
   struct epoll_event event;
 
   memset(&event, 0, sizeof(struct epoll_event));
   event.events = EPOLLIN;
 
-  if((node = list_find(sockets, sock->uri, _co_loop_match_socket_i))) {
-    CHECK((lnode_get(node) == sock), "Different socket with URI %s already registered.", sock->uri);
+  if((node = co_list_parse(sockets, _co_loop_match_socket_i, sock->uri))) {
+    CHECK((node == (co_obj_t*)sock), "Different socket with URI %s already registered.", sock->uri);
     if((sock->listen) && (sock->rfd > 0) && (!sock->rfd_registered)) {
       DEBUG("Adding RFD %d to epoll.", sock->rfd);
       event.data.fd = sock->rfd;
@@ -368,10 +362,10 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
       event.data.fd = sock->fd;
       CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->fd, &event)) != -1, "Failed to add listen FD epoll event.");
       sock->fd_registered = true; 
-      list_append(sockets, lnode_create((void *)sock));
+      co_list_append(sockets, (co_obj_t*)sock);
       return 1;
   } else {
-      co_loop_remove_socket(sock, NULL);
+      co_loop_remove_socket((co_obj_t*)sock, NULL);
       SENTINEL("Unknown error registering socket %s.", sock->uri);
   }
 
@@ -379,11 +373,11 @@ error:
   return 0;
 }
 
-int co_loop_remove_socket(void *old_sock, void *context) {
-  co_socket_t *sock = old_sock;
-  lnode_t *node;
-  CHECK((node = list_find(sockets, sock->uri, _co_loop_match_socket_i)) != NULL, "Failed to delete socket %s!", sock->uri);
-  list_delete(sockets, node);
+int co_loop_remove_socket(co_obj_t *old_sock, co_obj_t *context) {
+  co_socket_t *sock = (co_socket_t*)old_sock;
+  co_obj_t *node = NULL;
+  CHECK((node = co_list_parse(sockets, _co_loop_match_socket_i, sock->uri)), "Failed to delete socket %s!", sock->uri);
+  co_list_delete(sockets, node);
   sock->fd_registered = false; 
   sock->rfd_registered = false; 
   epoll_ctl(poll_fd, EPOLL_CTL_DEL, sock->fd, NULL);
@@ -394,9 +388,9 @@ error:
   return 0;
 }
 
-int co_loop_add_timer(void *new_timer, void *context) {
-  co_timer_t *timer = new_timer;
-  lnode_t *node = NULL;
+int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
+  co_timer_t *timer = (co_timer_t*)new_timer;
+  co_obj_t *node = NULL;
   struct timeval now;
   
   if (timer->pending)
@@ -406,13 +400,14 @@ int co_loop_add_timer(void *new_timer, void *context) {
   CHECK(timer->timer_cb,"No callback function associated with timer");
   CHECK(_co_loop_tv_diff(&timer->deadline,&now) > 0,"Invalid timer deadline");
     
-  CHECK(list_find(timers,timer->ptr,_co_loop_match_timer_i) == NULL,"Timer already scheduled");
+  CHECK(co_list_parse(timers,_co_loop_match_timer_i,timer->ptr) == NULL,"Timer already scheduled");
   
   // insert into list in chronological order
-  if((node = list_find(timers, &timer->deadline, _co_loop_compare_timer_i)))
-    list_ins_before(timers, lnode_create((void *)timer), node);
-  else
-    list_append(timers, lnode_create((void *)timer));
+  if((node = co_list_parse(timers, _co_loop_compare_timer_i, &timer->deadline))) {
+    CHECK(co_list_insert_before(timers,(co_obj_t*)timer,node),"Failed to insert timer.");
+  } else {
+    CHECK(co_list_append(timers,(co_obj_t*)timer),"Failed to insert timer.");
+  }
   
   DEBUG("Successfully added timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
   
@@ -423,17 +418,17 @@ error:
   return 0;
 }
 
-int co_loop_remove_timer(void *old_timer, void* context) {
-  co_timer_t *timer = old_timer;
-  lnode_t *node = NULL;
+int co_loop_remove_timer(co_obj_t *old_timer, co_obj_t *context) {
+  co_timer_t *timer = (co_timer_t*)old_timer;
+  co_obj_t *node = NULL;
   
   if (!timer->pending)
     return 0;
   
   // remove from list
-  CHECK((node = list_find(timers, timer->ptr, _co_loop_match_timer_i)),
+  CHECK((node = co_list_parse(timers, _co_loop_match_timer_i, timer->ptr)),
 	"Failed to delete timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
-  list_delete(timers,node);
+  co_list_delete(timers,node);
   
   timer->pending = false;
   return 1;
@@ -442,12 +437,12 @@ error:
   return 0;
 }
 
-int co_loop_set_timer(void *old_timer, long msecs, void *context) {
-  co_timer_t *timer = old_timer;
+int co_loop_set_timer(co_obj_t *old_timer, long msecs, co_obj_t *context) {
+  co_timer_t *timer = (co_timer_t*)old_timer;
   struct timeval *deadline = &timer->deadline;
   
   if (timer->pending)
-    co_loop_remove_timer(timer,context);
+    co_loop_remove_timer((co_obj_t*)timer,context);
   
   _co_loop_gettime(&timer->deadline);
   
@@ -459,16 +454,19 @@ int co_loop_set_timer(void *old_timer, long msecs, void *context) {
     deadline->tv_usec %= 1000000;
   }
   
-  return co_loop_add_timer(timer,context);
+  return co_loop_add_timer((co_obj_t*)timer,context);
 }
 
-co_timer_t *co_timer_create(size_t size, co_timer_t proto) {
+co_obj_t *co_timer_create(size_t size, co_timer_t proto) {
   if (!proto.timer_cb) proto.timer_cb = NULL;
   if (proto.deadline.tv_sec == 0 && proto.deadline.tv_usec == 0) proto.deadline = (struct timeval){0};
   proto.pending = false;
   
-  co_timer_t *new_timer = malloc(size);
+  co_timer_t *new_timer = h_calloc(1,size);
   *new_timer = proto;
+  new_timer->_header._type = _ext8;
+  new_timer->_exttype = _co_timer;
+  new_timer->_len = size;
   new_timer->ptr = (void*)new_timer;
-  return new_timer;
+  return (co_obj_t*)new_timer;
 }

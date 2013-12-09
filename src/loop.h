@@ -45,9 +45,12 @@
 #define LOOP_MAXTIMER 20
 
 typedef struct {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
   bool pending;
   struct timeval deadline;
-  int (*timer_cb)(void *self, void *context);
+  int (*timer_cb)(co_obj_t *self, co_obj_t *context);
   void *ptr;
 } co_timer_t;
 
@@ -77,7 +80,7 @@ void co_loop_stop(void);
  * @brief adds a process to the event loop (for it to listen for)
  * @param proc the process to be added
  */
-int co_loop_add_process(co_process_t *proc);
+int co_loop_add_process(co_obj_t *proc);
 
 /**
  * @brief removes a process from the event loop
@@ -88,44 +91,44 @@ int co_loop_remove_process(pid_t pid);
 /**
  * @brief adds a new socket to the event loop (for it to listen on)
  * @param new_sock the new socket to be added
- * @param context a void context pointer (currently unused)
+ * @param context a co_obj_t context pointer (currently unused)
  */
 int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context);
 
 /**
  * @brief removes a socket from the event loop
  * @param old_sock the socket to be removed
- * @param context a void context pointer (currently unused)
+ * @param context a co_obj_t context pointer (currently unused)
  */
-int co_loop_remove_socket(void *old_sock, void *context);
+int co_loop_remove_socket(co_obj_t *old_sock, co_obj_t *context);
 
 /**
  * @brief schedules a new timer with the event loop
  * @param timer the timer to schedule
- * @param context a void context pointer (currently unused)
+ * @param context a co_obj_t context pointer (currently unused)
  */
-int co_loop_add_timer(void *new_timer, void *context);
+int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context);
 
 /**
  * @brief removes a timer from the event loop
  * @param old_timer the timer to remove from list
- * @param context a void context pointer (currently unused)
+ * @param context a co_obj_t context pointer (currently unused)
  */
-int co_loop_remove_timer(void *old_timer, void *context);
+int co_loop_remove_timer(co_obj_t *old_timer, co_obj_t *context);
 
 /**
  * @brief sets timer to expire in msecs from now
  * @param timer the timer to set
  * @param msecs number of milliseconds
- * @param context a void context pointer (currently unused)
+ * @param context a co_obj_t context pointer (currently unused)
  */
-int co_loop_set_timer(void *timer, long msecs, void *context);
+int co_loop_set_timer(co_obj_t *timer, long msecs, co_obj_t *context);
 
 /**
  * @brief malloc and initialize a timer
  * @param size timer struct size
  * @param proto timer protocol
  */
-co_timer_t *co_timer_create(size_t size, co_timer_t proto);
+co_obj_t *co_timer_create(size_t size, co_timer_t proto);
 
 #endif

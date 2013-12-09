@@ -77,7 +77,7 @@
 #define _profile 4
 #define _cbptr 4
 #define _sock 5
-#define _timer 6
+#define _co_timer 6
 #define _process 7
 
 /* Convenience */
@@ -86,6 +86,7 @@
 /* Lists */
 #define _LIST_NEXT(J) (((co_obj_t *)J)->_next)
 #define _LIST_PREV(J) (((co_obj_t *)J)->_prev)
+#define _LIST_FIRST(J) (((co_obj_t*)J)->_next)
 #define _LIST_LAST(J) (((co_obj_t *)J)->_prev)
 
 /* Type checking */
