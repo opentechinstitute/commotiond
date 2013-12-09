@@ -60,21 +60,6 @@
 _DEFINE_TREE(16);
 _DEFINE_TREE(32);
 
-struct _treenode_t
-{
-    char splitchar; 
-    _treenode_t *low;
-    _treenode_t *equal;
-    _treenode_t *high; 
-    co_obj_t *key;
-    co_obj_t *value;
-};
-
-co_obj_t *
-co_node_value(_treenode_t *node)
-{
-  return node->value;
-}
 
 _treenode_t *
 co_tree_root(const co_obj_t *tree)
@@ -96,6 +81,51 @@ co_tree_root(const co_obj_t *tree)
   return n;
 error:
   return NULL;
+}
+
+co_obj_t *
+co_node_key(_treenode_t *node)
+{
+  return node->key;
+}
+
+co_obj_t *
+co_node_value(_treenode_t *node)
+{
+  return node->value;
+}
+
+size_t 
+co_tree_change_length(co_obj_t *tree, const int delta)
+{ 
+  if(CO_TYPE(tree) == _tree16)
+  {
+    ((co_tree16_t *)tree)->_len += delta;
+    return (size_t)(((co_tree16_t *)tree)->_len);
+  } else if(CO_TYPE(tree) == _tree32) {
+    ((co_tree32_t *)tree)->_len += delta;
+    return (size_t)(((co_tree32_t *)tree)->_len);
+  }
+  ERROR("Not a tree object.");
+  return -1;
+}
+
+size_t 
+co_tree_length(co_obj_t *tree)
+{ 
+  return co_tree_change_length(tree, 0);
+}
+
+size_t 
+co_tree_increment(co_obj_t *tree)
+{ 
+  return co_tree_change_length(tree, 1);
+}
+
+size_t 
+co_tree_decrement(co_obj_t *tree)
+{ 
+  return co_tree_change_length(tree, -1);
 }
 
 _treenode_t *
@@ -201,6 +231,7 @@ co_tree_delete(co_obj_t *root, const char *key, const size_t klen)
   }
 
   CHECK(value != NULL, "Failed to delete value.");
+  CHECK(co_tree_decrement(root), "Failed to decrement value.");
   return value;
 error:
   return NULL;
@@ -276,13 +307,14 @@ co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *val
   }
 
   CHECK(n != NULL, "Failed to insert value.");
+  CHECK(co_tree_increment(root), "Failed to increment value.");
   return 1;
 error:
   return 0;
 }
 
-int
-co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
+static int
+_co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
 {
   CHECK(n != NULL, "Invalid node supplied.");
   switch(CO_TYPE(n->value) == _str8)
@@ -335,14 +367,14 @@ co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *
   CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
   n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  CHECK(co_node_set_str(n, value, vlen), "Unable to set string for node.");
+  CHECK(_co_node_set_str(n, value, vlen), "Unable to set string for node.");
   return 1;
 error:
   return 0;
 }
 
-int
-co_node_set_int(_treenode_t *n, const signed long value)
+static int
+_co_node_set_int(_treenode_t *n, const signed long value)
 {
   CHECK(n != NULL, "Invalid node supplied.");
   switch(CO_TYPE(n->value))
@@ -380,14 +412,14 @@ co_tree_set_int(co_obj_t *root, const char *key, const size_t klen, const signed
   CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
   n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  CHECK(co_node_set_int(n, value), "Unable to set integer for node.");
+  CHECK(_co_node_set_int(n, value), "Unable to set integer for node.");
   return 1;
 error:
   return 0;
 }
 
-int
-co_node_set_uint(_treenode_t *n, const unsigned long value)
+static int
+_co_node_set_uint(_treenode_t *n, const unsigned long value)
 {
   CHECK(n != NULL, "Invalid node supplied.");
   switch(CO_TYPE(n->value))
@@ -425,15 +457,15 @@ co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const unsig
   CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
   n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  CHECK(co_node_set_uint(n, value), "Unable to set unsigned integer for node.");
+  CHECK(_co_node_set_uint(n, value), "Unable to set unsigned integer for node.");
 
   return 1;
 error:
   return 0;
 }
 
-int
-co_node_set_float(_treenode_t *n, const double value)
+static int
+_co_node_set_float(_treenode_t *n, const double value)
 {
   CHECK(n != NULL, "Invalid node supplied.");
   if(CO_TYPE(n->value) == _float32)
@@ -461,7 +493,7 @@ co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const doub
   CHECK((n = co_tree_root(root)) != NULL, "Specified object is not a tree.");
   n = co_tree_find_node(n, key, klen);
   CHECK(n != NULL, "Failed to find key in tree.");
-  CHECK(co_node_set_float(n, value), "Unable to set float for node.");
+  CHECK(_co_node_set_float(n, value), "Unable to set float for node.");
 
   return 1;
 error:

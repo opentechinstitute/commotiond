@@ -38,6 +38,16 @@
 
 typedef struct _treenode_t _treenode_t;
 
+struct _treenode_t
+{
+    char splitchar; 
+    _treenode_t *low;
+    _treenode_t *equal;
+    _treenode_t *high; 
+    co_obj_t *key;
+    co_obj_t *value;
+} __attribute__((packed));
+
 /* Type "tree" declaration macros */
 #define _DECLARE_TREE(L) typedef struct __attribute__((packed)) { co_obj_t _header; uint##L##_t _len; \
   _treenode_t *root;} co_tree##L##_t; int co_tree##L##_alloc(\
@@ -46,14 +56,15 @@ typedef struct _treenode_t _treenode_t;
 _DECLARE_TREE(16);
 _DECLARE_TREE(32);
 
+co_obj_t *co_node_key(_treenode_t *node);
 co_obj_t *co_node_value(_treenode_t *node);
-int co_node_set_str(_treenode_t *n, const char *value, const size_t vlen);
-int co_node_set_int(_treenode_t *n, const signed long value);
-int co_node_set_uint(_treenode_t *n, const unsigned long value);
-int co_node_set_float(_treenode_t *n, const double value);
 
 _treenode_t *co_tree_find_node(_treenode_t *root, const char *key, const size_t klen);
 _treenode_t *co_tree_root(const co_obj_t *tree);
+size_t co_tree_change_length(co_obj_t *tree, const int delta);
+size_t co_tree_length(co_obj_t *tree);
+size_t co_tree_increment(co_obj_t *tree);
+size_t co_tree_decrement(co_obj_t *tree);
 
 co_obj_t *co_tree_find(const co_obj_t *root, const char *key, const size_t klen);
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);

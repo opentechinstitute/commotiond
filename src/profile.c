@@ -141,50 +141,6 @@ error:
   DEBUG("Failed to create profile %s.", name);
   return NULL;
 }
-/*  
-static int _co_profile_import_files_i(const char *path, const char *filename) {
-  char key[80];
-  char value[80];
-  char line[80];
-  char path_tmp[PATH_MAX] = {};
-  int line_number = 1;
-  FILE *config_file = NULL;
-
-  DEBUG("Importing file %s at path %s", filename, path);
-
-  strlcpy(path_tmp, path, PATH_MAX);
-  strlcat(path_tmp, "/", PATH_MAX);
-  strlcat(path_tmp, filename, PATH_MAX);
-  config_file = fopen(path_tmp, "rb");
-  CHECK(config_file != NULL, "Config file %s/%s could not be opened", path, filename);
-
-  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
-  while(fgets(line, 80, config_file) != NULL) {
-    if(strlen(line) > 1) {
-      char *key_copy, *value_copy;
-      sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
-
-      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
-      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
-      strcpy(key_copy, key);
-      strcpy(value_copy, value);
-
-      DEBUG("Setting key: %s and value: %s into profile tree.", key_copy, value_copy);
-      CHECK(co_tree_set_str(((co_profile_t *)new_profile)->data, key_copy, strlen(key_copy), value_copy, strlen(value_copy)), "Could not load line %d of %s.", line_number, path);
-      line_number++;
-    }
-  }
-
-  fclose(config_file);
-  co_list_append(_profiles, new_profile);
-
-  return 1;
-
-error:
-  if(config_file) fclose(config_file);
-  return 0;
-}
-*/
 
 static jsmntok_t *_co_json_string_tokenize(const char *js)
 {
@@ -478,20 +434,48 @@ error:
   return NULL;
 }
 
-//int profile_export_file(tst_t *profile, const char *path) {
-//  FILE *config_file = NULL;
-//  struct bstrList *config_item = NULL;
-//  tst_t *config_tree = NULL;
-//
-//  config_file = fopen(path, "a");
-//  CHECK(config_file != NULL, "Config file %s could not be opened", path);
-//
-//  fprintf(config_file, "%s", string);
-//
-//  fclose (config_file); 
-//  return 1;
-//
-//error:
-//  return 0;
-//}
+static inline void
+_co_profile_export_file_r(co_obj_t *tree, _treenode_t *current, int *count, FILE *config_file)
+{
+  CHECK(IS_TREE(tree), "Recursion target is not a tree.");
+  char *key = NULL;
+  char *value = NULL;
+  if(co_node_value(current) != NULL)
+  {
+    CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
+    co_obj_raw(&key, co_node_key(current));
+    co_obj_raw(&value, co_node_value(current));
+    if(*count < co_tree_length(tree))
+    {
+      fprintf(config_file, "  \"%s\": \"%s\",\n", key, value);
+    }
+    else
+    {
+      fprintf(config_file, "  \"%s\": \"%s\"\n", key, value);
+    }
+  }
+  _co_profile_export_file_r(tree, current->low, count, config_file); 
+  _co_profile_export_file_r(tree, current->equal, count, config_file); 
+  _co_profile_export_file_r(tree, current->high, count, config_file); 
+  return; 
+error:
+  return;
+}
 
+int 
+co_profile_export_file(co_profile_t *profile, const char *path)
+{
+  int count = 0;
+  FILE *config_file = fopen(path, "a");
+  CHECK(config_file != NULL, "Config file %s could not be opened", path);
+
+  fprintf(config_file, "{\n");
+
+  _co_profile_export_file_r(profile->data, co_tree_root(profile->data), &count, config_file);
+
+  fprintf(config_file, "}");
+  fclose (config_file); 
+  return 1;
+error:
+  return 0;
+}

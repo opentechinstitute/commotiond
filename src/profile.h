@@ -139,4 +139,5 @@ int co_profile_set_uint(co_profile_t *profile, const char *key, const size_t kle
 unsigned long co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen);
 int co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value);
 double co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen);
+int co_profile_export_file(co_profile_t *profile, const char *path);
 #endif
