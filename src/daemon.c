@@ -294,6 +294,7 @@ int main(int argc, char *argv[]) {
   DEBUG("Node ID: %d", (int) id.id);
   co_plugins_init(16);
   co_plugins_load(plugindir);
+  co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */
@@ -320,6 +321,9 @@ int main(int argc, char *argv[]) {
   socket->bind(socket, socket_uri);
   co_loop_start();
   co_loop_destroy();
+  co_cmds_shutdown();
+  co_profiles_shutdown();
+  co_plugins_shutdown();
 
   return 0;
 }
