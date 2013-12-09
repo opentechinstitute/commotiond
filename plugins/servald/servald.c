@@ -1,6 +1,3 @@
-#define HAVE_ARPA_INET_H
-#define HAVE_BCOPY
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <poll.h>
@@ -15,11 +12,16 @@
 #include "list.h"
 
 #include "servald.h"
+#include "client.h"
 
 /* Extension type */
 #define _alarm 42
+#define _timer 43
+#define _socket 44
 
 #define IS_ALARM(J) (IS_EXT(J) && ((co_alarm_t *)J)->_exttype == _alarm)
+#define IS_TIMER(J) (IS_EXT(J) && ((co_timer_obj_t *)J)->_exttype == _timer)
+#define IS_SOCK(J) (IS_EXT(J) && ((co_sock_obj_t *)J)->_exttype == _socket)
 
 typedef struct {
   co_obj_t _header;
@@ -49,47 +51,107 @@ error:
   return NULL;
 }
 
-extern co_timer_t co_timer_proto;
+typedef struct {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_socket_t *sock;
+} co_sock_obj_t;
 
-co_socket_t co_socket_proto = {};
-static co_list16_t *sock_alarms = NULL;
-static co_list16_t *timer_alarms = NULL;
-static co_list16_t *socks = NULL;
-static co_list16_t *timers = NULL;
+static int co_sock_init(co_obj_t *output) {
+  output->_type = _ext8;
+  output->_next = NULL;
+  output->_prev = NULL;
+  ((co_sock_obj_t *)output)->_len = 0;
+  ((co_sock_obj_t *)output)->_exttype = _socket;
+  return 1;
+}
 
-/** Compares co_socket fd to serval alarm fd */
-static int _alarm_fd_match_i(const co_obj_t *alarms, const co_obj_t *alarm, const void *fd) {
-  CHECK(IS_ALARM(alarm),"Invalid alarm");
-  const struct sched_ent *this_alarm = (co_alarm_t*)alarm->alarm;
-  const int *this_fd = fd;
-  if (this_alarm->poll.fd == *this_fd) return alarm;
+static co_obj_t *co_sock_obj_create(co_socket_t *sock) {
+  co_sock_obj_t *output = h_calloc(1,sizeof(co_sock_obj_t));
+  CHECK_MEM(output);
+  CHECK(co_sock_init((co_obj_t*)output),
+	"Failed to initialize socket.");
+  output->_len = (sizeof(co_obj_t *) * 2);
+  output->sock = sock;
+  return (co_obj_t*)output;
+  error:
   return NULL;
 }
 
-static int _socket_fd_match_i(const co_obj_t *socks, const co_obj_t *sock, const void *fd) {
+typedef struct {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_timer_t *timer;
+} co_timer_obj_t;
+
+static int co_timer_init(co_obj_t *output) {
+  output->_type = _ext8;
+  output->_next = NULL;
+  output->_prev = NULL;
+  ((co_timer_obj_t *)output)->_len = 0;
+  ((co_timer_obj_t *)output)->_exttype = _timer;
+  return 1;
+}
+
+static co_obj_t *co_timer_obj_create(co_timer_t *timer) {
+  co_timer_obj_t *output = h_calloc(1,sizeof(co_timer_obj_t));
+  CHECK_MEM(output);
+  CHECK(co_timer_init((co_obj_t*)output),
+	"Failed to initialize timer.");
+  output->_len = (sizeof(co_obj_t *) * 2);
+  output->timer = timer;
+  return (co_obj_t*)output;
+  error:
+  return NULL;
+}
+
+extern co_timer_t co_timer_proto;
+
+co_socket_t co_socket_proto = {};
+static co_obj_t *sock_alarms = NULL;
+static co_obj_t *timer_alarms = NULL;
+static co_obj_t *socks = NULL;
+static co_obj_t *timers = NULL;
+
+/** Compares co_socket fd to serval alarm fd */
+static co_obj_t *_alarm_fd_match_i(co_obj_t *alarms, co_obj_t *alarm, void *fd) {
+  CHECK(IS_ALARM(alarm),"Invalid alarm");
+  const struct sched_ent *this_alarm = ((co_alarm_t*)alarm)->alarm;
+  const int *this_fd = fd;
+  if (this_alarm->poll.fd == *this_fd) return alarm;
+error:
+  return NULL;
+}
+
+static co_obj_t *_socket_fd_match_i(co_obj_t *socks, co_obj_t *sock, void *fd) {
   CHECK(IS_SOCK(sock),"Invalid socket");
-  const co_socket_t *this_sock = (co_socket_t*)sock->sock;
+  const co_socket_t *this_sock = ((co_sock_obj_t*)sock)->sock;
   const int *this_fd = fd;
   char fd_str[6] = {0};
   sprintf(fd_str,"%d",*this_fd);
   if ((strcmp(this_sock->uri, fd_str)) == 0) return sock;
+error:
   return NULL;
 }
 
-static int _alarm_ptr_match_i(const co_obj_t *alarms, const co_obj_t *alarm, const void *ptr) {
+static co_obj_t *_alarm_ptr_match_i(co_obj_t *alarms, co_obj_t *alarm, void *ptr) {
   CHECK(IS_ALARM(alarm),"Invalid alarm");
-  const struct sched_ent *this_alarm = (co_alarm_t*)alarm->alarm;
+  const struct sched_ent *this_alarm = ((co_alarm_t*)alarm)->alarm;
   const void *this_ptr = ptr;
   DEBUG("ALARM_PTR_MATCH: %p %p",this_alarm,this_ptr);
-  if (this_alarm == this_ptr) return 0;
-  return -1;
+  if (this_alarm == this_ptr) return alarm;
+error:
+  return NULL;
 }
 
-static int _timer_ptr_match_i(const co_obj_t *timers, const co_obj_t *timer, const void *ptr) {
+static co_obj_t *_timer_ptr_match_i(co_obj_t *timers, co_obj_t *timer, void *ptr) {
   CHECK(IS_TIMER(timer),"Invalid timer");
-  const co_timer_t *this_timer = (co_timer_t*)timer->timer;
+  const co_timer_t *this_timer = ((co_timer_obj_t*)timer)->timer;
   const void *this_ptr = ptr;
   if (this_timer->ptr == this_ptr) return timer;
+error:
   return NULL;
 }
 
@@ -105,7 +167,7 @@ int serval_socket_cb(void *self, void *context) {
   if ((node = co_list_parse(sock_alarms, _alarm_fd_match_i, &sock->fd))) {
 //   if ((node = list_find(sock_alarms, &sock->fd, alarm_fd_match))) {
 //     alarm = lnode_get(node);
-    alarm = (co_alarm_t*)node->alarm;
+    alarm = ((co_alarm_t*)node)->alarm;
     alarm->poll.revents = POLLIN; /** Need to set this since Serval is using poll(2), but would
                                       probably be better to get the actual flags from the
                                       commotion event loop */
@@ -129,7 +191,7 @@ int serval_timer_cb(void *self, void *context) {
 //   CHECK((node = list_find(timer_alarms, timer->ptr, alarm_ptr_match)),"Failed to find alarm for callback");
   CHECK((node = co_list_parse(timer_alarms, _alarm_ptr_match_i, timer->ptr)), "Failed to find alarm for callback");
 //   alarm = lnode_get(node);
-  alarm = (co_alarm_t*)node->alarm;
+  alarm = ((co_alarm_t*)node)->alarm;
     
   struct __sourceloc nil;
   DEBUG("PENDING: %d",timer->pending);
@@ -192,7 +254,7 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   co_list_append(timer_alarms,co_alarm_create(alarm));
 
 //   list_append(timers, lnode_create((void *)timer));
-  co_list_append(timers,co_timer_create(timer));
+  co_list_append(timers,co_timer_obj_create(timer));
   
   return 0;
   
@@ -220,7 +282,7 @@ int _unschedule(struct __sourceloc __whence, struct sched_ent *alarm) {
 //   CHECK((node = list_find(timers, alarm, timer_ptr_match)),"Could not find timer to remove");
   CHECK((node = co_list_parse(timers, _timer_ptr_match_i, alarm)),"Could not find timer to remove");
 //   timer = lnode_get(node);
-  timer = (co_timer_t*)node->timer;
+  timer = ((co_timer_obj_t*)node)->timer;
   if (!co_loop_remove_timer(timer,NULL))  // this is only useful when timers are unscheduled before expiring
     DEBUG("Failed to remove timer from event loop");
   free(timer);
@@ -251,7 +313,7 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
    */
   
 //   if ((alarm->_poll_index == 1) || list_find(sock_alarms, &alarm->poll.fd, alarm_fd_match)) {
-  if ((alarm->_poll_index == 1) || list_find(sock_alarms, _alarm_fd_match_i, &alarm->poll.fd)) {
+  if ((alarm->_poll_index == 1) || co_list_parse(sock_alarms, _alarm_fd_match_i, &alarm->poll.fd)) {
     WARN("Socket %d already registered: %d",alarm->poll.fd,alarm->_poll_index);
   } else {
     sock = NEW(co_socket, co_socket);
@@ -281,7 +343,7 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
 //     list_append(sock_alarms, lnode_create((void *)alarm));
 //     list_append(socks, lnode_create((void *)sock));
     co_list_append(sock_alarms, co_alarm_create(alarm));
-    co_list_append(socks, co_sock_create(sock));
+    co_list_append(socks, co_sock_obj_create(sock));
   }
   
 error:
@@ -301,9 +363,9 @@ int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
   
   // Get the socket associated with the alarm (alarm's fd is equivalent to the socket's uri)
 //   CHECK((node = list_find(socks, &alarm->poll.fd, socket_fd_match)),"Could not find socket to remove");
-  CHECK((node = list_find(socks, _socket_fd_match_i, &alarm->poll.fd)),"Could not find socket to remove");
+  CHECK((node = co_list_parse(socks, _socket_fd_match_i, &alarm->poll.fd)),"Could not find socket to remove");
 //   sock = lnode_get(node);
-  sock = (co_socket_t*)node->sock;
+  sock = ((co_sock_obj_t*)node)->sock;
   
 //   list_delete(socks, node);
   co_list_delete(socks,node);
@@ -372,7 +434,13 @@ schedule(&_sched_##X); }
 
 }
 
-void ready() {
+co_obj_t *_name(co_obj_t *self, co_obj_t *params) {
+  const char name[] = "servald";
+  return co_str8_create(name,strlen(name),0);
+}
+
+void _init(void) {
+  DEBUG("INIT");
   
   srandomdev();
   
@@ -416,17 +484,17 @@ error:
 //   return;
 // }
 
-static co_obj_t *destroy_alarms(const co_obj_t *alarms, const co_obj_t *alarm, const void *context) {
-  struct sched_ent *alarm = (co_alarm_t*)alarm->alarm;
+static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context) {
+  struct sched_ent *this_alarm = ((co_alarm_t*)alarm)->alarm;
   struct __sourceloc nil;
-  if (alarm->alarm)
-    _unschedule(nil,alarm);
-  if (alarm->_poll_index)
-    _unwatch(nil,alarm);
+  if (this_alarm->alarm)
+    _unschedule(nil,this_alarm);
+  if (this_alarm->_poll_index)
+    _unwatch(nil,this_alarm);
   return NULL;
 }
 
-void teardown() {
+void teardown(void) {
   DEBUG("TEARDOWN");
   
   servalShutdown = 1;
@@ -448,18 +516,18 @@ void teardown() {
 //   list_destroy(timers);
   
   co_list_parse(sock_alarms,destroy_alarms,NULL);
-  co_list_delete_all(sock_alarms);
-  co_obj_free(sock_alarms);
+//   co_list_delete_all(sock_alarms);
+  co_obj_free(sock_alarms);  // halloc will free list items
   
   co_list_parse(timer_alarms,destroy_alarms,NULL);
-  co_list_delete_all(timer_alarms);
-  co_obj_free(timer_alarms);
+//   co_list_delete_all(timer_alarms);
+  co_obj_free(timer_alarms); // halloc will free list items
   
-  co_list_delete_all(socks);
-  co_obj_free(socks);
+//   co_list_delete_all(socks);
+  co_obj_free(socks); // halloc will free list items
   
-  co_list_delete_all(timers);
-  co_obj_free(timers);
+//   co_list_delete_all(timers);
+  co_obj_free(timers); // halloc will free list items
   
   keyring_free(keyring);
   
