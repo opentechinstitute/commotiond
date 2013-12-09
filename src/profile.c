@@ -40,6 +40,9 @@
 #include "debug.h"
 #include "util.h"
 #include "profile.h"
+#include "extern/jsmn.h"
+
+#define DEFAULT_TOKENS 128
 
 static co_obj_t *_profiles = NULL;
 static co_obj_t *_schemas = NULL;
@@ -139,59 +142,40 @@ error:
   return NULL;
 }
 
-static int _co_profile_import_files_i(const char *path, const char *filename) {
-  char key[80];
-  char value[80];
-  char line[80];
-  char path_tmp[PATH_MAX] = {};
-  int line_number = 1;
-  FILE *config_file = NULL;
+static jsmntok_t *_co_json_string_tokenize(const char *js)
+{
+  jsmn_parser parser;
+  jsmn_init(&parser);
 
-  DEBUG("Importing file %s at path %s", filename, path);
+  unsigned int t = DEFAULT_TOKENS;
+  jsmntok_t *tokens = h_calloc(t, sizeof(jsmntok_t));
+  CHECK_MEM(tokens);
 
-  strlcpy(path_tmp, path, PATH_MAX);
-  strlcat(path_tmp, "/", PATH_MAX);
-  strlcat(path_tmp, filename, PATH_MAX);
-  config_file = fopen(path_tmp, "rb");
-  CHECK(config_file != NULL, "Config file %s/%s could not be opened", path, filename);
+  int ret = jsmn_parse(&parser, js, tokens, t);
 
-  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
-  while(fgets(line, 80, config_file) != NULL) {
-    if(strlen(line) > 1) {
-      char *key_copy, *value_copy;
-      sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
-
-      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
-      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
-      strcpy(key_copy, key);
-      strcpy(value_copy, value);
-
-      DEBUG("Setting key: %s and value: %s into profile tree.", key_copy, value_copy);
-      CHECK(co_tree_set_str(((co_profile_t *)new_profile)->data, key_copy, strlen(key_copy), value_copy, strlen(value_copy)), "Could not load line %d of %s.", line_number, path);
-      line_number++;
-    }
+  while (ret == JSMN_ERROR_NOMEM)
+  {
+      t = t * 2 + 1;
+      tokens = h_realloc(tokens, sizeof(jsmntok_t) * t);
+      CHECK_MEM(tokens);
+      ret = jsmn_parse(&parser, js, tokens, t);
   }
 
-  fclose(config_file);
-  co_list_append(_profiles, new_profile);
+  CHECK(ret != JSMN_ERROR_INVAL, "Invalid JSON.");
+  CHECK(ret != JSMN_ERROR_PART, "Incomplete JSON.");
 
-  return 1;
-
+  return tokens;
 error:
-  if(config_file) fclose(config_file);
-  return 0;
+  if(tokens != NULL) h_free(tokens);
+  return NULL;
 }
 
-int co_profile_import_files(const char *path) {
-  DEBUG("Importing files from %s", path);
-  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
-
-  return 1;
-
-error:
-  return 0;
+static char *_co_json_token_stringify(char *json, const jsmntok_t *token)
+{
+  json[token->end] = '\0';
+  return json + token->start;
 }
-/*
+
 static int _co_profile_import_files_i(const char *path, const char *filename) {
   char path_tmp[PATH_MAX] = {};
   FILE *config_file = NULL;
@@ -211,36 +195,100 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   fclose(config_file);
   
   buffer[fsize] = '\0';
+  jsmntok_t *tokens = _co_json_string_tokenize(buffer);
 
-  co_profile_t *new_profile = calloc(1, sizeof(co_profile_t));
-  new_profile->name = strdup(filename);
-  while(fgets(line, 80, config_file) != NULL) {
-    if(strlen(line) > 1) {
-      char *key_copy, *value_copy;
-      sscanf(line, "%[^=]=%[^\n]", (char *)key, (char *)value);
+  typedef enum { START, KEY, VALUE, STOP } parse_state;
+  parse_state state = START;
 
-      key_copy = (char*)calloc(strlen(key)+1, sizeof(char));
-      value_copy = (char*)calloc(strlen(value)+1, sizeof(char));
-      strcpy(key_copy, key);
-      strcpy(value_copy, value);
+  size_t object_tokens = 0;
+  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
+  char *key = NULL;
+  size_t klen = 0;
 
-      DEBUG("Inserting key: %s and value: %s into profile tree.", key_copy, value_copy);
-      new_profile->profile = tst_insert(new_profile->profile, (char *)key_copy, strlen(key_copy), (void *)value_copy);
-      CHECK(new_profile->profile != NULL, "Could not load line %d of %s.", line_number, path);
-      line_number++;
+  for (size_t i = 0, j = 1; j > 0; i++, j--)
+  {
+    jsmntok_t *t = &tokens[i];
+
+    // Should never reach uninitialized tokens
+    CHECK(t->start != -1 && t->end != -1, "Tokens uninitialized.");
+
+    if (t->type == JSMN_ARRAY || t->type == JSMN_OBJECT)
+      j += t->size;
+
+    switch (state)
+    {
+      case START:
+        CHECK(t->type == JSMN_OBJECT, "Invalid root element.");
+
+        state = KEY;
+        object_tokens = t->size;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        CHECK(object_tokens % 2 == 0, "Object must have even number of children.");
+        break;
+
+      case KEY:
+        object_tokens--;
+
+        CHECK(t->type == JSMN_STRING, "Keys must be strings.");
+        state = VALUE;
+        key = _co_json_token_stringify(buffer, t);
+        klen = t->end - t->start;
+
+        break;
+
+      case VALUE:
+        CHECK(t->type == JSMN_STRING, "Values must be strings.");
+
+        if(key != NULL && klen > 0)
+        {
+          if(!co_profile_set_str((co_profile_t *)new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
+          {
+            INFO("Value not in schema.");
+          }
+          
+        }
+
+        key = NULL;
+        klen = 0;
+        object_tokens--;
+        state = KEY;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        break;
+
+      case STOP:
+        // Just consume the tokens
+        break;
+
+      default:
+        SENTINEL("Invalid state %u", state);
     }
   }
 
-  fclose(config_file);
-  list_append(profiles, lnode_create((void *)new_profile));
+  co_list_append(_profiles, new_profile);
 
   return 1;
 
 error:
-  if(config_file) fclose(config_file);
+  if(config_file != NULL) fclose(config_file);
+  if(new_profile != NULL) co_obj_free(new_profile);
   return 0;
 }
-*/
+
+int co_profile_import_files(const char *path) {
+  DEBUG("Importing files from %s", path);
+  CHECK(process_files(path, _co_profile_import_files_i), "Failed to load all profiles.");
+
+  return 1;
+
+error:
+  return 0;
+}
 
 int 
 co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen) 
@@ -255,14 +303,14 @@ error:
 }
 
 size_t
-co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen) 
+co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen) 
 {
   CHECK_MEM(profile->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_STR(obj), "Object is not a string.");
-  return co_obj_data(output, obj);
+  return co_obj_data((void **)output, obj);
 
 error:
   return -1;
@@ -288,9 +336,9 @@ co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_INT(obj), "Object is not a signed integer.");
-  signed long output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  signed long *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;
@@ -316,9 +364,9 @@ co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_UINT(obj), "Object is not an unsigned integer.");
-  unsigned long output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  unsigned long *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;
@@ -344,9 +392,9 @@ co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen)
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_FLOAT(obj), "Object is not a floating point value.");
-  double output;
-  CHECK(co_obj_data(&output, obj) >= 0, "Failed to read data from %s.", key);
-  return output;
+  double *output;
+  CHECK(co_obj_data((void **)&output, obj) >= 0, "Failed to read data from %s.", key);
+  return *output;
 
 error:
   return -1;
@@ -386,20 +434,48 @@ error:
   return NULL;
 }
 
-//int profile_export_file(tst_t *profile, const char *path) {
-//  FILE *config_file = NULL;
-//  struct bstrList *config_item = NULL;
-//  tst_t *config_tree = NULL;
-//
-//  config_file = fopen(path, "a");
-//  CHECK(config_file != NULL, "Config file %s could not be opened", path);
-//
-//  fprintf(config_file, "%s", string);
-//
-//  fclose (config_file); 
-//  return 1;
-//
-//error:
-//  return 0;
-//}
+static inline void
+_co_profile_export_file_r(co_obj_t *tree, _treenode_t *current, int *count, FILE *config_file)
+{
+  CHECK(IS_TREE(tree), "Recursion target is not a tree.");
+  char *key = NULL;
+  char *value = NULL;
+  if(co_node_value(current) != NULL)
+  {
+    CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
+    co_obj_raw(&key, co_node_key(current));
+    co_obj_raw(&value, co_node_value(current));
+    if(*count < co_tree_length(tree))
+    {
+      fprintf(config_file, "  \"%s\": \"%s\",\n", key, value);
+    }
+    else
+    {
+      fprintf(config_file, "  \"%s\": \"%s\"\n", key, value);
+    }
+  }
+  _co_profile_export_file_r(tree, current->low, count, config_file); 
+  _co_profile_export_file_r(tree, current->equal, count, config_file); 
+  _co_profile_export_file_r(tree, current->high, count, config_file); 
+  return; 
+error:
+  return;
+}
 
+int 
+co_profile_export_file(co_profile_t *profile, const char *path)
+{
+  int count = 0;
+  FILE *config_file = fopen(path, "a");
+  CHECK(config_file != NULL, "Config file %s could not be opened", path);
+
+  fprintf(config_file, "{\n");
+
+  _co_profile_export_file_r(profile->data, co_tree_root(profile->data), &count, config_file);
+
+  fprintf(config_file, "}");
+  fclose (config_file); 
+  return 1;
+error:
+  return 0;
+}

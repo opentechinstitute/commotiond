@@ -42,11 +42,11 @@
  * @enum co_process_state_t defines the state of the process
  */
 typedef enum {
-  STOPPING = 0,
-  STOPPED =1,
-  STARTING = 2,
-  STARTED = 3,
-  FAILED = -1
+  _STOPPING = 0,
+  _STOPPED =1,
+  _STARTING = 2,
+  _STARTED = 3,
+  _FAILED = -1
 } co_process_state_t;
 
 /**

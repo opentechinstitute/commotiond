@@ -128,7 +128,8 @@ int
 co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+      list.");
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_PREV(this_obj);
@@ -157,7 +158,8 @@ int
 co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  CHECK(!co_list_contains(list, new_obj), "New node already in specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+      list.");
   CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
       specified list.");
   co_obj_t *adjacent = _LIST_NEXT(this_obj);
@@ -188,7 +190,13 @@ co_list_prepend(co_obj_t *list, co_obj_t *new_obj)
 int
 co_list_append(co_obj_t *list, co_obj_t *new_obj)
 {
-  return co_list_insert_before(list, new_obj, list);
+  int ret = co_list_insert_before(list, new_obj, list);
+  if(ret)
+  {
+    _LIST_PREV(list) = new_obj;
+    _LIST_NEXT(new_obj) = NULL;
+  }
+  return ret;
 }
 
 static co_obj_t *
@@ -227,7 +235,7 @@ co_list_element(co_obj_t *list, const unsigned int index)
       if(next == NULL) break;
     }
   }
-  CHECK(i != index, "List index not found.");
+  CHECK(i == index, "List index not found.");
   return next;
 error:
   return NULL;
@@ -239,13 +247,43 @@ co_list_raw(char *output, const size_t olen, co_obj_t *list)
   size_t written = 0, read = 0;
   char *in = NULL;
   char *out = output;
-  CHECK(IS_LIST(list), "Not a list object.");
-  co_obj_t *next = list;
+  switch(CO_TYPE(list))
+  {
+    case _list16:
+      memmove(out, &(list->_type), sizeof(uint8_t));
+      out += sizeof(uint8_t);
+      memmove(out, &(((co_list16_t *)list)->_len), sizeof(uint16_t));
+      out += sizeof(uint16_t);
+      written = sizeof(uint8_t) + sizeof(uint16_t);
+      break;
+    case _list32:
+      memmove(out, &(list->_type), sizeof(uint8_t));
+      out += sizeof(uint8_t);
+      memmove(out, &(((co_list32_t *)list)->_len), sizeof(uint32_t));
+      out += sizeof(uint32_t);
+      written = sizeof(uint8_t) + sizeof(uint32_t);
+      break;
+    default:
+      SENTINEL("Not a list object.");
+      break;
+  }
+  co_obj_t *next = _LIST_NEXT(list);
   while(next != NULL && written <= olen)
   {
-    read = co_obj_raw(in, next);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
+    if((CO_TYPE(next) == _list16) || (CO_TYPE(next) == _list32))
+    {
+        read = co_list_raw(out, olen - written, next);
+        CHECK(read >= 0, "Failed to dump object.");
+        CHECK(read + written < olen, "Data too large for buffer.");
+    }
+    else
+    {
+        read = co_obj_raw(&in, next);
+        CHECK(read >= 0, "Failed to dump object.");
+        CHECK(read + written < olen, "Data too large for buffer.");
+        memmove(out, in, read);
+    }
+    DEBUG("List in: %s, read: %d", in, (int)read);
     written += read;
     out += read;
     next = _LIST_NEXT(next);
@@ -257,7 +295,7 @@ error:
 }
 
 size_t
-co_list_import(co_obj_t *list, const char *input, const size_t ilen)
+co_list_import(co_obj_t **list, const char *input, const size_t ilen)
 {
   size_t length = 0, olen = 0, read = 0;
   co_obj_t *obj = NULL;
@@ -265,16 +303,16 @@ co_list_import(co_obj_t *list, const char *input, const size_t ilen)
   switch((uint8_t)input[0])
   {
     case _list16:
-      length = ((co_list16_t *)input)->_len;
-      list = co_list16_create();
-      cursor += sizeof(co_list16_t);
-      read += sizeof(co_list16_t);
+      length = *((uint16_t *)(input + 1));
+      *list = co_list16_create();
+      cursor += sizeof(uint16_t) + 1;
+      read = sizeof(uint16_t) + 1;
       break;
     case _list32:
-      length = ((co_list32_t *)input)->_len;
-      list = co_list32_create();
-      cursor += sizeof(co_list32_t);
-      read += sizeof(co_list32_t);
+      length = (uint32_t)(*(input + 1));
+      *list = co_list32_create();
+      cursor += sizeof(uint32_t) + 1;
+      read = sizeof(uint32_t) + 1;
       break;
     default:
       SENTINEL("Not a list.");
@@ -282,10 +320,18 @@ co_list_import(co_obj_t *list, const char *input, const size_t ilen)
   }
   for(int i = 0; (i < length && read <= ilen); i++)
   {
-    olen = co_obj_import(obj, cursor, ilen - read, 0);
+    if(((uint8_t)cursor[0] == _list16) || ((uint8_t)cursor[0] == _list32))
+    {
+      olen = co_list_import(&obj, cursor, ilen - read);
+    }
+    else
+    {
+      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+    }
     CHECK(olen > 0, "Failed to import object.");
+    cursor +=olen;
     read += olen;
-    CHECK(co_list_append(list, obj), "Failed to add object to list.");
+    CHECK(co_list_append(*list, obj), "Failed to add object to list.");
   }
   return read;
 error:

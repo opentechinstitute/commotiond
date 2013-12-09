@@ -44,6 +44,7 @@
 #include "cmd.h"
 #include "util.h"
 #include "loop.h"
+#include "plugin.h"
 #include "process.h"
 #include "profile.h"
 #include "socket.h"
@@ -76,7 +77,7 @@ int dispatcher_cb(void *self, void *context) {
   memset(respbuf, '\0', sizeof(respbuf));
   size_t resplen = 0;
   co_obj_t *request = NULL;
-  int *type = NULL;
+  uint8_t *type = NULL;
   uint32_t *id = NULL;
   co_obj_t *nil = co_nil_create(0);
 
@@ -93,10 +94,10 @@ int dispatcher_cb(void *self, void *context) {
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
-  CHECK(co_list_import(request, reqbuf, reqlen) > 0, "Failed to import request.");
-  co_obj_raw(type, co_list_element(request, 0)); 
+  CHECK(co_list_import(&request, reqbuf, reqlen) > 0, "Failed to import request.");
+  co_obj_data((void **)&type, co_list_element(request, 0)); 
   CHECK(*type == 0, "Not a valid request.");
-  CHECK(co_obj_raw(id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
+  CHECK(co_obj_data((void **)&id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
   co_obj_t *ret = co_cmd_exec(co_list_element(request, 2), co_list_element(request, 3));
   if(ret != NULL)
   {
@@ -199,11 +200,12 @@ static void daemon_start(char *statedir, char *pidfile) {
 static void print_usage() {
   printf(
           "The Commotion management daemon.\n"
-          "http://commotionwireless.net\n\n"
+          "https://commotionwireless.net\n\n"
           "Usage: commotiond [options]\n"
           "\n"
           "Options:\n"
           " -b, --bind <uri>      Specify management socket.\n"
+          " -d, --plugins <dir>   Specify plugin directory.\n"
           " -f, --profiles <dir>  Specify profile directory.\n"
           " -i, --id <nodeid>     Specify unique id number for this node.\n"
           " -n, --nodaemonize     Do not fork into the background.\n"
@@ -212,11 +214,20 @@ static void print_usage() {
           " -h, --help            Print this usage message.\n"
   );
 }
+
+void *debug_alloc(void *ptr, size_t len)
+{
+  void *ret = realloc(ptr, len);
+  DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, len);
+  return ret;
+}
+
 /**
  * @brief Creates sockets for event loop, daemon and dispatcher. Starts/stops event loop.
  * 
  */
 int main(int argc, char *argv[]) {
+  /*  halloc_allocator = debug_alloc; */
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;
@@ -224,7 +235,7 @@ int main(int argc, char *argv[]) {
   char *pidfile = COMMOTION_PIDFILE;
   char *statedir = COMMOTION_STATEDIR;
   char *socket_uri = COMMOTION_MANAGESOCK;
-  //char *plugindir = COMMOTION_PLUGINDIR;
+  char *plugindir = COMMOTION_PLUGINDIR;
   char *profiledir = COMMOTION_PROFILEDIR;
 
   static const char *opt_string = "b:d:f:i:np:s:h";
@@ -250,7 +261,7 @@ int main(int argc, char *argv[]) {
         socket_uri = optarg;
         break;
       case 'd':
-        //plugindir = optarg;
+        plugindir = optarg;
         break;
       case 'f':
         profiledir = optarg;
@@ -281,6 +292,9 @@ int main(int argc, char *argv[]) {
   co_id_set_from_int(newid);
   nodeid_t id = co_id_get();
   DEBUG("Node ID: %d", (int) id.id);
+  co_plugins_init(16);
+  co_plugins_load(plugindir);
+  co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */
@@ -308,6 +322,9 @@ int main(int argc, char *argv[]) {
   
   co_loop_start();
   co_loop_destroy();
+  co_cmds_shutdown();
+  co_profiles_shutdown();
+  co_plugins_shutdown();
 
   return 0;
 }

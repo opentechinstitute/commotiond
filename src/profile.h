@@ -49,7 +49,7 @@ struct co_cbptr_t {
   uint8_t _exttype;
   uint8_t _len;
   co_cb_t cb;
-};
+} __attribute__((packed));
 
 typedef struct co_profile_t co_profile_t;
 
@@ -64,7 +64,7 @@ struct co_profile_t {
   uint8_t _len;
   co_obj_t *name; /**< command name */
   co_obj_t *data;
-};
+} __attribute__((packed));
 
 co_obj_t *co_schema_create(co_cb_t cb);
 int co_schema_register(co_cb_t cb);
@@ -113,7 +113,6 @@ signed long co_profile_get_int(co_profile_t *profile, const char *key, const siz
  * @param key key in profile
  * @param def default key value
  */
-char *co_profile_get_string(co_profile_t *profile, const char *key, char *def);
 
 /**
  * @brief returns list of available profiles
@@ -133,11 +132,12 @@ co_profile_t *co_profile_find(co_obj_t *name);
 void co_profile_dump(co_profile_t *profile);
 
 int co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
-size_t co_profile_get_str(co_profile_t *profile, char *output, const char *key, const size_t klen);
+size_t co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen);
 int co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value);
 signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
 int co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value);
 unsigned long co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen);
 int co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value);
 double co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen);
+int co_profile_export_file(co_profile_t *profile, const char *path);
 #endif
