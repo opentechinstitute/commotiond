@@ -320,6 +320,7 @@ int main(int argc, char *argv[]) {
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
   socket->bind(socket, socket_uri);
+  
   co_loop_start();
   co_loop_destroy();
   co_cmds_shutdown();

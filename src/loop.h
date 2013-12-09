@@ -43,12 +43,12 @@
 #define LOOP_MAXEVENT 64
 #define LOOP_TIMEOUT 5
 #define LOOP_MAXTIMER 20
-#define CLOCK_MONOTONIC 1
 
 typedef struct {
   bool pending;
   struct timeval deadline;
   int (*timer_cb)(void *self, void *context);
+  void *ptr;
 } co_timer_t;
 
 //Public functions
@@ -119,7 +119,7 @@ int co_loop_remove_timer(void *old_timer, void *context);
  * @param msecs number of milliseconds
  * @param context a void context pointer (currently unused)
  */
-int co_loop_set_timer(void *timer, int msecs, void *context);
+int co_loop_set_timer(void *timer, long msecs, void *context);
 
 /**
  * @brief malloc and initialize a timer
