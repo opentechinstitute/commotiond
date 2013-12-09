@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include "process.h"
 #include "util.h"
+#include "obj.h"
 
 #define OLSR_HNA4 (1 << 0)
 #define OLSR_HNA6 (1 << 1)
@@ -128,4 +129,4 @@ int co_olsrd_print_conf(const char *filename);
  * @brief initiates the OLSR daemon when a new process gets created (currently unimplemented)
  * @param self process to be called
  */
-int co_olsrd_init(void *self);
+int co_olsrd_init(co_obj_t *self);

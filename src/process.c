@@ -41,41 +41,43 @@
 #include "process.h"
 #include "util.h"
 
-co_process_t *co_process_create(const size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path) {
+co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path) {
   if(!proto.init) proto.init = NULL;
   if(!proto.destroy) proto.destroy = co_process_destroy;
   if(!proto.start) proto.start = co_process_start;
   if(!proto.stop) proto.stop = co_process_stop;
 
-  co_process_t *new_proc = malloc(size);
+  co_process_t *new_proc = h_calloc(1,size);
   *new_proc = proto;
+  new_proc->_header._type = _ext8;
+  new_proc->_exttype = _process;
+  new_proc->_len = size;
 
   CHECK_MEM(new_proc);
   
   new_proc->name = strdup(name); 
+  hattach(new_proc->name,new_proc);
   new_proc->pid_file = strdup(pid_file); 
+  hattach(new_proc->pid_file,new_proc);
   new_proc->exec_path = strdup(exec_path); 
-  new_proc->run_path = strdup(run_path); 
+  hattach(new_proc->exec_path,new_proc);
+  new_proc->run_path = strdup(run_path);
+  hattach(new_proc->run_path,new_proc);
 
-  if(!new_proc->init(new_proc)) {
+  if(!new_proc->init((co_obj_t*)new_proc)) {
     SENTINEL("Failed to initialize new process.");
   } else {
-    return new_proc;
+    return (co_obj_t*)new_proc;
   }
 
 error:
-  new_proc->destroy(new_proc);
+  new_proc->destroy((co_obj_t*)new_proc);
   return NULL;
 }
 
-int co_process_destroy(void *self) {
+int co_process_destroy(co_obj_t *self) {
   CHECK_MEM(self);
-  co_process_t *this = self;
-
-  free(this->name);
-  free(this->pid_file);
-  free(this->exec_path);
-  free(this->run_path);
+  CHECK(IS_PROCESS(self),"Not a process.");
 
   free(self);
 
@@ -85,9 +87,11 @@ error:
   return 0;
 }
 
-int co_process_start(void *self, char *argv[]) {
+// TODO use co_list16_t instead of *argv[]
+int co_process_start(co_obj_t *self, char *argv[]) {
   CHECK_MEM(self);
-  co_process_t *this = self;
+  CHECK(IS_PROCESS(self),"Not a process.");
+  co_process_t *this = (co_process_t*)self;
   char *exec = NULL;
   CHECK(((exec = this->exec_path) != NULL), "Invalid exec path!");
 	int pid = 0;
@@ -129,9 +133,10 @@ error:
   return 0;
 }
 
-int co_process_stop(void *self) {
+int co_process_stop(co_obj_t *self) {
   CHECK_MEM(self);
-  co_process_t *this = self;
+  CHECK(IS_PROCESS(self),"Not a process.");
+  co_process_t *this = (co_process_t*)self;
   CHECK(!(kill(this->pid, SIGKILL)), "Failed to kill co_process_t %d.", this->pid);
 
   return 1;
@@ -140,10 +145,11 @@ error:
   return 0;
 }
 
-int co_process_restart(void *self) {
+int co_process_restart(co_obj_t *self) {
   CHECK_MEM(self);
-  co_process_t *this = self;
-  if(this->stop(this)) this->start(this, NULL);
+  CHECK(IS_PROCESS(self),"Not a process.");
+  co_process_t *this = (co_process_t*)self;
+  if(this->stop((co_obj_t*)this)) this->start((co_obj_t*)this, NULL);
 
   return 1;
 

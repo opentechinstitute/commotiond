@@ -168,7 +168,7 @@ static void _co_loop_poll_process_i(list_t *list, lnode_t *lnode, void *context)
   
   if(proc->pid == *pid) {
     co_loop_remove_process(*pid);
-    proc->destroy(proc);
+    proc->destroy((co_obj_t*)proc);
   }
 
   return;
@@ -182,7 +182,7 @@ static void _co_loop_destroy_socket_i(list_t *list, lnode_t *lnode, void *contex
 
 static void _co_loop_destroy_process_i(list_t *list, lnode_t *lnode, void *context) {
   co_process_t *proc = lnode_get(lnode);
-  proc->destroy(proc);
+  proc->destroy((co_obj_t*)proc);
   return;
 }
 

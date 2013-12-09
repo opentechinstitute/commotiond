@@ -245,7 +245,7 @@ int co_olsrd_remove_hna(int family, char *address, char *netmask) {
 }
 
 
-int co_olsrd_init(void *self) {
+int co_olsrd_init(co_obj_t *self) {
   //co_olsrd_process_t *this = self;
   //This function gets called when the process object is created, and should call any initialization stuff that happens before it starts
   return 1;

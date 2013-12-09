@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "util.h"
+#include "obj.h"
 
 /**
  * @enum co_process_state_t defines the state of the process
@@ -53,6 +54,9 @@ typedef enum {
  * @struct co_process_t process struct, including process id, run path and state information
  */
 typedef struct {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
   int pid;
   bool registered;
   bool use_watchdog;
@@ -63,11 +67,11 @@ typedef struct {
   char *run_path;
   int input;
   int output;
-  int (*init)(void *self);
-  int (*destroy)(void *self);
-  int (*start)(void *self, char *argv[]);
-  int (*stop)(void *self);
-  int (*restart)(void *self);
+  int (*init)(co_obj_t *self);
+  int (*destroy)(co_obj_t *self);
+  int (*start)(co_obj_t *self, char *argv[]);
+  int (*stop)(co_obj_t *self);
+  int (*restart)(co_obj_t *self);
 } co_process_t;
 
 /**
@@ -80,31 +84,31 @@ typedef struct {
  * @param run_path the run path
  * @return co_process_t to be registered with the daemon
  */
-co_process_t *co_process_create(size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path);
+co_obj_t *co_process_create(size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path);
 
 /**
  * @brief removes a process from commotiond
  * @param self pointer to the process' struct
  */
-int co_process_destroy(void *self);
+int co_process_destroy(co_obj_t *self);
 
 /**
  * @brief starts a selected process
  * @param self pointer to the process' struct
  * @param argv[] execution path for the process
  */
-int co_process_start(void *self, char *argv[]);
+int co_process_start(co_obj_t *self, char *argv[]);
 
 /**
  * @brief stops a running process
  * @param self pointer to the process' struct
  */
-int co_process_stop(void *self);
+int co_process_stop(co_obj_t *self);
 
 /**
  * @brief restarts a process
  * @param self pointer to the process' struct
  */
-int co_process_restart(void *self);
+int co_process_restart(co_obj_t *self);
 
 #endif
