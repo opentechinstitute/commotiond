@@ -49,7 +49,7 @@ co_socket_t unix_socket_proto = {
   .connect = unix_socket_connect
 };
 
-co_socket_t *co_socket_create(size_t size, co_socket_t proto) {
+co_obj_t *co_socket_create(size_t size, co_socket_t proto) {
 
   if(!proto.init) proto.init = NULL;
   if(!proto.destroy) proto.destroy = co_socket_destroy;
@@ -60,25 +60,30 @@ co_socket_t *co_socket_create(size_t size, co_socket_t proto) {
   if(!proto.receive) proto.receive = co_socket_receive;
   if(!proto.setopt) proto.setopt = co_socket_setopt;
   if(!proto.getopt) proto.getopt = co_socket_getopt;
-  co_socket_t *new_sock = malloc(size);
+  co_socket_t *new_sock = h_calloc(1,size);
   *new_sock = proto;
+  new_sock->_header._type = _ext8;
+  new_sock->_exttype = _sock;
+  new_sock->_len = size;
   
-  if((proto.init != NULL) && (!new_sock->init(new_sock))) {
+  if((proto.init != NULL) && (!new_sock->init((co_obj_t*)new_sock))) {
     SENTINEL("Failed to initialize new socket.");
   } else {
-    return new_sock;
+    return (co_obj_t*)new_sock;
   }
 
 error:
-  new_sock->destroy(new_sock);
+  new_sock->destroy((co_obj_t*)new_sock);
   return NULL;
 }
 
-int co_socket_init(void *self) {
-  if(self) {
-    co_socket_t *this = self;
-    this->local = malloc(sizeof(struct sockaddr_storage));
-    this->remote = malloc(sizeof(struct sockaddr_storage));
+int co_socket_init(co_obj_t* self) {
+  if(self && IS_SOCK(self)) {
+    co_socket_t *this = (co_socket_t*)self;
+    this->local = h_calloc(1,sizeof(struct sockaddr_storage));
+    hattach(this->local,this);
+    this->remote = h_calloc(1,sizeof(struct sockaddr_storage));
+    hattach(this->remote,this);
     this->fd = -1;
     this->rfd = -1;
     this->fd_registered = false;
@@ -88,21 +93,19 @@ int co_socket_init(void *self) {
   } else return 0;
 }
 
-int co_socket_destroy(void *self) {
-  if(self) {
-    co_socket_t *this = self;
+int co_socket_destroy(co_obj_t* self) {
+  if(self && IS_SOCK(self)) {
+    co_socket_t *this = (co_socket_t*)self;
     close(this->fd);
     close(this->rfd);
-    free(this->local);
-    free(this->remote);
     free(this);
     return 1;
   } else return 0;
 }
 
-int co_socket_hangup(void *self, void *context) {
+int co_socket_hangup(co_obj_t *self, co_obj_t *context) {
   CHECK_MEM(self);
-  co_socket_t *this = self;
+  co_socket_t *this = (co_socket_t*)self;
   if((this->listen) && (this->rfd >= 0)) {
     CHECK((close(this->rfd) != -1), "Failed to close socket.");
     this->rfd = -1;
@@ -120,10 +123,11 @@ error:
   return 0;
 }
 
-
-int co_socket_send(void *self, char *outgoing, size_t length) {
+// TODO use co_obj_t* instead of char* for outgoing
+int co_socket_send(co_obj_t *self, char *outgoing, size_t length) {
   CHECK_MEM(self);
-  co_socket_t *this = self;
+  CHECK(IS_SOCK(self),"Not a socket.");
+  co_socket_t *this = (co_socket_t*)self;
   unsigned int sent = 0;
   unsigned int remaining = length;
   int n, sfd;
@@ -145,9 +149,11 @@ error:
   return -1;
 }
 
-int co_socket_receive(void *self, char *incoming, size_t length) {
+// TODO use co_obj_t* instead of char* for incoming
+int co_socket_receive(co_obj_t *self, char *incoming, size_t length) {
   CHECK_MEM(self);
-  co_socket_t *this = self;
+  CHECK(IS_SOCK(self),"Not a socket.");
+  co_socket_t *this = (co_socket_t*)self;
   int received = 0;
   int rfd = 0;
   if(this->listen) {
@@ -160,7 +166,7 @@ int co_socket_receive(void *self, char *incoming, size_t length) {
       this->rfd = rfd;
       int flags = fcntl(this->rfd, F_GETFL, 0);
       fcntl(this->rfd, F_SETFL, flags | O_NONBLOCK); //Set non-blocking.
-      if(this->register_cb) this->register_cb(this, NULL);
+      if(this->register_cb) this->register_cb((co_obj_t*)this, NULL);
       return 0;
     } else {
       DEBUG("Setting receiving file descriptor %d.", this->rfd);
@@ -179,8 +185,9 @@ error:
   return -1;
 }
 
-int co_socket_setopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
-  co_socket_t *this = self;
+int co_socket_setopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen) {
+  CHECK(IS_SOCK(self),"Not a socket.");
+  co_socket_t *this = (co_socket_t*)self;
 
   //Check to see if this is a standard socket option, or needs custom handling.
   if(level <= MAX_IPPROTO) {
@@ -195,8 +202,9 @@ error:
   return 0;
 }
 
-int co_socket_getopt(void * self, int level, int option, void *optval, socklen_t optvallen) {
-  co_socket_t *this = self;
+int co_socket_getopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen) {
+  CHECK(IS_SOCK(self),"Not a socket.");
+  co_socket_t *this = (co_socket_t*)self;
 
   //Check to see if this is a standard socket option, or needs custom handling.
   if(level <= MAX_IPPROTO) {
@@ -211,13 +219,15 @@ error:
   return 0;
 }
 
-int unix_socket_init(void *self) {
-  if(self) {
-    co_socket_t *this = self;
+int unix_socket_init(co_obj_t *self) {
+  if(self && IS_SOCK(self)) {
+    co_socket_t *this = (co_socket_t*)self;
     this->fd = -1;
     this->rfd = -1;
-    this->local = malloc(sizeof(struct sockaddr_un));
-    this->remote = malloc(sizeof(struct sockaddr_un));
+    this->local = h_calloc(1,sizeof(struct sockaddr_un));
+    hattach(this->local,this);
+    this->remote = h_calloc(1,sizeof(struct sockaddr_un));
+    hattach(this->remote,this);
     this->fd_registered = false;
     this->rfd_registered = false;
     this->listen = false;
@@ -226,9 +236,10 @@ int unix_socket_init(void *self) {
   } else return 0;
 }
 
-int unix_socket_bind(void *self, const char *endpoint) {
+int unix_socket_bind(co_obj_t *self, const char *endpoint) {
   DEBUG("Binding unix_socket %s.", endpoint);
-  unix_socket_t *this = self;
+  CHECK(IS_SOCK(self),"Not a socket.");
+  unix_socket_t *this = (unix_socket_t*)self;
   struct sockaddr_un *address = (struct sockaddr_un *)this->_(local);
   CHECK_MEM(address);
   address->sun_family = AF_UNIX;
@@ -250,7 +261,7 @@ int unix_socket_bind(void *self, const char *endpoint) {
 	CHECK(!bind(this->_(fd), (struct sockaddr *) address, size), "Failed to bind Unix socket %s.", address->sun_path);
   CHECK(!listen(this->_(fd), SOMAXCONN), "Failed to listen on Unix socket %s.", address->sun_path);
   this->_(listen) = true;
-  if(this->_(register_cb)) this->_(register_cb)(this, NULL);
+  if(this->_(register_cb)) this->_(register_cb)((co_obj_t*)this, NULL);
   return 1;
 
 error:
@@ -258,9 +269,10 @@ error:
   return 0;
 }
 
-int unix_socket_connect(void *self, const char *endpoint) {
+int unix_socket_connect(co_obj_t *self, const char *endpoint) {
   DEBUG("Connecting unix_socket %s.", endpoint);
-  unix_socket_t *this = self;
+  CHECK(IS_SOCK(self),"Not a socket.");
+  unix_socket_t *this = (unix_socket_t*)self;
   struct sockaddr_un address = { .sun_family = AF_UNIX };
   FILE *f = NULL;
 

@@ -175,9 +175,9 @@ int main(int argc, char *argv[]) {
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
 
-  co_socket_t *socket = NEW(co_socket, unix_socket);
+  co_obj_t *socket = NEW(co_socket, unix_socket);
 
-  CHECK((socket->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
+  CHECK((((co_socket_t*)socket)->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
   DEBUG("opt_index: %d argc: %d", optind, argc);
   char request[REQUEST_MAX];
   memset(request, '\0', sizeof(request));
@@ -188,8 +188,8 @@ int main(int argc, char *argv[]) {
   if(optind < argc) 
   {
     reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
-    CHECK(socket->send(socket, request, reqlen) != -1, "Send error!");
-    if((resplen = socket->receive(socket, response, sizeof(response))) > 0) 
+    CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
+    if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
     {
       response[resplen] = '\0';
       printf("%s\n", response);
@@ -203,8 +203,8 @@ int main(int argc, char *argv[]) {
     while(printf("Co$ "), fgets(input, 100, stdin), !feof(stdin)) 
     {
       reqlen = cli_parse_string(request, REQUEST_MAX, input, strlen(input));
-      CHECK(socket->send(socket, request, reqlen) != -1, "Send error!");
-      if((resplen = socket->receive(socket, response, sizeof(response))) > 0) 
+      CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
+      if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
       {
         response[resplen] = '\0';
         printf("%s\n", response);
@@ -212,10 +212,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  socket->destroy(socket);
+  ((co_socket_t*)socket)->destroy(socket);
   return 0;
 error:
-  socket->destroy(socket);
+  ((co_socket_t*)socket)->destroy(socket);
   return 1;
 }
 

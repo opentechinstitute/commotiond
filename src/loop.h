@@ -90,7 +90,7 @@ int co_loop_remove_process(pid_t pid);
  * @param new_sock the new socket to be added
  * @param context a void context pointer (currently unused)
  */
-int co_loop_add_socket(void *new_sock, void *context);
+int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context);
 
 /**
  * @brief removes a socket from the event loop

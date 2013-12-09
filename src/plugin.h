@@ -33,7 +33,7 @@
 #define _PLUGIN_H
 
 #include <stdlib.h>
-
+#include "obj.h"
 
 typedef struct {
   co_obj_t _header;

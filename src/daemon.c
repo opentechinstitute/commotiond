@@ -61,15 +61,16 @@
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
 
-int dispatcher_cb(void *self, void *context);
+int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 
 /**
  * @brief sends/receives socket messages
  * @param self pointer to dispatcher socket struct
  * @param context void context pointer required for event loop callback (currently unused)
  */
-int dispatcher_cb(void *self, void *context) {
-  co_socket_t *sock = self;
+int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
+  CHECK(IS_SOCK(self),"Not a socket.");
+  co_socket_t *sock = (co_socket_t*)self;
   char reqbuf[REQUEST_MAX];
   memset(reqbuf, '\0', sizeof(reqbuf));
   size_t reqlen = 0;
@@ -82,7 +83,7 @@ int dispatcher_cb(void *self, void *context) {
   co_obj_t *nil = co_nil_create(0);
 
   /* Incoming message on socket */
-  reqlen = sock->receive(sock, reqbuf, sizeof(reqbuf));
+  reqlen = sock->receive((co_obj_t*)sock, reqbuf, sizeof(reqbuf));
   DEBUG("Received %d bytes.", (int)reqlen);
   if(reqlen == 0) {
     INFO("Received connection.");
@@ -90,7 +91,7 @@ int dispatcher_cb(void *self, void *context) {
   }
   if (reqlen < 0) {
     INFO("Connection recvd() -1");
-    sock->hangup(sock, context);
+    sock->hangup((co_obj_t*)sock, context);
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
@@ -102,7 +103,7 @@ int dispatcher_cb(void *self, void *context) {
   if(ret != NULL)
   {
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
-    sock->send(sock, respbuf, resplen);
+    sock->send((co_obj_t*)sock, respbuf, resplen);
   }
 
   co_obj_free(nil);
@@ -316,10 +317,10 @@ int main(int argc, char *argv[]) {
   //plugins_load_all(plugindir);
   
   /* Set up sockets */
-  co_socket_t *socket = NEW(co_socket, unix_socket);
+  co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
-  socket->bind(socket, socket_uri);
+  socket->bind((co_obj_t*)socket, socket_uri);
   
   co_loop_start();
   co_loop_destroy();

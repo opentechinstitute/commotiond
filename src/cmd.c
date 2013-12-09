@@ -37,7 +37,6 @@
 #include "obj.h"
 #include "list.h"
 #include "tree.h"
-#include "db.h"
 #include "cmd.h"
 
 static co_obj_t *_cmds = NULL;

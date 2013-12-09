@@ -145,7 +145,7 @@ static void _co_loop_hangup_socket_i(list_t *list, lnode_t *lnode, void *context
   int *efd = context;
 
   if((sock->fd == *efd) || (sock->rfd == *efd)) {
-    sock->hangup(sock, context);
+    sock->hangup((co_obj_t*)sock, context);
   }
 
   return;
@@ -156,7 +156,7 @@ static void _co_loop_poll_socket_i(list_t *list, lnode_t *lnode, void *context) 
   int *efd = context;
 
   if((sock->fd == *efd) || (sock->rfd == *efd)) {
-    sock->poll_cb(sock, context);
+    sock->poll_cb((co_obj_t*)sock, context);
   }
 
   return;
@@ -176,7 +176,7 @@ static void _co_loop_poll_process_i(list_t *list, lnode_t *lnode, void *context)
 
 static void _co_loop_destroy_socket_i(list_t *list, lnode_t *lnode, void *context) {
   co_socket_t *sock = lnode_get(lnode);
-  sock->destroy(sock);
+  sock->destroy((co_obj_t*)sock);
   return;
 }
 
@@ -343,9 +343,10 @@ error:
   return 0;
 }
 
-int co_loop_add_socket(void *new_sock, void *context) {
+int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
   DEBUG("Adding socket to event loop.");
-  co_socket_t *sock = new_sock;
+  CHECK(IS_SOCK(new_sock),"Not a socket.");
+  co_socket_t *sock = (co_socket_t*)new_sock;
   lnode_t *node;
   struct epoll_event event;
 
@@ -441,8 +442,8 @@ error:
   return 0;
 }
 
-int co_loop_set_timer(void *_timer, long msecs, void *context) {
-  co_timer_t *timer = _timer;
+int co_loop_set_timer(void *old_timer, long msecs, void *context) {
+  co_timer_t *timer = old_timer;
   struct timeval *deadline = &timer->deadline;
   
   if (timer->pending)
