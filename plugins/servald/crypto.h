@@ -1,6 +1,8 @@
 #ifndef SERVAL_CRYPTO_H
 #define SERVAL_CRYPTO_H
 
+#include "obj.h"
+
 #define KEYRING_PIN NULL
 #define BUF_SIZE 1024
 
@@ -21,5 +23,9 @@ int serval_sign(const char *sid,
 		const size_t sig_size,
 		const char *keyringName,
 		const size_t keyring_len);
+
+int serval_crypto_register(void);
+
+co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params);
 
 #endif

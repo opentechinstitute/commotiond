@@ -10,6 +10,7 @@
 #include "serval/conf.h"
 #include "serval/mdp_client.h"
 #include "serval/rhizome.h"
+#include "serval/crypto.h"
 
 #define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
 _DECLARE_SERVAL(commandline_usage);
@@ -77,8 +78,8 @@ static struct cli_schema command_line_options[]={
    "Del and set specified configuration variables."},
   {app_config_get,{"config","get","[<variable>]",NULL},CLIFLAG_PERMISSIVE_CONFIG,
    "Get specified configuration variable."},
-  {app_vomp_console,{"console",NULL}, 0,
-    "Test phone call life-cycle from the console"},
+//   {app_vomp_console,{"console",NULL}, 0,
+//     "Test phone call life-cycle from the console"},
   {app_rhizome_append_manifest, {"rhizome", "append", "manifest", "<filepath>", "<manifestpath>", NULL}, 0,
     "Append a manifest to the end of the file it belongs to."},
   {app_rhizome_hash_file,{"rhizome","hash","file","<filepath>",NULL}, 0,
@@ -138,14 +139,14 @@ static struct cli_schema command_line_options[]={
    "Lookup the subscribers (SID) with the supplied telephone number (DID)."},
   {app_reverse_lookup, {"reverse", "lookup", "<sid>", "[<timeout>]", NULL}, 0,
     "Lookup the phone number (DID) and name of a given subscriber (SID)"},
-  {app_monitor_cli,{"monitor",NULL}, 0,
-   "Interactive servald monitor interface."},
+//   {app_monitor_cli,{"monitor",NULL}, 0,
+//    "Interactive servald monitor interface."},
   {app_crypt_test,{"test","crypt",NULL}, 0,
    "Run cryptography speed test"},
   {app_nonce_test,{"test","nonce",NULL}, 0,
    "Run nonce generation test"},
-  {app_slip_test,{"test","slip","[--seed=<N>]","[--duration=<seconds>|--iterations=<N>]",NULL}, 0,
-   "Run serial encapsulation test"},
+//   {app_slip_test,{"test","slip","[--seed=<N>]","[--duration=<seconds>|--iterations=<N>]",NULL}, 0,
+//    "Run serial encapsulation test"},
 // #ifdef HAVE_VOIPTEST
 //   {app_pa_phone,{"phone",NULL}, 0,
 //    "Run phone test application"},
@@ -169,9 +170,11 @@ error:
   return NULL;
 }
 
-co_obj_t *serval_cmd_handler(co_obj_t *self, co_obj_t *params) {
+co_obj_t *serval_handler(co_obj_t *self, co_obj_t *params) {
   struct cli_parsed parsed;
   co_obj_t *ret = NULL;
+  char *retbuf = NULL;
+  unsigned long len = 0;
   
   // parse params into args, argc
   if (!IS_LIST(params)) {
@@ -187,12 +190,22 @@ co_obj_t *serval_cmd_handler(co_obj_t *self, co_obj_t *params) {
   };
   co_list_parse(params, _serialize_params_i, &args);
   
+  // Capture stdout to send back to client
+  int stdout_pipe[2], old_stdout = dup(1);
+  fflush(stdout);
+  pipe(stdout_pipe);
+  fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
+  dup2(stdout_pipe[1], STDOUT_FILENO);   /* redirect stdout to the pipe */
+  close(stdout_pipe[1]);
+    
+  // Run the Serval command
+    
   int result = cli_parse(args.argc, (const char*const*)args.argv, command_line_options, &parsed);
   switch (result) {
     case 0:
       // Do not run the command if the configuration does not load ok.
       if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1)
-	result = cli_invoke(&parsed, NULL);
+        result = cli_invoke(&parsed, NULL);
       else {
 // 	strbuf b = strbuf_alloca(160);
 // 	strbuf_append_argv(b, argc, args);
@@ -215,21 +228,37 @@ co_obj_t *serval_cmd_handler(co_obj_t *self, co_obj_t *params) {
   /* clean up after ourselves */
   overlay_mdp_client_done();
   rhizome_close_db();
+
+  // Capture and send response back to client
+  fflush(stdout);
+  char readbuf[BUF_SIZE] = {0};
+  int n = 0;
+  while ((n = read(stdout_pipe[0], readbuf, BUF_SIZE-1)) > 0) {
+    retbuf = realloc(retbuf,len + n + 1);
+    strncpy(retbuf + len,readbuf,n);
+    len += n;
+    retbuf[len] = '\0';
+  }
+    
+  dup2(old_stdout, STDOUT_FILENO);  /* reconnect stdout for testing */
+
+  if (len < UINT8_MAX) {
+    ret = co_str8_create(retbuf,len,0);
+  } else if (len < UINT16_MAX) {
+    ret = co_str16_create(retbuf,len,0);
+  } else if (len < UINT32_MAX) {
+    ret = co_str32_create(retbuf,len,0);
+  }
   
+  if (retbuf) free(retbuf);
   return ret;
 }
 
-int register_commands(void) {
-  /**
-   * command will be "serval ..."
-   * pass argv to serval's cli_parse
-   * the end
-   */
-  
+int serval_register(void) {
   const char name[] = "serval",
                usage[] = "run \"help\" for usage information",
 	       desc[] = "Serval DNA";
-  CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_cmd_handler),"Failed to register commands");
+  CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_handler),"Failed to register commands");
   
   return 0;
 error:

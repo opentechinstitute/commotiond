@@ -13,6 +13,7 @@
 
 #include "servald.h"
 #include "client.h"
+#include "crypto.h"
 
 // Types & constructors
 
@@ -342,6 +343,9 @@ co_obj_t *_name(co_obj_t *self, co_obj_t *params) {
 
 void _init(void) {
   DEBUG("INIT");
+  
+  serval_register();
+  serval_crypto_register();
   
   srandomdev();
   
