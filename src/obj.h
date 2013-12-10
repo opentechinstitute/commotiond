@@ -88,6 +88,7 @@
 #define _LIST_PREV(J) (((co_obj_t *)J)->_prev)
 #define _LIST_FIRST(J) (((co_obj_t*)J)->_next)
 #define _LIST_LAST(J) (((co_obj_t *)J)->_prev)
+#define _LIST_ELEMENT(J,I) co_obj_data_ptr(co_list_element(J,I))
 
 /* Type checking */
 #define IS_NIL(J) (CO_TYPE(J) == _nil)
@@ -266,6 +267,8 @@ size_t co_obj_raw(char **data, const co_obj_t *object);
 
 size_t co_obj_data(void **data, const co_obj_t *object);
 
+#define co_obj_data_ptr(J) ({ void *d = NULL; co_obj_data(&d,J); d; })
+
 size_t co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags);
 
 int co_obj_getflags(const co_obj_t *object);
@@ -282,7 +285,7 @@ int co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size);
 
 int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
 
-#define co_str_cmp_str(O,S) ({ co_obj_t *s = co_str8_create(S,strlen(S),0); \
-  int i = co_str_cmp(O,s); co_obj_free(s); i; })
+#define co_str_cmp_str(J,S) ({ co_obj_t *s = co_str8_create(S,strlen(S),0); \
+  int i = co_str_cmp(J,s); co_obj_free(s); i; })
 
 #endif
