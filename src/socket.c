@@ -98,7 +98,7 @@ int co_socket_destroy(co_obj_t* self) {
     co_socket_t *this = (co_socket_t*)self;
     close(this->fd);
     close(this->rfd);
-    free(this);
+    co_obj_free(self);
     return 1;
   } else return 0;
 }
@@ -231,7 +231,8 @@ int unix_socket_init(co_obj_t *self) {
     this->fd_registered = false;
     this->rfd_registered = false;
     this->listen = false;
-    this->uri = strdup("unix://");
+    this->uri = h_strdup("unix://");
+    hattach(this->uri,this);
     return 1;
   } else return 0;
 }

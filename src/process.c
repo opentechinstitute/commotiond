@@ -55,13 +55,13 @@ co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *n
 
   CHECK_MEM(new_proc);
   
-  new_proc->name = strdup(name); 
+  new_proc->name = h_strdup(name); 
   hattach(new_proc->name,new_proc);
-  new_proc->pid_file = strdup(pid_file); 
+  new_proc->pid_file = h_strdup(pid_file); 
   hattach(new_proc->pid_file,new_proc);
-  new_proc->exec_path = strdup(exec_path); 
+  new_proc->exec_path = h_strdup(exec_path); 
   hattach(new_proc->exec_path,new_proc);
-  new_proc->run_path = strdup(run_path);
+  new_proc->run_path = h_strdup(run_path);
   hattach(new_proc->run_path,new_proc);
 
   if(!new_proc->init((co_obj_t*)new_proc)) {
@@ -79,7 +79,7 @@ int co_process_destroy(co_obj_t *self) {
   CHECK_MEM(self);
   CHECK(IS_PROCESS(self),"Not a process.");
 
-  free(self);
+  co_obj_free(self);
 
   return 1;
 

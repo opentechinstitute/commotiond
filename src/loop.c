@@ -55,12 +55,6 @@ static bool loop_sigchld = false;
 static bool loop_exit = false;
 static int poll_fd = -1;
 
-co_timer_t co_timer_proto = {
-  .pending = false,
-  .timer_cb = NULL,
-  .deadline = {0}
-};
-
 //Private functions
 
 static void _co_loop_handle_signals(int sig) {
@@ -457,16 +451,16 @@ int co_loop_set_timer(co_obj_t *old_timer, long msecs, co_obj_t *context) {
   return co_loop_add_timer((co_obj_t*)timer,context);
 }
 
-co_obj_t *co_timer_create(size_t size, co_timer_t proto) {
-  if (!proto.timer_cb) proto.timer_cb = NULL;
-  if (proto.deadline.tv_sec == 0 && proto.deadline.tv_usec == 0) proto.deadline = (struct timeval){0};
-  proto.pending = false;
+co_obj_t *co_timer_create(struct timeval deadline, co_cb_t timer_cb, void *ptr) {
+  co_timer_t *new_timer = h_calloc(1,sizeof(co_timer_t));
   
-  co_timer_t *new_timer = h_calloc(1,size);
-  *new_timer = proto;
   new_timer->_header._type = _ext8;
   new_timer->_exttype = _co_timer;
-  new_timer->_len = size;
-  new_timer->ptr = (void*)new_timer;
+  new_timer->_len = sizeof(co_timer_t);
+  new_timer->pending = false;
+  new_timer->deadline = (deadline.tv_sec == 0 && deadline.tv_usec == 0) ? deadline : (struct timeval){0};
+  new_timer->timer_cb = timer_cb ? timer_cb : NULL;
+  new_timer->ptr = ptr ? ptr : (void*)new_timer;
+  
   return (co_obj_t*)new_timer;
 }

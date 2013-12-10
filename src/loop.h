@@ -50,7 +50,7 @@ typedef struct {
   uint8_t _len;
   bool pending;
   struct timeval deadline;
-  int (*timer_cb)(co_obj_t *self, co_obj_t *context);
+  co_cb_t timer_cb;
   void *ptr;
 } co_timer_t;
 
@@ -129,6 +129,6 @@ int co_loop_set_timer(co_obj_t *timer, long msecs, co_obj_t *context);
  * @param size timer struct size
  * @param proto timer protocol
  */
-co_obj_t *co_timer_create(size_t size, co_timer_t proto);
+co_obj_t *co_timer_create(struct timeval deadline, co_cb_t timer_cb, void *ptr);
 
 #endif

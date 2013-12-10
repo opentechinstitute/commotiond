@@ -113,7 +113,7 @@
 #define IS_PROFILE(J) (IS_EXT(J) && ((co_profile_t *)J)->_exttype == _profile)
 #define IS_CBPTR(J) (IS_EXT(J) && ((co_cbptr_t *)J)->_exttype == _cbptr)
 #define IS_SOCK(J) (IS_EXT(J) && ((co_socket_t *)J)->_exttype == _sock)
-#define IS_TIMER(J) (IS_EXT(J) && ((co_timer_t *)J)->_exttype == _timer)
+#define IS_TIMER(J) (IS_EXT(J) && ((co_timer_t *)J)->_exttype == _co_timer)
 #define IS_PROCESS(J) (IS_EXT(J) && ((co_process_t *)J)->_exttype == _process)
 
 /* Flags */
