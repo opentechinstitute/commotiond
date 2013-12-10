@@ -281,4 +281,8 @@ int co_str_copy(co_obj_t *dst, const co_obj_t *src, const size_t size);
 int co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size);
 
 int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
+
+#define co_str_cmp_str(O,S) ({ co_obj_t *s = co_str8_create(S,strlen(S),0); \
+  int i = co_str_cmp(O,s); co_obj_free(s); i; })
+
 #endif
