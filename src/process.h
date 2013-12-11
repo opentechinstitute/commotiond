@@ -50,10 +50,12 @@ typedef enum {
   _FAILED = -1
 } co_process_state_t;
 
+typedef struct co_process_t co_process_t;
+
 /**
  * @struct co_process_t process struct, including process id, run path and state information
  */
-typedef struct {
+struct co_process_t {
   co_obj_t _header;
   uint8_t _exttype;
   uint8_t _len;
@@ -72,7 +74,7 @@ typedef struct {
   int (*start)(co_obj_t *self, char *argv[]);
   int (*stop)(co_obj_t *self);
   int (*restart)(co_obj_t *self);
-} co_process_t;
+} __attribute__((packed));
 
 /**
  * @brief creates a new commotion process

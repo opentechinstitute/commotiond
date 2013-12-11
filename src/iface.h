@@ -51,11 +51,13 @@ typedef enum {
   UP = 1
 } co_iface_status_t;
 
+typedef struct co_iface_t co_iface_t;
+
 /**
  * @struct co_iface_t
  * @brief contains the file descriptor, interface status (up or down), profile name, interface frequency struct, wpa control struct, wpa id, and a bool to indicare whether the interface is wireless or not
  */
-typedef struct {
+struct co_iface_t {
   co_obj_t _header;
   uint8_t _exttype;
   uint8_t _len;
@@ -66,7 +68,7 @@ typedef struct {
   struct wpa_ctrl *ctrl;
   int wpa_id;
   bool wireless;
-} co_iface_t;
+} __attribute__((packed));
 
 /**
  * @brief checks for available interfaces
