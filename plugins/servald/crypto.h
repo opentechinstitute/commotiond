@@ -6,6 +6,7 @@
 #define KEYRING_PIN NULL
 #define BUF_SIZE 1024
 
+/*
 int serval_verify(const char *sid,
 		  const size_t sid_len,
 		  const unsigned char *msg,
@@ -23,9 +24,18 @@ int serval_sign(const char *sid,
 		const size_t sig_size,
 		const char *keyringName,
 		const size_t keyring_len);
+*/
 
 int serval_crypto_register(void);
 
+int olsrd_mdp_register(void);
+
+int olsrd_mdp_sign_register(void);
+
 co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params);
+
+co_obj_t *olsrd_mdp_init(co_obj_t *self, co_obj_t *params);
+
+co_obj_t *olsrd_mdp_sign(co_obj_t *self, co_obj_t *params);
 
 #endif
