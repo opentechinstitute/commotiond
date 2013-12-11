@@ -41,14 +41,16 @@
 #include <netinet/in.h>
 #include <linux/sockios.h>
 #include "extern/wpa_ctrl.h"
-#include "extern/list.h"
+#include "obj.h"
 #include "debug.h"
 #include "iface.h"
 #include "util.h"
 #include "id.h"
 
+#include "list.h"
 
-static list_t *ifaces = NULL;
+
+static co_obj_t *ifaces = NULL;
 
 /* Run wpa_supplicant */
 static char *wpa_control_dir = "/var/run/wpa_supplicant";
@@ -57,8 +59,9 @@ static char *wpa_control_dir = "/var/run/wpa_supplicant";
  * @brief checks whether interace is wireless
  * @param co_iface available interface
  */
-static int _co_iface_is_wireless(const co_iface_t *iface) {
-	CHECK((ioctl(iface->fd, SIOCGIWNAME, &iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
+static int _co_iface_is_wireless(const co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
+  CHECK((ioctl(iface->fd, SIOCGIWNAME, &iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
   return 1;
 error: 
   return 0;
@@ -69,21 +72,23 @@ static void _co_iface_wpa_cb(char *msg, size_t len) {
   return;
 }
 
-static int _co_iface_wpa_command(const co_iface_t *iface, const char *cmd, char *buf, size_t *len) {
+static int _co_iface_wpa_command(const co_obj_t *iface_obj, const char *cmd, char *buf, size_t *len) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   CHECK(iface->ctrl != NULL, "Interface %s not connected to wpa_supplicant.", iface->ifr.ifr_name);
 
-	CHECK((wpa_ctrl_request(iface->ctrl, cmd, strlen(cmd), buf, len, _co_iface_wpa_cb) >= 0), "Failed to send command %s to wpa_supplicant.", cmd);
-	return 1;
+  CHECK((wpa_ctrl_request(iface->ctrl, cmd, strlen(cmd), buf, len, _co_iface_wpa_cb) >= 0), "Failed to send command %s to wpa_supplicant.", cmd);
+  return 1;
 
 error:
   return 0;
 }
 
-static int _co_iface_wpa_add_network(co_iface_t *iface) {
+static int _co_iface_wpa_add_network(co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
-  CHECK(_co_iface_wpa_command(iface, "ADD_NETWORK", buf, &len), "Failed to add network to wpa_supplicant.");
+  CHECK(_co_iface_wpa_command(iface_obj, "ADD_NETWORK", buf, &len), "Failed to add network to wpa_supplicant.");
   iface->wpa_id = atoi(buf);
   DEBUG("Added wpa_supplicant network #%s", buf);
   return 1;
@@ -91,22 +96,24 @@ error:
   return 0;
 }
 
-static int _co_iface_wpa_remove_network(co_iface_t *iface) {
+static int _co_iface_wpa_remove_network(co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
-  CHECK(_co_iface_wpa_command(iface, "REMOVE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
+  CHECK(_co_iface_wpa_command(iface_obj, "REMOVE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
   DEBUG("Removed wpa_supplicant network #%d", iface->wpa_id);
   return 1;
 error:
   return 0;
 }
 
-static int _co_iface_wpa_disable_network(co_iface_t *iface) {
+static int _co_iface_wpa_disable_network(co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
-  CHECK(_co_iface_wpa_command(iface, "DISABLE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
+  CHECK(_co_iface_wpa_command(iface_obj, "DISABLE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
   DEBUG("Disabled wpa_supplicant network #%d", iface->wpa_id);
   return 1;
 error:
@@ -119,60 +126,61 @@ error:
  * @param *option option to be configured
  * @param *optval configuration value
  */
-static int _co_iface_wpa_set(co_iface_t *iface, const char *option, const char *optval) {
-	char cmd[256];
-	int res;
+static int _co_iface_wpa_set(co_obj_t *iface_obj, const char *option, const char *optval) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
+  char cmd[256];
+  int res;
   char buf[WPA_REPLY_SIZE];
   size_t len;
 
-  if(iface->wpa_id < 0) { CHECK(_co_iface_wpa_add_network(iface), "Could not set option %s", option); }
+  if(iface->wpa_id < 0) { CHECK(_co_iface_wpa_add_network(iface_obj), "Could not set option %s", option); }
 
 	res = snprintf(cmd, sizeof(cmd), "SET_NETWORK %d %s %s",
 			  iface->wpa_id, option, optval);
 	CHECK((res > 0 && (size_t) res <= sizeof(cmd) - 1), "Too long SET_NETWORK command.");
 	
-  return _co_iface_wpa_command(iface, cmd, buf, &len);
+  return _co_iface_wpa_command(iface_obj, cmd, buf, &len);
 
 error:
   return 0;
 }
 
-static int _co_iface_match_i(const void *iface, const void *iface_name) {
-  const co_iface_t *this_iface = iface;
+static co_obj_t *_co_iface_match_i(co_obj_t *list, co_obj_t *iface, void *iface_name) {
+  const co_iface_t *this_iface = (co_iface_t*)iface;
   const char *this_name = iface_name;
-  if((strcmp(this_iface->ifr.ifr_name, this_name)) == 0) return 0;
-  return -1;
+  if((strcmp(this_iface->ifr.ifr_name, this_name)) == 0) return iface;
+  return NULL;
 }
 
 int co_ifaces_create(void) {
-  CHECK((ifaces = list_create(IFACES_MAX)) != NULL, "Interface loader creation failed, clearing lists.");
+  CHECK((ifaces = co_list16_create()) != NULL, "Interface loader creation failed, clearing lists.");
   return 1;
 
 error:
-  list_destroy(ifaces);
-  free(ifaces);
+  co_obj_free(ifaces);
   return 0;
 }
 
-int co_iface_remove(const char *iface_name) {
-  lnode_t *node;
-  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to delete interface %s!", iface_name);
-  node = list_delete(ifaces, node);
-  co_iface_t *iface = lnode_get(node);
+int co_iface_remove(char *iface_name) {
+  co_obj_t *iface = NULL;
+  CHECK((iface = co_list_parse(ifaces, _co_iface_match_i, iface_name)) != NULL, "Failed to delete interface %s!", iface_name);
+  iface = co_list_delete(ifaces, iface);
   co_iface_unset_ip(iface);
   co_iface_wireless_disable(iface);
   co_iface_wpa_disconnect(iface);
-  free(iface->profile);
-  free(iface);
+  co_obj_free(iface);
   return 1;
 
 error:
   return 0;
 }
 
-co_iface_t *co_iface_add(const char *iface_name, const int family) {
-  co_iface_t *iface = malloc(sizeof(co_iface_t));
-  memset(iface, '\0', sizeof(co_iface_t));
+co_obj_t *co_iface_add(const char *iface_name, const int family) {
+  co_iface_t *iface = h_calloc(1,sizeof(co_iface_t));
+  iface->_len = (sizeof(co_iface_t));
+  iface->_exttype = _iface;
+  iface->_header._type = _ext8;
+  
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
   strlcpy(iface->ifr.ifr_name, iface_name, IFNAMSIZ);
   
@@ -183,26 +191,27 @@ co_iface_t *co_iface_add(const char *iface_name, const int family) {
     iface->ifr.ifr_addr.sa_family = AF_INET6; 
   } else {
     ERROR("Invalid address family!");
-    free(iface);
+    co_obj_free((co_obj_t*)iface);
     return NULL;
   }
 
   /* Check whether interface is wireless or not */
-  if(_co_iface_is_wireless(iface)) iface->wireless = true;
+  if(_co_iface_is_wireless((co_obj_t*)iface)) iface->wireless = true;
   iface->wpa_id = -1;
     
-  list_append(ifaces, lnode_create((void *)iface));
-  return iface; 
+  co_list_append(ifaces, (co_obj_t*)iface);
+  return (co_obj_t*)iface; 
 }
 
-int co_iface_get_mac(co_iface_t *iface, unsigned char *output, int output_size) {
+int co_iface_get_mac(co_obj_t *iface, unsigned char *output, int output_size) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   co_iface_t *maciface = NULL;
   CHECK(output_size == 6, "output_size does not equal six");
 
   maciface = malloc(sizeof(co_iface_t));
   memset(maciface, '\0', sizeof(co_iface_t));
   memmove(maciface, iface, sizeof(co_iface_t));
-  if (0 == ioctl(iface->fd, SIOCGIFHWADDR, &maciface->ifr)) {
+  if (0 == ioctl(((co_iface_t*)iface)->fd, SIOCGIFHWADDR, &maciface->ifr)) {
     DEBUG("Received MAC Address : %02x:%02x:%02x:%02x:%02x:%02x\n",
                 maciface->ifr.ifr_hwaddr.sa_data[0],maciface->ifr.ifr_hwaddr.sa_data[1],maciface->ifr.ifr_hwaddr.sa_data[2]
                 ,maciface->ifr.ifr_hwaddr.sa_data[3],maciface->ifr.ifr_hwaddr.sa_data[4],maciface->ifr.ifr_hwaddr.sa_data[5]);
@@ -216,9 +225,10 @@ error:
 }
 
 
-int co_iface_set_ip(co_iface_t *iface, const char *ip_addr, const char *netmask) {
-  CHECK_MEM(iface); 
-	struct sockaddr_in *addr = (struct sockaddr_in *)&iface->ifr.ifr_addr;
+int co_iface_set_ip(co_obj_t *iface_obj, const char *ip_addr, const char *netmask) {
+  CHECK_MEM(iface_obj); 
+  co_iface_t *iface = (co_iface_t*)iface_obj;
+  struct sockaddr_in *addr = (struct sockaddr_in *)&iface->ifr.ifr_addr;
 
   DEBUG("Setting address %s and netmask %s.", ip_addr, netmask);
  
@@ -242,8 +252,10 @@ error:
   return 0;
 }
 
-int co_iface_unset_ip(co_iface_t *iface) {
-  CHECK_MEM(iface); 
+int co_iface_unset_ip(co_obj_t *iface_obj) {
+  CHECK_MEM(iface_obj); 
+  CHECK(IS_IFACE(iface_obj),"Not an iface.");
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   //Get and set interface flags.
   CHECK((ioctl(iface->fd, SIOCGIFFLAGS, &iface->ifr) == 0), "Interface shutdown: %s", iface->ifr.ifr_name);
 	iface->ifr.ifr_flags &= ~IFF_UP;
@@ -254,17 +266,23 @@ error:
   return 0;
 }
 
-int co_iface_wpa_disconnect(co_iface_t *iface) {
+int co_iface_wpa_disconnect(co_obj_t *iface_obj) {
+  CHECK(IS_IFACE(iface_obj),"Not an iface.");
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   if(iface->ctrl) {
     wpa_ctrl_detach(iface->ctrl);
     wpa_ctrl_close(iface->ctrl);
     return 1;
-  } else return 0;
+  }
+error:
+  return 0;
 }
 
-int co_iface_wpa_connect(co_iface_t *iface) {
-	char *filename;
-	size_t length;
+int co_iface_wpa_connect(co_obj_t *iface_obj) {
+  CHECK(IS_IFACE(iface_obj),"Not an iface.");
+  co_iface_t *iface = (co_iface_t*)iface_obj;
+  char *filename;
+  size_t length;
 
   CHECK(iface->wireless, "Not a wireless interface: %s", iface->ifr.ifr_name);
 
@@ -285,11 +303,15 @@ error:
 }
 
 
-int co_iface_set_ssid(co_iface_t *iface, const char *ssid) {
+int co_iface_set_ssid(co_obj_t *iface, const char *ssid) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   return _co_iface_wpa_set(iface, "ssid", ssid); 
+error:
+  return 0;
 }
 
-int co_iface_set_bssid(co_iface_t *iface, const char *bssid) {
+int co_iface_set_bssid(co_obj_t *iface, const char *bssid) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
 	char cmd[256], *pos, *end;
 	int ret;
   char buf[WPA_REPLY_SIZE];
@@ -303,7 +325,7 @@ int co_iface_set_bssid(co_iface_t *iface, const char *bssid) {
 		return 0;
 	}
 	pos += ret;
-	ret = snprintf(pos, end - pos, " %d %s", iface->wpa_id, bssid);
+	ret = snprintf(pos, end - pos, " %d %s", ((co_iface_t*)iface)->wpa_id, bssid);
 	if (ret < 0 || ret >= end - pos) {
 		ERROR("Too long BSSID command.");
 		return 0;
@@ -311,27 +333,42 @@ int co_iface_set_bssid(co_iface_t *iface, const char *bssid) {
 	pos += ret;
 
 	return _co_iface_wpa_command(iface, cmd, buf, &len);
+error:
+  return 0;
 }
 
-int co_iface_set_frequency(co_iface_t *iface, const int frequency) {
+int co_iface_set_frequency(co_obj_t *iface, const int frequency) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   char freq[FREQ_LEN]; 
   snprintf(freq, FREQ_LEN, "%d", frequency);
   return _co_iface_wpa_set(iface, "frequency", freq); 
+error:
+  return 0;
 }
 
-int co_iface_set_encryption(co_iface_t *iface, const char *proto) {
+int co_iface_set_encryption(co_obj_t *iface, const char *proto) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   return _co_iface_wpa_set(iface, "proto", proto); 
+error:
+  return 0;
 }
 
-int co_iface_set_key(co_iface_t *iface, const char *key) {
+int co_iface_set_key(co_obj_t *iface, const char *key) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   return _co_iface_wpa_set(iface, "psk", key); 
+error:
+  return 0;
 }
 
-int co_iface_set_mode(co_iface_t *iface, const char *mode) {
+int co_iface_set_mode(co_obj_t *iface, const char *mode) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   return _co_iface_wpa_set(iface, "mode", mode); 
+error:
+  return 0;
 }
 
-int co_iface_set_apscan(co_iface_t *iface, const int value) {
+int co_iface_set_apscan(co_obj_t *iface, const int value) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   char cmd[256];
   char buf[WPA_REPLY_SIZE];
   size_t len;
@@ -340,22 +377,28 @@ int co_iface_set_apscan(co_iface_t *iface, const int value) {
 	cmd[sizeof(cmd) - 1] = '\0';
 
 	return _co_iface_wpa_command(iface, cmd, buf, &len);
+error:
+  return 0;
 }
 
-int co_iface_wireless_enable(co_iface_t *iface) {
+int co_iface_wireless_enable(co_obj_t *iface) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
   char cmd[256];
   char buf[WPA_REPLY_SIZE];
   size_t len;
 
-  snprintf(cmd, sizeof(cmd), "ENABLE_NETWORK %d", iface->wpa_id);
+  snprintf(cmd, sizeof(cmd), "ENABLE_NETWORK %d", ((co_iface_t*)iface)->wpa_id);
 	cmd[sizeof(cmd) - 1] = '\0';
 
 	return _co_iface_wpa_command(iface, cmd, buf, &len);
+error:
+  return 0;
 }
 
-int co_iface_wireless_disable(co_iface_t *iface) {
-  CHECK(_co_iface_wpa_disable_network(iface), "Failed to disable network %s", iface->ifr.ifr_name);
-  CHECK(_co_iface_wpa_remove_network(iface), "Failed to remove network %s", iface->ifr.ifr_name);
+int co_iface_wireless_disable(co_obj_t *iface) {
+  CHECK(IS_IFACE(iface),"Not an iface.");
+  CHECK(_co_iface_wpa_disable_network(iface), "Failed to disable network %s", ((co_iface_t*)iface)->ifr.ifr_name);
+  CHECK(_co_iface_wpa_remove_network(iface), "Failed to remove network %s", ((co_iface_t*)iface)->ifr.ifr_name);
 	return 1;
 error:
   return 0;
@@ -445,19 +488,18 @@ error:
   return 0;
 }
 
-char *co_iface_profile(const char *iface_name) {
-  lnode_t *node;
-  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to get interface %s profile!", iface_name);
-  co_iface_t *iface = lnode_get(node);
-  return iface->profile;
+char *co_iface_profile(char *iface_name) {
+  co_obj_t *iface = NULL;
+  CHECK((iface = co_list_parse(ifaces, _co_iface_match_i, iface_name)) != NULL, "Failed to get interface %s profile!", iface_name);
+  return ((co_iface_t*)iface)->profile;
 error:
   return NULL;
 }
 
-co_iface_t *co_iface_get(const char *iface_name) {
-  lnode_t *node;
-  CHECK((node = list_find(ifaces, iface_name, _co_iface_match_i)) != NULL, "Failed to get interface %s profile!", iface_name);
-  return lnode_get(node);
+co_obj_t *co_iface_get(char *iface_name) {
+  co_obj_t *iface = NULL;
+  CHECK((iface = co_list_parse(ifaces, _co_iface_match_i, iface_name)) != NULL, "Failed to get interface %s!", iface_name);
+  return iface;
 error:
   return NULL;
 }

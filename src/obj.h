@@ -79,6 +79,7 @@
 #define _sock 5
 #define _co_timer 6
 #define _process 7
+#define _iface 8
 
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
@@ -116,6 +117,7 @@
 #define IS_SOCK(J) (IS_EXT(J) && ((co_socket_t *)J)->_exttype == _sock)
 #define IS_TIMER(J) (IS_EXT(J) && ((co_timer_t *)J)->_exttype == _co_timer)
 #define IS_PROCESS(J) (IS_EXT(J) && ((co_process_t *)J)->_exttype == _process)
+#define IS_IFACE(J) (IS_EXT(J) && ((co_iface_t *)J)->_exttype == _iface)
 
 /* Flags */
 #define _OBJ_SCHEMA ((1 << 0))

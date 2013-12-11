@@ -109,7 +109,7 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename), 0));
   hattach(plugin->filename, plugin);
   if(_shutdown != NULL) plugin->shutdown = _shutdown;
-  plugin->_len = (sizeof(co_obj_t *) * 4);
+  plugin->_len = (sizeof(co_plugin_t));
   plugin->_exttype = _plug;
   plugin->_header._type = _ext8;
   _init((co_obj_t *)plugin, NULL);
