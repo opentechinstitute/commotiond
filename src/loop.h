@@ -34,7 +34,6 @@
 #define _LOOP_H
 
 #include <stdlib.h>
-#include "extern/list.h"
 #include "process.h"
 #include "socket.h"
 
