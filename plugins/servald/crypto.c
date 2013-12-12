@@ -17,7 +17,7 @@ static keyring_file *mdp_keyring;
 static unsigned char *mdp_key;
 static int mdp_key_len;
 
-static int _serval_sign(unsigned char *key,
+static int serval_create_signature(unsigned char *key,
 			const unsigned char *msg,
 			const size_t msg_len,
 			unsigned char *sig_buffer,
@@ -119,7 +119,7 @@ static int serval_sign(const char *sid_str,
 		     &key,
 		     NULL) == 0, "Failed to initialize Serval keyring");
   
-  ret = _serval_sign(key, msg, msg_len, signed_msg, SIGNATURE_BYTES + msg_len);
+  ret = serval_create_signature(key, msg, msg_len, signed_msg, SIGNATURE_BYTES + msg_len);
   
   if (ret == 0) { //success
 	strncpy(sig_str_buf,alloca_tohex(signed_msg + msg_len,SIGNATURE_BYTES),2*SIGNATURE_BYTES);
@@ -372,8 +372,7 @@ error:
   return -1;
 }
 
-co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params) {
-  co_obj_t *ret = NULL;
+int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   int list_len = co_list_length(params), keypath = 0;
   
   CHECK(IS_LIST(params) && list_len >= 2,"Invalid params");
@@ -390,7 +389,7 @@ co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params) {
     if (list_len == 3) {
       CHECK(serval_sign(_LIST_ELEMENT(params,1),
 			co_str_len(co_list_element(params,1)),
-			_LIST_ELEMENT(params,2),
+			(unsigned char*)_LIST_ELEMENT(params,2),
 			co_str_len(co_list_element(params,2)),
 			sig_buf,
 			2*SIGNATURE_BYTES + 1,
@@ -399,14 +398,14 @@ co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params) {
     } else if (list_len == 2) {
       CHECK(serval_sign(NULL,
 			0,
-			_LIST_ELEMENT(params,1),
+			(unsigned char*)_LIST_ELEMENT(params,1),
 			co_str_len(co_list_element(params,1)),
 			sig_buf,
 			2*SIGNATURE_BYTES + 1,
 			keypath ? _LIST_ELEMENT(params,2) + 10 : NULL, // strlen("--length=") == 10
 			keypath ? co_str_len(co_list_element(params,2)) - 10 : 0) == 0,"Failed to create signature");
     }
-    ret = co_str8_create(sig_buf,2*SIGNATURE_BYTES+1,0);
+    *output = co_str8_create(sig_buf,2*SIGNATURE_BYTES+1,0);
     
   } else if (co_str_cmp_str(co_list_element(params,0),"verify") == 0) {
     
@@ -414,7 +413,7 @@ co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params) {
     int verdict = -1;
     CHECK(verdict = serval_verify(_LIST_ELEMENT(params,1),
 				  co_str_len(co_list_element(params,1)),
-				  _LIST_ELEMENT(params,3),
+				  (unsigned char*)_LIST_ELEMENT(params,3),
 				  co_str_len(co_list_element(params,3)),
 				  _LIST_ELEMENT(params,2),
 				  co_str_len(co_list_element(params,2)),
@@ -422,20 +421,20 @@ co_obj_t *serval_crypto_handler(co_obj_t *self, co_obj_t *params) {
 				  keypath ? co_str_len(co_list_element(params,4)) - 10 : 0) >= 0, "Error during signature verification");
     if (verdict == 0) {
       char msg[] = "Message verified!";
-      ret = co_str8_create(msg,strlen(msg),0);
+      *output = co_str8_create(msg,strlen(msg),0);
     } else if (verdict == 1) {
       char msg[] = "Message NOT verified!";
-      ret = co_str8_create(msg,strlen(msg),0);
+      *output = co_str8_create(msg,strlen(msg),0);
     }
     
   }
   
-  error:
-  return ret;
+  return 0;
+error:
+  return -1;
 }
 
-co_obj_t *olsrd_mdp_init(co_obj_t *self, co_obj_t *params) {
-  co_obj_t *ret = NULL;
+int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   int list_len = co_list_length(params);
   char *keyring_path = NULL;
   int keyring_len = 0;
@@ -444,7 +443,7 @@ co_obj_t *olsrd_mdp_init(co_obj_t *self, co_obj_t *params) {
   
   if (list_len == 3) {
     CHECK(!strncmp("--keyring=",co_obj_data_ptr(co_list_element(params,2)),10),"Invalid keyring");
-    keyring_len = co_obj_data((void**)&keyring_path,co_list_element(params,2));
+    keyring_len = co_obj_data(&keyring_path,co_list_element(params,2));
   }
   
   CHECK(_serval_init(_LIST_ELEMENT(params,1),
@@ -457,30 +456,31 @@ co_obj_t *olsrd_mdp_init(co_obj_t *self, co_obj_t *params) {
   
   // TODO: prepare response object
   
+  return 0;
 error:
-  return ret;
+  return -1;
 }
 
-co_obj_t *olsrd_mdp_sign(co_obj_t *self, co_obj_t *params) {
-  co_obj_t *ret = NULL;
-  int list_len = co_list_length(params), msg_len = 0, sig_buf_len;
+int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  int list_len = co_list_length(params), msg_len = 0, ret = -1, sig_buf_len;
   unsigned char *msg = NULL, *sig_buf = NULL;
   
   CHECK(mdp_keyring && mdp_key && mdp_key_len,"Haven't run olsrd_mdp_init");
   CHECK(IS_LIST(params) && list_len == 2,"Invalid params");
   
-  msg_len = co_obj_data((void**)&msg,co_list_element(params,1));
+  msg_len = co_obj_data(&msg,co_list_element(params,1));
   sig_buf_len = SIGNATURE_BYTES + msg_len;
   sig_buf = calloc(sig_buf_len,sizeof(unsigned char));
   
-  CHECK(_serval_sign(mdp_key,
+  CHECK(serval_create_signature(mdp_key,
                      msg,
 		     msg_len,
 		     sig_buf,
 		     sig_buf_len) == 0,"Failed to sign OLSRd packet");
   
-  ret = co_bin8_create(sig_buf,sig_buf_len,0);
+  *output = co_bin8_create(sig_buf,sig_buf_len,0);
   
+  ret = 0;
 error:
   if (sig_buf) free(sig_buf);
   return ret;

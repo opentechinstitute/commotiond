@@ -116,7 +116,7 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
   return -1;
 }
 
-co_obj_t *serval_timer_cb(co_obj_t *self, co_obj_t *context) {
+int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
   DEBUG("SERVAL_TIMER_CB");
   co_timer_t *timer = (co_timer_t*)self;
   co_obj_t *node = NULL;
@@ -133,8 +133,9 @@ co_obj_t *serval_timer_cb(co_obj_t *self, co_obj_t *context) {
   DEBUG("CALLING TIMER FUNC");
   alarm->function(alarm); // Serval callback function associated with alarm/socket
 
+  return 0;
 error:
-  return NULL;
+  return -1;
 }
 
 /** Overridden Serval function to schedule timed events */
@@ -336,12 +337,13 @@ schedule(&_sched_##X); }
 
 }
 
-co_obj_t *_name(co_obj_t *self, co_obj_t *params) {
+int _name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   const char name[] = "servald";
-  return co_str8_create(name,strlen(name),0);
+  *output = co_str8_create(name,strlen(name),0);
+  return 0;
 }
 
-void _init(void) {
+int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("INIT");
   
   CHECK(serval_register() == 0,"Failed to register Serval commands");
@@ -372,8 +374,9 @@ void _init(void) {
   
   setup_sockets();
   
+  return 0;
 error:
-  return;
+  return -1;
 }
 
 static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context) {

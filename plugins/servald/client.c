@@ -178,7 +178,7 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   // parse params into args, argc
   if (!IS_LIST(params)) {
     ERROR("Invalid params");
-    return 0;
+    return -1;
   }
   int argc = co_list_length(params);
   char *argv[argc];
@@ -250,7 +250,7 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   }
   
   if (retbuf) free(retbuf);
-  return 1;
+  return 0;
 }
 
 int serval_register(void) {
