@@ -1,17 +1,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "client.h"
-#include "obj.h"
-#include "list.h"
-#include "cmd.h"
-#include "tree.h"
-
 #include "serval.h"
 #include "serval/conf.h"
 #include "serval/mdp_client.h"
 #include "serval/rhizome.h"
 #include "serval/crypto.h"
+
+#include "client.h"
+#include "obj.h"
+#include "list.h"
+#include "cmd.h"
+#include "tree.h"
+#include "debug.h"
 
 #define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
 _DECLARE_SERVAL(commandline_usage);
