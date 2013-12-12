@@ -135,28 +135,6 @@ static co_obj_t *_co_loop_match_timer_i(co_obj_t *list, co_obj_t *timer, void *p
   return NULL;
 }
 
-static co_obj_t *_co_loop_hangup_socket_i(co_obj_t *list, co_obj_t *sock, void *efd) {
-  co_socket_t *this_sock = (co_socket_t*)sock;
-  int *this_efd = efd;
-
-  if((this_sock->fd == *this_efd) || (this_sock->rfd == *this_efd)) {
-    this_sock->hangup(sock, efd);
-  }
-
-  return NULL;
-}
-
-static co_obj_t *_co_loop_poll_socket_i(co_obj_t *list, co_obj_t *sock, void *efd) {
-  co_socket_t *this_sock = (co_socket_t*)sock;
-  int *this_efd = efd;
-
-  if((this_sock->fd == *this_efd) || (this_sock->rfd == *this_efd)) {
-    this_sock->poll_cb(sock, efd);
-  }
-
-  return NULL;
-}
-
 static co_obj_t *_co_loop_poll_process_i(co_obj_t *list, co_obj_t *proc, void *pid) {
   pid_t *this_pid = pid;
   co_process_t *this_proc = (co_process_t*)proc;
@@ -182,20 +160,23 @@ static co_obj_t *_co_loop_destroy_process_i(co_obj_t *list, co_obj_t *proc, void
 }
 
 static void _co_loop_poll_sockets(int deadline) {
+  co_socket_t *sock = NULL;
   if (deadline < 0) deadline = 0;
   int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, deadline < LOOP_TIMEOUT ? deadline : LOOP_TIMEOUT);
   
   for(int i = 0; i < n; i++) {
+    sock = (co_socket_t*)events[i].data.ptr;
+    sock->events = events[i].events;
     if((events[i].events & EPOLLERR) || 
       (!(events[i].events & EPOLLIN))) {
-      WARN("EPOLL Error!");
-	    close (events[i].data.fd);
-	    continue;
+        WARN("EPOLL Error!");
+        close (sock->fd);
+        continue;
     } else if(events[i].events & EPOLLHUP) {
       DEBUG("Hanging up socket.");
-      co_list_parse(sockets, _co_loop_hangup_socket_i, &events[i].data.fd);
+      sock->hangup((co_obj_t*)sock, events[i].data.ptr);
     } else {
-      co_list_parse(sockets, _co_loop_poll_socket_i, &events[i].data.fd);
+      sock->poll_cb((co_obj_t*)sock, events[i].data.ptr);
     }
   }
 
@@ -345,7 +326,7 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
     CHECK((node == (co_obj_t*)sock), "Different socket with URI %s already registered.", sock->uri);
     if((sock->listen) && (sock->rfd > 0) && (!sock->rfd_registered)) {
       DEBUG("Adding RFD %d to epoll.", sock->rfd);
-      event.data.fd = sock->rfd;
+      event.data.ptr = (co_obj_t*)sock;
       CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->rfd, &event)) != -1, "Failed to add receive FD epoll event.");
       sock->rfd_registered = true; 
     } else {
@@ -353,7 +334,7 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
     }
   } else if((sock->listen) && (sock->fd > 0) && !sock->fd_registered) {
       DEBUG("Adding FD %d to epoll.", sock->fd);
-      event.data.fd = sock->fd;
+      event.data.ptr = (co_obj_t*)sock;
       CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->fd, &event)) != -1, "Failed to add listen FD epoll event.");
       sock->fd_registered = true; 
       co_list_append(sockets, (co_obj_t*)sock);

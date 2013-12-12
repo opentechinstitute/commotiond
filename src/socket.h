@@ -70,6 +70,7 @@ struct co_socket_t {
   int (*getopt)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
   int (*poll_cb)(co_obj_t *self, co_obj_t *context);
   int (*register_cb)(co_obj_t *self, co_obj_t *context);
+  unsigned int events;
 } __attribute__((packed));
 
 /**
