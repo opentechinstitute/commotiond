@@ -54,6 +54,8 @@
 #include "id.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
+#include "core.h"
 
 #define REQUEST_MAX 1024
 #define RESPONSE_MAX 1024
@@ -96,11 +98,11 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   }
   /* If it's a commotion message type, parse the header, target and payload */
   CHECK(co_list_import(&request, reqbuf, reqlen) > 0, "Failed to import request.");
-  co_obj_data((void **)&type, co_list_element(request, 0)); 
+  co_obj_data((char **)&type, co_list_element(request, 0)); 
   CHECK(*type == 0, "Not a valid request.");
-  CHECK(co_obj_data((void **)&id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
-  co_obj_t *ret = co_cmd_exec(co_list_element(request, 2), co_list_element(request, 3));
-  if(ret != NULL)
+  CHECK(co_obj_data((char **)&id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
+  co_obj_t *ret = NULL;
+  if(co_cmd_exec(co_list_element(request, 2), &ret, co_list_element(request, 3)))
   {
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
     sock->send((co_obj_t*)sock, respbuf, resplen);
@@ -216,11 +218,20 @@ static void print_usage() {
   );
 }
 
-void *debug_alloc(void *ptr, size_t len)
+static void *debug_alloc(void *ptr, size_t len)
 {
   void *ret = realloc(ptr, len);
-  DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, len);
+  DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, (int)len);
   return ret;
+}
+
+
+int 
+default_schema(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  DEBUG("Loading default schema.");
+  co_tree_insert(self, "ssid", sizeof("ssid") - 1, co_str8_create("commotionwireless.net", sizeof("commotionwireless.net"), 0));  
+  return 1;
 }
 
 /**
@@ -299,8 +310,10 @@ int main(int argc, char *argv[]) {
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */
+  co_schema_register(default_schema);
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
   
+  co_cmd_register("help", sizeof("help") - 1, "help <none>", sizeof("help <none>") - 1, "Print list of commands and usage information.", sizeof("Print list of commands and usage information.") - 1, cmd_help);
   /* Add standard commands */
   /*
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
