@@ -68,6 +68,17 @@
 #include <errno.h>
 #include <string.h>
 
+#undef LOG
+#undef DEBUG
+#undef CLEAN_ERRNO
+#undef ERROR
+#undef WARN
+#undef INFO
+#undef CHECK
+#undef SENTINEL
+#undef CHECK_MEM
+#undef CHECK_DEBUG
+
 #ifdef USESYSLOG
 #include <syslog.h>
 #define LOG(M, ...) syslog(M, ##__VA_ARGS__)
