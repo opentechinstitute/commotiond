@@ -5,6 +5,7 @@
 #include "obj.h"
 #include "list.h"
 #include "cmd.h"
+#include "tree.h"
 
 #include "serval.h"
 #include "serval/conf.h"
@@ -174,11 +175,12 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   struct cli_parsed parsed;
   char *retbuf = NULL;
   unsigned long len = 0;
+  int ret = 0;
   
   // parse params into args, argc
   if (!IS_LIST(params)) {
     ERROR("Invalid params");
-    return -1;
+    return 0;
   }
   int argc = co_list_length(params);
   char *argv[argc];
@@ -203,14 +205,11 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   switch (result) {
     case 0:
       // Do not run the command if the configuration does not load ok.
-      if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1)
-        result = cli_invoke(&parsed, NULL);
-      else {
-// 	strbuf b = strbuf_alloca(160);
-// 	strbuf_append_argv(b, argc, args);
-// 	result = WHYF("configuration defective, not running command: %s", strbuf_str(b));
-        result = -1;
-      }
+      if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
+        if (cli_invoke(&parsed, NULL) == 0)
+	  ret = 1;
+      } else
+        ret = -1;
       break;
     case 1:
     case 2:
@@ -242,15 +241,20 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   dup2(old_stdout, STDOUT_FILENO);  /* reconnect stdout for testing */
 
   if (len < UINT8_MAX) {
-    *output = co_str8_create(retbuf,len,0);
+    CHECK(co_tree_insert(*output,"result",6,co_str8_create(retbuf,len,0)),"Failed to set return value");
   } else if (len < UINT16_MAX) {
-    *output = co_str16_create(retbuf,len,0);
+    CHECK(co_tree_insert(*output,"result",6,co_str16_create(retbuf,len,0)),"Failed to set return value");
   } else if (len < UINT32_MAX) {
-    *output = co_str32_create(retbuf,len,0);
+    CHECK(co_tree_insert(*output,"result",6,co_str32_create(retbuf,len,0)),"Failed to set return value");
   }
   
+  if (ret == -1) 
+    ret = 0;
+  else
+    ret = 1;
+error:
   if (retbuf) free(retbuf);
-  return 0;
+  return ret;
 }
 
 int serval_register(void) {
@@ -259,7 +263,7 @@ int serval_register(void) {
 	       desc[] = "Serval DNA";
   CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_handler),"Failed to register commands");
   
-  return 0;
+  return 1;
 error:
-  return -1;
+  return 0;
 }

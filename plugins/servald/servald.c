@@ -110,10 +110,10 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
     
     DEBUG("CALLING ALARM FUNC");
     alarm->function(alarm); // Serval callback function associated with alarm/socket
-    return 0;
+    return 1;
   }
   
-  return -1;
+  return 0;
 }
 
 int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
@@ -135,7 +135,7 @@ int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
 
   return 0;
 error:
-  return -1;
+  return 1;
 }
 
 /** Overridden Serval function to schedule timed events */
@@ -260,8 +260,9 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     co_list_append(socks, (co_obj_t*)sock);
   }
   
-error:
   return 0;
+error:
+  return -1;
 }
 
 int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
@@ -285,7 +286,7 @@ error:
   return -1;
 }
 
-static void setup_sockets() {
+static void setup_sockets(void) {
   /* Setup up MDP & monitor interface unix domain sockets */
   DEBUG("MDP SOCKETS");
   overlay_mdp_setup_sockets();
@@ -339,12 +340,16 @@ schedule(&_sched_##X); }
 
 int _name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   const char name[] = "servald";
-  *output = co_str8_create(name,strlen(name),0);
+  CHECK((*output = co_str8_create(name,strlen(name),0)),"Failed to create plugin name");
+  return 1;
+error:
   return 0;
 }
 
 int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("INIT");
+  
+  // TODO PARSE CONFIG OPTIONS (INCLUDING MDP PARAMS)
   
   CHECK(serval_register() == 0,"Failed to register Serval commands");
   CHECK(serval_crypto_register() == 0,"Failed to register Serval-crypto commands");
@@ -374,9 +379,9 @@ int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   setup_sockets();
   
-  return 0;
+  return 1;
 error:
-  return -1;
+  return 0;
 }
 
 static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context) {
