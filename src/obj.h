@@ -269,7 +269,7 @@ size_t co_obj_raw(char **data, const co_obj_t *object);
 
 size_t co_obj_data(char **data, const co_obj_t *object);
 
-#define co_obj_data_ptr(J) ({ void *d = NULL; co_obj_data(&d,J); d; })
+#define co_obj_data_ptr(J) ({ char *d = NULL; co_obj_data(&d,J); d; })
 
 size_t co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags);
 
@@ -290,6 +290,6 @@ int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
 #define co_str_cmp_str(J,S) ({ co_obj_t *s = co_str8_create(S,strlen(S),0); \
   int i = co_str_cmp(J,s); co_obj_free(s); i; })
 
-#define co_str_len(J) ({ void **v = NULL; co_obj_data(v,J); })
+#define co_str_len(J) ({ char **v = NULL; co_obj_data(v,J); })
 
 #endif
