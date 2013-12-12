@@ -377,6 +377,7 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   int ret = 0, mdp_sid_len, mdp_path_len;
   co_obj_t *global = co_str8_create("global",6,0);
   char *mdp_sid = NULL, *mdp_path = NULL;
+  unsigned char packedSid[SID_SIZE] = {0};
   
   // TODO PARSE CONFIG OPTIONS (INCLUDING MDP PARAMS)
   CHECK(co_profile_get_str(global,&serval_path,"serval_path",11) < PATH_MAX - 16,"serval_path config parameter too long");
@@ -388,7 +389,8 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   mdp_path_len = co_profile_get_str(global,&mdp_path,"mdp_keyring",11);
   CHECK(mdp_path_len < PATH_MAX,"mdp_keyring config parameter too long");
   
-  CHECK(_serval_init(mdp_sid,
+  stowSid(packedSid,0,mdp_sid);
+  CHECK(_serval_init(packedSid,
 			 mdp_sid_len,
 			 mdp_path,
 			 mdp_path_len,
