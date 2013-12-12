@@ -62,9 +62,12 @@ static struct
 size_t
 co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj_t *param)
 {
-  CHECK(((output != NULL) && (method != NULL) && (param != NULL)), "Invalid request components.");
+  
+  CHECK(((output != NULL) && (method != NULL)), "Invalid request components.");
   CHECK(olen > sizeof(_req_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
   size_t written = 0;
+  char *cursor = NULL;
+  size_t s = 0;
 
   /* Pack request header */
   memmove(output + written, &_req_header.list_type, sizeof(_req_header.list_type));
@@ -104,8 +107,17 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
 
   /* Pack parameters */
   CHECK(written < olen, "Output buffer too small.");
-  CHECK(IS_LIST(param), "Not a valid parameter list.");
-  written += co_list_raw(output + written, olen - written, param);
+  if(param != NULL)
+  {
+    if(IS_LIST(param))
+      written += co_list_raw(output + written, olen - written, param);
+    else 
+    {
+      s = co_obj_raw(&cursor, param);
+      written += s;
+      memmove(output + written, cursor, s);
+    }
+  }
   CHECK(written >= 0, "Failed to pack object.");
   DEBUG("Request bytes written: %d", (int)written);
   CHECK(written < olen, "Output buffer too small.");
@@ -137,27 +149,29 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   CHECK(((output != NULL) && (error != NULL) && (result != NULL)), "Invalid response components.");
   CHECK(olen > sizeof(_resp_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
   size_t written = 0;
+  char *cursor = NULL;
+  size_t s = 0;
 
   /* Pack response header */
   memmove(output + written, &_resp_header.list_type, sizeof(_resp_header.list_type));
   written += sizeof(_resp_header.list_type);
-  DEBUG("Request bytes written: %d", (int)written);
+  DEBUG("Response bytes written: %d", (int)written);
 
   memmove(output + written, &_resp_header.list_len, sizeof(_resp_header.list_len));
   written += sizeof(_resp_header.list_len);
-  DEBUG("Request bytes written: %d", (int)written);
+  DEBUG("Response bytes written: %d", (int)written);
 
   memmove(output + written, &_resp_header.type_type, sizeof(_resp_header.type_type));
   written += sizeof(_resp_header.type_type);
-  DEBUG("Request bytes written: %d", (int)written);
+  DEBUG("Response bytes written: %d", (int)written);
   
   memmove(output + written, &_resp_header.type_value, sizeof(_resp_header.type_value));
   written += sizeof(_resp_header.type_value);
-  DEBUG("Request bytes written: %d", (int)written);
+  DEBUG("Response bytes written: %d", (int)written);
   
   memmove(output + written, &_resp_header.id_type, sizeof(_resp_header.id_type));
   written += sizeof(_resp_header.id_type);
-  DEBUG("Request bytes written: %d", (int)written);
+  DEBUG("Response bytes written: %d", (int)written);
 
   /* Pack response ID */
   memmove(output + written, &id, sizeof(uint32_t));
@@ -165,7 +179,7 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   DEBUG("Response bytes written: %d", (int)written);
 
   /* Pack error code */
-  CHECK(IS_STR(error), "Not a valid error name.");
+  CHECK(IS_STR(error) || IS_NIL(error), "Not a valid error name.");
   char *buffer = NULL;
   size_t buffer_write = co_obj_raw(&buffer, error);
   memmove(output + written, buffer, buffer_write);
@@ -174,8 +188,18 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
 
   /* Pack method result */
   CHECK(written < olen, "Output buffer too small.");
-  CHECK(IS_LIST(result), "Not a valid result list.");
-  written += co_list_raw(output + written, olen - written, result);
+  if(result != NULL)
+  {
+    if(IS_LIST(result))
+      written += co_list_raw(output + written, olen - written, result);
+    else 
+    {
+      s = co_obj_raw(&cursor, result);
+      written += s;
+      memmove(output + written, cursor, s);
+    }
+  }
+
   DEBUG("Response bytes written: %d", (int)written);
   CHECK(written < olen, "Output buffer too small.");
 
