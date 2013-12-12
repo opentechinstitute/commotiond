@@ -136,6 +136,7 @@ co_tree_find_node(_treenode_t *root, const char *key, const size_t klen)
 
   while(i < klen && n) 
   {
+    DEBUG("i: %d, klen: %d", (int)i, (int)klen);
     DEBUG("Tree node: %c", key[i]);
     if (key[i] < n->splitchar) 
     {
@@ -317,7 +318,7 @@ static int
 _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
 {
   CHECK(n != NULL, "Invalid node supplied.");
-  switch(CO_TYPE(n->value) == _str8)
+  switch(CO_TYPE(n->value))
   {
     case _str8:
       DEBUG("Is a size 8 string.");
@@ -504,13 +505,13 @@ static inline void
 _co_tree_process_r(co_obj_t *tree, _treenode_t *current, const co_iter_t iter, void *context)
 {
   CHECK(IS_TREE(tree), "Recursion target is not a tree.");
-  if(current->value != NULL)
+  if(current != NULL)
   {
-    iter(tree, current->value, context);
+    if(current->value != NULL) iter(tree, current->value, context);
+    _co_tree_process_r(tree, current->low, iter, context); 
+    _co_tree_process_r(tree, current->equal, iter, context); 
+    _co_tree_process_r(tree, current->high, iter, context); 
   }
-  _co_tree_process_r(tree, current->low, iter, context); 
-  _co_tree_process_r(tree, current->equal, iter, context); 
-  _co_tree_process_r(tree, current->high, iter, context); 
   return; 
 error:
   return;
