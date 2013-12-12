@@ -545,24 +545,34 @@ co_tree_destroy(co_obj_t *root)
         h_free(root);
     }
 }
-/*
+
 static inline void
-_co_tree_raw_r(char *output, size_t olen, _treenode_t *current)
+_co_tree_raw_r(char *output, size_t olen, size_t *count, _treenode_t *current)
 {
-  size_t written = 0, read = 0;
-  char *in = NULL;
+  size_t klen = 0, vlen = 0, written = 0;
+  char *kbuf = NULL, *vbuf = NULL, *out = output;
+  uint8_t type = _tree16;
+  uint16_t len = 2;
+  CHECK(current != NULL, "Reached edge of tree.");
   if(current->value != NULL)
   {
-    read = co_obj_raw(in, next);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
-    written += read;
-    out += read;
-    next = _LIST_NEXT(next);
+    CHECK((klen = co_obj_raw(&kbuf, current->key)) > 0, "Failed to read key.");
+    CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
+    written = klen + vlen + sizeof(type) + sizeof(len);
+    CHECK(written < olen, "Data too large for buffer.");
+    memmove(out, &type, sizeof(type));
+    out += sizeof(type);
+    memmove(out, &len, sizeof(len));
+    out += sizeof(len);
+    memmove(out, kbuf, klen);
+    out += klen;
+    memmove(out, vbuf, vlen);
+    out += vlen;
   }
-  _co_tree_raw_r(tree, current->low, iter, context); 
-  _co_tree_raw_r(tree, current->equal, iter, context); 
-  _co_tree_raw_r(tree, current->high, iter, context); 
+  _co_tree_raw_r(out, olen - written, count, current->low); 
+  _co_tree_raw_r(out, olen - written, count, current->equal); 
+  _co_tree_raw_r(out, olen - written, count, current->high); 
+  *count += written;
   return; 
 error:
   return;
@@ -571,20 +581,72 @@ error:
 size_t
 co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
 {
-  char *out = output;
   CHECK(IS_TREE(tree), "Not a tree object.");
-  co_obj_t *next = list;
-  while(next != NULL && written <= olen)
-  {
-    read = co_obj_raw(in, next);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
-    written += read;
-    out += read;
-    next = _LIST_NEXT(next);
-  }
-  return written;
+  size_t count = 0;
+  _co_tree_raw_r(output, olen, &count, co_tree_root(tree));
+  return count;
 error:
   return -1;
 }
-*/
+
+
+size_t
+co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
+{
+  size_t length = 0, olen = 0, read = 0, klen = 0;
+  char *kstr = NULL;
+  co_obj_t *obj = NULL;
+  const char *cursor = input;
+  switch((uint8_t)input[0])
+  {
+    case _tree16:
+      length = *((uint16_t *)(input + 1));
+      *tree = co_tree16_create();
+      cursor += sizeof(uint16_t) + 1;
+      read = sizeof(uint16_t) + 1;
+      break;
+    case _tree32:
+      length = (uint32_t)(*(input + 1));
+      *tree = co_tree32_create();
+      cursor += sizeof(uint32_t) + 1;
+      read = sizeof(uint32_t) + 1;
+      break;
+    default:
+      SENTINEL("Not a list.");
+      break;
+  }
+  for(int i = 0; (i < length && read <= ilen); i++)
+  {
+    /* If a key value tuple. */
+    if((uint8_t)cursor[0] == _tree16 && (uint16_t)cursor[1] == 2)
+    {
+      DEBUG("Importing tuple:");
+      cursor += sizeof(uint16_t) + 1;
+      read += sizeof(uint16_t) + 1;
+      if((uint8_t)cursor[0] == _str8)
+      {
+        DEBUG("Reading key...");
+        cursor += 1;
+        read += 1;
+        klen = (uint8_t)cursor[0];
+        kstr = (char *)&cursor[1];
+        cursor += klen + 1;
+        read += klen + 1;
+
+        DEBUG("Reading value...");
+        olen = co_obj_import(&obj, cursor, ilen - read, 0);
+        CHECK(olen > 0, "Failed to import object.");
+        cursor +=olen;
+        read += olen;
+
+        DEBUG("Inserting value into tree with key.");
+        CHECK(co_tree_insert(*tree, kstr, klen, obj), "Failed to insert object.");
+      }
+    }
+    else SENTINEL("Invalid tree.");
+  }
+  return read;
+error:
+  if(obj != NULL) co_obj_free(obj);
+  return -1;
+}
