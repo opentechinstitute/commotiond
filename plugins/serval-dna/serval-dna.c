@@ -13,7 +13,7 @@
 #include "tree.h"
 #include "profile.h"
 
-#include "servald.h"
+#include "serval-dna.h"
 #include "client.h"
 #include "crypto.h"
 

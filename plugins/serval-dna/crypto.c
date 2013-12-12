@@ -14,7 +14,7 @@
 #include "crypto.h"
 #include "tree.h"
 
-#include "servald.h"
+#include "serval-dna.h"
 
 #define CHECK_ERR(A, M, ...) if(!(A)) { \
     if (err_msg == NULL) \
@@ -39,6 +39,7 @@
 #define INS_ERROR() if (err_msg) { co_tree_insert(*output, "errors", 6, err_msg); }
 
 extern char *serval_path;
+extern struct subscriber *my_subscriber;
 
 keyring_file *mdp_keyring = NULL;
 unsigned char *mdp_key = NULL;
