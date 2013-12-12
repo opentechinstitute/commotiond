@@ -164,22 +164,21 @@ static co_obj_t *_serialize_params_i(co_obj_t *list, co_obj_t *param, void *args
   CHECK(IS_STR(param),"Invalid param");
   struct arguments *these_args = (struct arguments*)args;
   CHECK(these_args->i < these_args->argc,"Out of bounds");
-  CHECK(co_obj_data((void **)&these_args->argv[these_args->i], param) == sizeof(co_str8_t),"Error fetching param");
+  CHECK(co_obj_data(&these_args->argv[these_args->i], param) == sizeof(co_str8_t),"Error fetching param");
   these_args->i++;
 error:
   return NULL;
 }
 
-co_obj_t *serval_handler(co_obj_t *self, co_obj_t *params) {
+int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   struct cli_parsed parsed;
-  co_obj_t *ret = NULL;
   char *retbuf = NULL;
   unsigned long len = 0;
   
   // parse params into args, argc
   if (!IS_LIST(params)) {
     ERROR("Invalid params");
-    return NULL;
+    return 0;
   }
   int argc = co_list_length(params);
   char *argv[argc];
@@ -243,15 +242,15 @@ co_obj_t *serval_handler(co_obj_t *self, co_obj_t *params) {
   dup2(old_stdout, STDOUT_FILENO);  /* reconnect stdout for testing */
 
   if (len < UINT8_MAX) {
-    ret = co_str8_create(retbuf,len,0);
+    *output = co_str8_create(retbuf,len,0);
   } else if (len < UINT16_MAX) {
-    ret = co_str16_create(retbuf,len,0);
+    *output = co_str16_create(retbuf,len,0);
   } else if (len < UINT32_MAX) {
-    ret = co_str32_create(retbuf,len,0);
+    *output = co_str32_create(retbuf,len,0);
   }
   
   if (retbuf) free(retbuf);
-  return ret;
+  return 1;
 }
 
 int serval_register(void) {
