@@ -103,7 +103,7 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
     strstrip(input, buf, blen);
     if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
 	  char *token = strtok_r(buf, " ", &saveptr);
-    DEBUG("Token: %s, Length: %d", token, strlen(token));
+    DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
     if(strlen(token) < 2) token = "help";
     method = co_str8_create(token, strlen(token) + 1, 0);
     token = strtok_r(NULL, " ", &saveptr);
@@ -111,7 +111,7 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
     while(token != NULL)
     {
       CHECK(co_list_append(params, co_str8_create(token, strlen(token) + 1, 0)), "Failed to add to argument list.");
-      DEBUG("Token: %s, Length: %d", token, strlen(token));
+      DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
       token = strtok_r(NULL, " ", &saveptr);
     }
   } 
