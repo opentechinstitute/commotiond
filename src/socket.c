@@ -89,6 +89,7 @@ int co_socket_init(co_obj_t* self) {
     this->fd_registered = false;
     this->rfd_registered = false;
     this->listen = false;
+    this->events = 0;
     return 1;
   } else return 0;
 }
@@ -233,6 +234,7 @@ int unix_socket_init(co_obj_t *self) {
     this->listen = false;
     this->uri = h_strdup("unix://");
     hattach(this->uri,this);
+    this->events = 0;
     return 1;
   } else return 0;
 }
