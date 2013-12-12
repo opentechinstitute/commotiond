@@ -280,6 +280,7 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
       current->value = value;
       current->key = co_str8_create(orig_key, orig_klen, 0);
       hattach(current->key, current);
+      hattach(current->value, current);
     }
   } 
   else 
