@@ -43,7 +43,9 @@
 #define LOOP_TIMEOUT 5
 #define LOOP_MAXTIMER 20
 
-typedef struct {
+typedef struct co_timer_t co_timer_t;
+
+struct co_timer_t {
   co_obj_t _header;
   uint8_t _exttype;
   uint8_t _len;
@@ -51,7 +53,7 @@ typedef struct {
   struct timeval deadline;
   co_cb_t timer_cb;
   void *ptr;
-} co_timer_t;
+} __attribute__((packed));
 
 //Public functions
 

@@ -344,8 +344,9 @@ co_obj_t *_name(co_obj_t *self, co_obj_t *params) {
 void _init(void) {
   DEBUG("INIT");
   
-  serval_register();
-  serval_crypto_register();
+  CHECK(serval_register() == 0,"Failed to register Serval commands");
+  CHECK(serval_crypto_register() == 0,"Failed to register Serval-crypto commands");
+  CHECK(olsrd_mdp_register() == 0,"Failed to register OLSRd-mdp commands");
   
   srandomdev();
   

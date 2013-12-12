@@ -35,7 +35,9 @@
 #include <stdlib.h>
 #include "obj.h"
 
-typedef struct {
+typedef struct co_plugin_t co_plugin_t;
+
+struct co_plugin_t {
   co_obj_t _header;
   uint8_t _exttype;
   uint8_t _len;
@@ -43,7 +45,7 @@ typedef struct {
   co_obj_t *filename;
   co_cb_t shutdown;
   void *handle;
-} co_plugin_t;
+} __attribute__((packed));
 
 int co_plugins_shutdown(void);
 

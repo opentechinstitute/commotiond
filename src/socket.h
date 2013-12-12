@@ -42,10 +42,12 @@
 #define MAX_IPPROTO 255
 #define MAX_CONNECTIONS 32
 
+typedef struct co_socket_t co_socket_t;
+
 /**
  * @struct co_socket_t contains file path and state information for socket
  */
-typedef struct {
+struct co_socket_t {
   co_obj_t _header;
   uint8_t _exttype;
   uint8_t _len;
@@ -68,7 +70,7 @@ typedef struct {
   int (*getopt)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
   int (*poll_cb)(co_obj_t *self, co_obj_t *context);
   int (*register_cb)(co_obj_t *self, co_obj_t *context);
-} co_socket_t;
+} __attribute__((packed));
 
 /**
  * @brief creates a socket from specified values or initializes defaults
@@ -133,13 +135,15 @@ int co_socket_setopt(co_obj_t * self, int level, int option, void *optval, sockl
  */
 int co_socket_getopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen);
 
+typedef struct unix_socket_t unix_socket_t;
+
 /**
  * @struct unix_socket_t struct for unix sockets. Contains protocol and file path to socket library
  */
-typedef struct {
+struct unix_socket_t {
   co_socket_t proto;
   char *path;
-} unix_socket_t;
+} __attribute__((packed));
 
 /**
  * @brief initializes a unix socket
