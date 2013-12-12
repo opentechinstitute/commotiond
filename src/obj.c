@@ -345,6 +345,10 @@ co_obj_raw(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
   {
+    case _nil:
+      *data = (char *)&(object->_type);
+      return 1;
+      break;
     case _float32:
       *data = (char *)&(object->_type);
       return sizeof(float) + 1;
@@ -416,62 +420,62 @@ co_obj_raw(char **data, const co_obj_t *object)
 }
 
 size_t
-co_obj_data(void **data, const co_obj_t *object)
+co_obj_data(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
   {
     case _float32:
-      *data = (void *)&(((co_float32_t *)object)->data);
+      *data = (char *)&(((co_float32_t *)object)->data);
       return sizeof(float);
     case _float64:
-      *data = (void *)&(((co_float64_t *)object)->data);
+      *data = (char *)&(((co_float64_t *)object)->data);
       return sizeof(double);
     case _uint8:
-      *data = (void *)&(((co_uint8_t *)object)->data);
+      *data = (char *)&(((co_uint8_t *)object)->data);
       return sizeof(uint8_t);
     case _uint16:
-      *data = (void *)&(((co_uint16_t *)object)->data);
+      *data = (char *)&(((co_uint16_t *)object)->data);
       return sizeof(uint16_t);
     case _uint32:
-      *data = (void *)&(((co_uint32_t *)object)->data);
+      *data = (char *)&(((co_uint32_t *)object)->data);
       return sizeof(uint32_t);
     case _uint64:
-      *data = (void *)&(((co_uint64_t *)object)->data);
+      *data = (char *)&(((co_uint64_t *)object)->data);
       return sizeof(uint64_t);
     case _int8:
-      *data = (void *)&(((co_int8_t *)object)->data);
+      *data = (char *)&(((co_int8_t *)object)->data);
       return sizeof(int8_t);
     case _int16:
-      *data = (void *)&(((co_int16_t *)object)->data);
+      *data = (char *)&(((co_int16_t *)object)->data);
       return sizeof(int16_t);
     case _int32:
-      *data = (void *)&(((co_int32_t *)object)->data);
+      *data = (char *)&(((co_int32_t *)object)->data);
       return sizeof(int32_t);
     case _int64:
-      *data = (void *)&(((co_int64_t *)object)->data);
+      *data = (char *)&(((co_int64_t *)object)->data);
       return sizeof(int64_t);
     case _str8:
-      *data = (void *)(((co_str8_t *)object)->data);
+      *data = (char *)(((co_str8_t *)object)->data);
       return ((co_str8_t *)object)->_len;
       break;
     case _str16:
-      *data = (void *)(((co_str16_t *)object)->data);
+      *data = (char *)(((co_str16_t *)object)->data);
       return ((co_str16_t *)object)->_len;
       break;
     case _str32:
-      *data = (void *)(((co_str32_t *)object)->data);
+      *data = (char *)(((co_str32_t *)object)->data);
       return ((co_str32_t *)object)->_len;
       break;
     case _bin8:
-      *data = (void *)(((co_bin8_t *)object)->data);
+      *data = (char *)(((co_bin8_t *)object)->data);
       return ((co_bin8_t *)object)->_len;
       break;
     case _bin16:
-      *data = (void *)(((co_bin16_t *)object)->data);
+      *data = (char *)(((co_bin16_t *)object)->data);
       return ((co_bin16_t *)object)->_len;
       break;
     case _bin32:
-      *data = (void *)(((co_bin32_t *)object)->data);
+      *data = (char *)(((co_bin32_t *)object)->data);
       return ((co_bin32_t *)object)->_len;
       break;
     default:
@@ -588,7 +592,7 @@ co_str_copy(co_obj_t *dst, const co_obj_t *src, const size_t size)
 {
   char *src_data = NULL;
   size_t length = 0;
-  CHECK(((length = co_obj_data((void **)&src_data, src)) >= 0), "Not a character object.");
+  CHECK(((length = co_obj_data(&src_data, src)) >= 0), "Not a character object.");
   switch(CO_TYPE(src))
   {
     case _str8:
@@ -619,8 +623,8 @@ co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size)
   char *dst_data = NULL; 
   size_t used, length, copy;
 
-  CHECK(((used = co_obj_data((void **)&dst_data, dst)) >= 0), "Not a character object.");
-  CHECK(((length = co_obj_data((void **)&src_data, src)) >= 0), "Not a character object.");
+  CHECK(((used = co_obj_data(&dst_data, dst)) >= 0), "Not a character object.");
+  CHECK(((length = co_obj_data(&src_data, src)) >= 0), "Not a character object.");
   if (size > 0 && used < size) {
     copy = (length >= size - used) ? size - used : length;
     memmove(dst + used, src, copy);
@@ -653,7 +657,7 @@ co_str_cmp(const co_obj_t *a, const co_obj_t *b)
   char *b_data = NULL; 
   size_t alen, blen;
 
-  alen = co_obj_data((void **)&a_data, a);
-  blen = co_obj_data((void **)&b_data, b);
+  alen = co_obj_data(&a_data, a);
+  blen = co_obj_data(&b_data, b);
   return strncmp(a_data, b_data, alen + blen);
 }

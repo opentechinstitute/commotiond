@@ -143,7 +143,7 @@ struct co_obj_t
 /* Function pointers */
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
 
-typedef co_obj_t *(*co_cb_t)(co_obj_t *self, co_obj_t *params);
+typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
 /*-----------------------------------------------------------------------------
  *  Character-array-types Declaration Macros
@@ -267,7 +267,7 @@ void co_obj_free(co_obj_t *object);
  *-----------------------------------------------------------------------------*/
 size_t co_obj_raw(char **data, const co_obj_t *object);
 
-size_t co_obj_data(void **data, const co_obj_t *object);
+size_t co_obj_data(char **data, const co_obj_t *object);
 
 #define co_obj_data_ptr(J) ({ void *d = NULL; co_obj_data(&d,J); d; })
 
