@@ -545,7 +545,7 @@ co_tree_destroy(co_obj_t *root)
         h_free(root);
     }
 }
-
+/*
 static inline void
 _co_tree_raw_r(char *output, size_t olen, _treenode_t *current)
 {
@@ -587,3 +587,4 @@ co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
 error:
   return -1;
 }
+*/
