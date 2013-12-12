@@ -14,6 +14,8 @@
 #include "crypto.h"
 #include "tree.h"
 
+#include "servald.h"
+
 #define CHECK_ERR(A, M, ...) if(!(A)) { \
     if (err_msg == NULL) \
       err_msg = co_list16_create(); \
@@ -35,10 +37,12 @@
 #define CLEAR_ERR() if (err_msg) { co_obj_free(err_msg); err_msg = NULL; }
 
 #define INS_ERROR() if (err_msg) { co_tree_insert(*output, "errors", 6, err_msg); }
-  
-static keyring_file *mdp_keyring;
-static unsigned char *mdp_key;
-static int mdp_key_len;
+
+extern char *serval_path;
+
+keyring_file *mdp_keyring = NULL;
+unsigned char *mdp_key = NULL;
+int mdp_key_len = 0;
 static co_obj_t *err_msg = NULL;
 
 static int serval_create_signature(unsigned char *key,
@@ -64,7 +68,7 @@ error:
   return 0;
 }
 
-static int _serval_init(unsigned char *sid,
+int _serval_init(unsigned char *sid,
 		       const size_t sid_len,
 		       const char *keyring_path,
 		       const size_t keyring_len,
@@ -72,18 +76,24 @@ static int _serval_init(unsigned char *sid,
 		       unsigned char **key,
 		       int *key_len) {
   keyring_identity *new_ident;
-  char keyringFile[1024];
-  char *abs_path = NULL;
+  char keyringFile[PATH_MAX] = {0};  // sizeof("/serval.keyring\0") == 16
   unsigned char *_sid = sid;
+  char *abs_path = NULL;
+  int ret = 0;
   
   if (sid) CHECK(sid_len == SID_SIZE,"Invalid SID");
   
-  if (keyring_path == NULL || keyring_len == 0) { 
-    FORM_SERVAL_INSTANCE_PATH(keyringFile, "serval.keyring"); // if no keyring specified, use default keyring
+  if (keyring_path == NULL || keyring_len == 0) { // if no keyring specified, use default keyring
+    strcpy(keyringFile,serval_path);
+    if (serval_path[strlen(serval_path) - 1] != '/')
+      strcat(keyringFile,"/");
+    strcat(keyringFile,"serval.keyring");
   }
   else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
+    CHECK(keyring_len < PATH_MAX,"Keyring length too long");
     strncpy(keyringFile,keyring_path,keyring_len);
     keyringFile[keyring_len] = '\0';
+    
     // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
     CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file");
     *strrchr(abs_path,'/') = '\0';
@@ -114,9 +124,10 @@ static int _serval_init(unsigned char *sid,
     if (key_len) *key_len = crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
   }
   
-  return 1;
+  ret = 1;
 error:
-  return 0;
+  if (abs_path) free(abs_path);
+  return ret;
 }
 
 static int serval_sign(const char *sid_str, 
@@ -137,7 +148,7 @@ static int serval_sign(const char *sid_str,
   CHECK(sig_str_size >= 2*SIGNATURE_BYTES + 1,"Signature buffer too small");
   
   if (sid_str) {
-    CHECK_ERR(str_is_subscriber_id(sid_str) != 0,"Invalid SID");
+    CHECK_ERR(str_is_subscriber_id(sid_str) == 1,"Invalid SID");
     stowSid(packedSid,0,sid_str);
   }
   
@@ -357,10 +368,6 @@ int olsrd_mdp_register(void) {
    * param[2]: --keyring=<keyring_path> (co_str8_t)
    */
   const char name[] = "olsrd-mdp";
-  
-  mdp_keyring = NULL;
-  mdp_key = NULL;
-  mdp_key_len = 0;
   
   CHECK(co_cmd_register(name,strlen(name),NULL,0,NULL,0,olsrd_mdp_init),"Failed to register command");
   
