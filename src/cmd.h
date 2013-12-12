@@ -68,7 +68,7 @@ int co_cmd_register(const char *name, const size_t nlen, const char *usage, cons
  * @param arc number of arguments passed
  * @param mask permissions mask
  */
-co_obj_t *co_cmd_exec(co_obj_t *key, co_obj_t *param);
+int co_cmd_exec(co_obj_t *key, co_obj_t **output, co_obj_t *param);
 
 /**
  * @brief prints command usage format
@@ -86,4 +86,5 @@ co_obj_t *co_cmd_desc(co_obj_t *key);
 
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
 
+int co_cmd_process(co_iter_t iter, void *context);
 #endif

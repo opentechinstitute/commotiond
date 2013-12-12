@@ -103,24 +103,24 @@ error:
 }
 
 
-co_obj_t *
-co_cmd_exec(co_obj_t *key, co_obj_t *param) 
+int
+co_cmd_exec(co_obj_t *key, co_obj_t **output, co_obj_t *param) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data((void **)&kstr, key);
-  co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen);
+  size_t klen = co_obj_data(&kstr, key);
+  co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen - 1);
   
   CHECK((cmd != NULL), "No such command!");
-  return cmd->exec((co_obj_t *)cmd, param);
+  return cmd->exec((co_obj_t *)cmd, output, param);
 error:
-  return NULL;
+  return 0;
 }
 
 co_obj_t *
 co_cmd_usage(co_obj_t *key) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data((void **)&kstr, key);
+  size_t klen = co_obj_data(&kstr, key);
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen);
   
   CHECK((cmd != NULL), "No such command!");
@@ -133,7 +133,7 @@ co_obj_t *
 co_cmd_desc(co_obj_t *key) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data((void **)&kstr, key);
+  size_t klen = co_obj_data(&kstr, key);
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen);
   
   CHECK((cmd != NULL), "No such command!");
@@ -146,7 +146,7 @@ int
 co_cmd_hook(const co_obj_t *key, co_obj_t *cb)
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data((void **)&kstr, key);
+  size_t klen = co_obj_data(&kstr, key);
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen);
 
   CHECK((cmd != NULL), "No such command!");
@@ -155,6 +155,15 @@ co_cmd_hook(const co_obj_t *key, co_obj_t *cb)
     cmd->hooks = co_tree16_create();
   }
   CHECK(co_list_append(cmd->hooks, cb), "Failed to add hook to command.");
+  return 1;
+error:
+  return 0;
+}
+
+int
+co_cmd_process(co_iter_t iter, void *context)
+{
+  CHECK(co_tree_process(_cmds, iter, context), "Failed to process commands.");
   return 1;
 error:
   return 0;
