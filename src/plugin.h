@@ -44,10 +44,13 @@ struct co_plugin_t {
   co_obj_t *name; /**< command name */
   co_obj_t *filename;
   co_cb_t shutdown;
+  co_cb_t init;
   void *handle;
 } __attribute__((packed));
 
 int co_plugins_shutdown(void);
+
+int co_plugins_start(void);
 
 int co_plugins_init(size_t index_size);
 
