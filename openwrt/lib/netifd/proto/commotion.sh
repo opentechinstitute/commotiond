@@ -10,7 +10,6 @@ init_proto "$@"
 
 WIFI_DEVICE=
 TYPE=
-DHCP_TIMEOUT=20
 
 configure_wifi_iface() {
 	local config="$1"
@@ -62,7 +61,13 @@ proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
 	local have_ip=0
-
+    
+	local pause=3
+	
+	sleep $pause
+	
+	logger -t "commotion.proto" -s "Waiting $pause seconds."
+	
 	logger -s -t commotion.proto "Running protocol handler."
 	local profile type ip netmask dns domain announce lease_zone nolease_zone
 	json_get_vars profile type ip netmask dns domain announce lease_zone nolease_zone
@@ -75,6 +80,9 @@ proto_commotion_setup() {
 	if [ "$type" = "plug" ]; then 
 		local dhcp_status
 		local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
+		local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
+		unset_bridge "$client_bridge" "$iface"
+		logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
 		export DHCP_INTERFACE="$config"
 		udhcpc -q -i ${iface} -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
 		dhcp_status=$?
@@ -84,15 +92,17 @@ proto_commotion_setup() {
 			# see commotion.dhcp.script for the rest of
 			# the setup code.
 			have_ip=1
-			uci_set_state network "$config" lease 0
+			uci_set_state network "$config" lease 2
 
 			# get out of here early.
 			return
 		else
 			unset_fwzone "$config"
-			uci_set_state network "$config" lease 1
-			set_fwzone "$config" "$(uci_get network "$config" nolease_zone "$DEFAULT_NOLEASE_ZONE")"
 			uci_commit firewall
+			uci_set_state network "$config" lease 1
+			set_bridge "$client_bridge" "$iface"
+			logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
+			return
 		fi
 	fi
 	proto_init_update "*" 1
@@ -129,6 +139,15 @@ proto_commotion_setup() {
 
 proto_commotion_teardown() {
 	local interface="$1"
+	
+	logger -t "commotion.proto" -s "Initiating teardown."
+	
+	
+	if [ "$type" = "plug" ]; then 
+		local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
+		unset_bridge "$client_bridge" "$iface"
+		logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
+	fi
 	proto_kill_command "$interface"
 }
 
