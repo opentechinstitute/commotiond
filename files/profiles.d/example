@@ -1,16 +1,17 @@
-ssid=commotionwireless.net
-bssid=02:CA:FF:EE:BA:BE
-channel=5
-type=mesh
-domain=mesh.local
-mode=adhoc
-announce=true
-ip=5.0.0.0
-ipgenerate=true
-ipgeneratemask=255.0.0.0
-netmask=255.0.0.0
-dns=8.8.8.8
-wpa=true
-wpakey=c0MM0t10n!r0cks
-servald=false
-servaldsid= 
+{
+  "ssid": "commotionwireless.net",
+  "bssid": "02:CA:FF:EE:BA:BE",
+  "channel": "5",
+  "type": "mesh",
+  "dns": "8.8.8.8",
+  "domain": "mesh.local",
+  "ipgenerate": "true",
+  "ipgeneratemask": "255.0.0.0",
+  "mode": "adhoc",
+  "netmask": "255.0.0.0",
+  "wpa": "false",
+  "wpakey": "c0MM0t10n!r0cks",
+  "servald": "false",
+  "servalsid": "",
+  "announce": "true"
+}
