@@ -100,6 +100,7 @@ static void _co_loop_setup_signals(void) {
 }
 
 static co_obj_t *_co_loop_match_socket_i(co_obj_t *list, co_obj_t *sock, void *uri) {
+  if(!IS_SOCK(sock)) return NULL;
   const co_socket_t *this_sock = (co_socket_t*)sock;
   const char *this_uri = uri;
   if((strcmp(this_sock->uri, this_uri)) == 0) return sock;
@@ -220,7 +221,7 @@ static void _co_loop_process_timers(struct timeval *now) {
       ERROR("Failed to process timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
     }
     // call the timer's callback function:
-    timer->timer_cb((co_obj_t*)timer,NULL);
+    timer->timer_cb((co_obj_t*)timer, NULL, NULL);
   }
 }
 
