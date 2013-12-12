@@ -251,7 +251,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
         if(key != NULL && klen > 0)
         {
-          if(!co_profile_set_str((co_profile_t *)new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
+          if(!co_profile_set_str(new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
           {
             INFO("Value not in schema.");
           }
@@ -298,14 +298,15 @@ error:
 }
 
 co_obj_t *
-co_profile_get(co_profile_t *profile, const co_obj_t *key) 
+co_profile_get(co_obj_t *profile, const co_obj_t *key) 
 {
-  CHECK_MEM(profile->data);
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   char *kstr = NULL;
   size_t klen = co_obj_data(&kstr, key);
   co_obj_t *obj = NULL;
-  CHECK((obj = co_tree_find(profile->data, kstr, klen)) != NULL, "Failed to find key %s.", kstr);
+  CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, kstr, klen)) != NULL, "Failed to find key %s.", kstr);
   return obj;
 
 error:
@@ -313,9 +314,10 @@ error:
 }
 
 int 
-co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen) 
+co_profile_set_str(co_obj_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen) 
 {
-    CHECK(co_tree_set_str(profile->data, key, klen, value, vlen), 
+    CHECK(IS_PROFILE(profile),"Not a profile.");
+    CHECK(co_tree_set_str(((co_profile_t*)profile)->data, key, klen, value, vlen), 
             "No corresponding key %s in schema, can't set %s:%s",
             key, key, value);
     return 1;
@@ -325,12 +327,13 @@ error:
 }
 
 size_t
-co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen) 
+co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen) 
 {
-  CHECK_MEM(profile->data);
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
-  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_STR(obj), "Object is not a string.");
   return co_obj_data((char **)output, obj);
 
@@ -339,9 +342,10 @@ error:
 }
 
 int 
-co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value) 
+co_profile_set_int(co_obj_t *profile, const char *key, const size_t klen, const signed long value) 
 {
-    CHECK(co_tree_set_int(profile->data, key, klen, value), 
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK(co_tree_set_int(((co_profile_t*)profile)->data, key, klen, value), 
             "No corresponding key %s in schema, can't set %s:%ld",
             key, key, value);
     return 1;
@@ -351,12 +355,13 @@ error:
 }
 
 signed long
-co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen) 
+co_profile_get_int(co_obj_t *profile, const char *key, const size_t klen) 
 {
-  CHECK_MEM(profile->data);
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
-  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_INT(obj), "Object is not a signed integer.");
   signed long *output;
   CHECK(co_obj_data((char **)&output, obj) >= 0, "Failed to read data from %s.", key);
@@ -367,9 +372,10 @@ error:
 }
 
 int 
-co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value) 
+co_profile_set_uint(co_obj_t *profile, const char *key, const size_t klen, const unsigned long value) 
 {
-    CHECK(co_tree_set_uint(profile->data, key, klen, value), 
+    CHECK(IS_PROFILE(profile),"Not a profile.");
+    CHECK(co_tree_set_uint(((co_profile_t*)profile)->data, key, klen, value), 
             "No corresponding key %s in schema, can't set %s:%lu",
             key, key, value);
     return 1;
@@ -379,12 +385,13 @@ error:
 }
 
 unsigned long
-co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen) 
+co_profile_get_uint(co_obj_t *profile, const char *key, const size_t klen) 
 {
-  CHECK_MEM(profile->data);
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
-  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_UINT(obj), "Object is not an unsigned integer.");
   unsigned long *output;
   CHECK(co_obj_data((char **)&output, obj) >= 0, "Failed to read data from %s.", key);
@@ -395,9 +402,10 @@ error:
 }
 
 int 
-co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value) 
+co_profile_set_float(co_obj_t *profile, const char *key, const size_t klen, const double value) 
 {
-    CHECK(co_tree_set_float(profile->data, key, klen, value), 
+    CHECK(IS_PROFILE(profile),"Not a profile.");
+    CHECK(co_tree_set_float(((co_profile_t*)profile)->data, key, klen, value), 
             "No corresponding key %s in schema, can't set %s:%lf",
             key, key, value);
     return 1;
@@ -407,12 +415,13 @@ error:
 }
 
 double
-co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen) 
+co_profile_get_float(co_obj_t *profile, const char *key, const size_t klen) 
 {
-  CHECK_MEM(profile->data);
+  CHECK(IS_PROFILE(profile),"Not a profile.");
+  CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   co_obj_t *obj = NULL;
-  CHECK((obj = co_tree_find(profile->data, key, klen)) != NULL, "Failed to find key %s.", key);
+  CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, key, klen)) != NULL, "Failed to find key %s.", key);
   CHECK(IS_FLOAT(obj), "Object is not a floating point value.");
   double *output;
   CHECK(co_obj_data((char **)&output, obj) >= 0, "Failed to read data from %s.", key);
@@ -445,13 +454,13 @@ _co_profile_find_i(co_obj_t *list, co_obj_t *current, void *context)
   return NULL;
 }
 
-co_profile_t *
+co_obj_t *
 co_profile_find(co_obj_t *name) 
 {
   CHECK(IS_STR(name), "Not a valid search index.");
   co_obj_t *result = NULL;
   CHECK((result = co_list_parse(_profiles, _co_profile_find_i, name)) != NULL, "Failed to find profile.");
-  return (co_profile_t *)result;
+  return result;
 error:
   return NULL;
 }
@@ -485,15 +494,16 @@ error:
 }
 
 int 
-co_profile_export_file(co_profile_t *profile, const char *path)
+co_profile_export_file(co_obj_t *profile, const char *path)
 {
+  CHECK(IS_PROFILE(profile),"Not a profile.");
   int count = 0;
   FILE *config_file = fopen(path, "a");
   CHECK(config_file != NULL, "Config file %s could not be opened", path);
 
   fprintf(config_file, "{\n");
 
-  _co_profile_export_file_r(profile->data, co_tree_root(profile->data), &count, config_file);
+  _co_profile_export_file_r(((co_profile_t*)profile)->data, co_tree_root(((co_profile_t*)profile)->data), &count, config_file);
 
   fprintf(config_file, "}");
   fclose (config_file); 
