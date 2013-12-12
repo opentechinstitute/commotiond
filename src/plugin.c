@@ -48,7 +48,7 @@ _co_plugins_shutdown_i(co_obj_t *data, co_obj_t *current, void *context)
 {
   if(((co_plugin_t *)current)->shutdown != NULL)
   {
-    ((co_plugin_t *)current)->shutdown(current, NULL);
+    ((co_plugin_t *)current)->shutdown(current, NULL, NULL);
   }
   if(((co_plugin_t *)current)->handle != NULL)
   {
@@ -91,20 +91,24 @@ error:
 }
 
 static int _co_plugins_load_i(const char *path, const char *filename) {
+  char path_tmp[PATH_MAX] = {};
+  strlcpy(path_tmp, path, PATH_MAX);
+  strlcat(path_tmp, "/", PATH_MAX);
+  strlcat(path_tmp, filename, PATH_MAX);
   dlerror(); //Clear existing error codes.
-  void *handle = dlopen(path, RTLD_NOW);
-  CHECK(handle != NULL, "Failed to load plugin %s: %s", path, dlerror());
+  void *handle = dlopen(path_tmp, RTLD_NOW);
+  CHECK(handle != NULL, "Failed to load plugin %s: %s", path_tmp, dlerror());
   co_cb_t _name = dlsym(handle, "_name");
-  CHECK(_name != NULL, "Failed to name plugin %s: %s", path, dlerror());
+  CHECK(_name != NULL, "Failed to name plugin %s: %s", path_tmp, dlerror());
   co_cb_t _init = dlsym(handle, "_init");
-  CHECK(_init != NULL, "Failed to init plugin %s: %s", path, dlerror());
+  CHECK(_init != NULL, "Failed to init plugin %s: %s", path_tmp, dlerror());
   co_cb_t _shutdown = dlsym(handle, "_shutdown");
 
   //TODO: API version checks.
   co_plugin_t *plugin = h_calloc(1, sizeof(co_plugin_t));
   plugin->handle = handle;
   
-  CHECK_MEM(plugin->name = _name(NULL, NULL));
+  CHECK(_name(NULL, &(plugin->name), NULL), "Failed to set plugin name.");
   hattach(plugin->name, plugin);
   CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename), 0));
   hattach(plugin->filename, plugin);
@@ -112,14 +116,14 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   plugin->_len = (sizeof(co_plugin_t));
   plugin->_exttype = _plug;
   plugin->_header._type = _ext8;
-  _init((co_obj_t *)plugin, NULL);
+  _init((co_obj_t *)plugin, NULL, NULL);
   
   co_list_append(_plugins, (co_obj_t *)plugin);
   return 1; 
 error:
   if(handle != NULL) dlclose(handle);
   if(plugin != NULL) co_obj_free((co_obj_t *)plugin);
-  return 0;
+  return 1;
 }
 
 int co_plugins_load(const char *dir_path) {
