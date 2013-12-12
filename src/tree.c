@@ -280,6 +280,7 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
       current->value = value;
       current->key = co_str8_create(orig_key, orig_klen, 0);
       hattach(current->key, current);
+      hattach(current->value, current);
     }
   } 
   else 
@@ -544,7 +545,7 @@ co_tree_destroy(co_obj_t *root)
         h_free(root);
     }
 }
-/*
+
 static inline void
 _co_tree_raw_r(char *output, size_t olen, _treenode_t *current)
 {
@@ -586,4 +587,3 @@ co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
 error:
   return -1;
 }
-*/
