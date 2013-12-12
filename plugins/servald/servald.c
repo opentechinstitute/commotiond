@@ -338,7 +338,7 @@ schedule(&_sched_##X); }
 
 }
 
-int _name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+int co_plugin_name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   const char name[] = "servald";
   CHECK((*output = co_str8_create(name,strlen(name),0)),"Failed to create plugin name");
   return 1;
@@ -346,7 +346,7 @@ error:
   return 0;
 }
 
-int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("INIT");
   
   // TODO PARSE CONFIG OPTIONS (INCLUDING MDP PARAMS)
@@ -394,7 +394,7 @@ static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context
   return NULL;
 }
 
-void teardown(void) {
+int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("TEARDOWN");
   
   servalShutdown = 1;
@@ -413,5 +413,5 @@ void teardown(void) {
   
   keyring_free(keyring);
   
-  return;
+  return 1;
 }
