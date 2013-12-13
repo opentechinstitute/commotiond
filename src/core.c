@@ -44,21 +44,8 @@
 #include "core.h"
 
 
-static co_obj_t *
-_cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
-{
-  char *name = NULL;
-  size_t nlen = co_obj_data(&name, ((co_cmd_t *)current)->name);
-  co_tree_insert((co_obj_t *)context, name, nlen, ((co_cmd_t *)current)->usage);
-  return NULL;
-}
 
-int
-cmd_help(co_obj_t *self, co_obj_t **output, co_obj_t *params) 
-{
-  *output = co_tree16_create();
-  return co_cmd_process(_cmd_help_i, (void *)*output);
-}
+
 
 static co_obj_t *
 _cmd_list_profiles_i(co_obj_t *data, co_obj_t *current, void *context) 
