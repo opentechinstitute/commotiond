@@ -145,6 +145,22 @@ error:
 }
 
 int
+co_cmd_hook_str(const char *key, const size_t klen, co_obj_t *cb)
+{
+  co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, key, klen);
+
+  CHECK((cmd != NULL), "No such command!");
+  if(cmd->hooks == NULL)
+  {
+    cmd->hooks = co_tree16_create();
+  }
+  CHECK(co_list_append(cmd->hooks, cb), "Failed to add hook to command.");
+  return 1;
+error:
+  return 0;
+}
+
+int
 co_cmd_hook(const co_obj_t *key, co_obj_t *cb)
 {
   char *kstr = NULL;
