@@ -238,9 +238,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  co_obj_free(rtree);
+  co_obj_free(rlist);
   ((co_socket_t*)socket)->destroy(socket);
   return retval;
 error:
+  co_obj_free(rtree);
+  co_obj_free(rlist);
   ((co_socket_t*)socket)->destroy(socket);
   return retval;
 }
