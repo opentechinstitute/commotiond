@@ -43,6 +43,8 @@
 
 #define SCHEMA_REGISTER(N) co_schema_register(schema_##N)
 
+#define SCHEMA_GLOBAL(N) co_schema_register_global(schema_##N)
+
 typedef struct co_cbptr_t co_cbptr_t;
 
 /**
@@ -73,6 +75,7 @@ struct co_profile_t {
 } __attribute__((packed));
 
 int co_schema_register(co_cb_t cb);
+int co_schema_register_global(co_cb_t cb);
 int co_schemas_load(co_obj_t *profile);
 int co_profiles_create(const size_t index_size);
 
@@ -92,6 +95,7 @@ void co_profiles_shutdown(void);
  */
 int co_profile_import_files(const char *path);
 
+int co_profile_import_global(const char *path);
 //int profile_export_file(tst_t *profile, const char *path);
 
 //int profile_export(tst_t *profile, const char *path, const int length);
@@ -129,6 +133,7 @@ int co_profile_set(co_obj_t *profile, const char *key, const char *value);
  * @param name profile name (search key)
  */
 co_obj_t *co_profile_find(co_obj_t *name);
+co_obj_t *co_profile_global(void); 
 
 /**
  * @brief dumps profile data 
