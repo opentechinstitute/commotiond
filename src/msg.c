@@ -73,28 +73,22 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   /* Pack request header */
   memmove(output + written, &_req_header.list_type, sizeof(_req_header.list_type));
   written += sizeof(_req_header.list_type);
-  DEBUG("Request bytes written: %d", (int)written);
 
   memmove(output + written, &_req_header.list_len, sizeof(_req_header.list_len));
   written += sizeof(_req_header.list_len);
-  DEBUG("Request bytes written: %d", (int)written);
 
   memmove(output + written, &_req_header.type_type, sizeof(_req_header.type_type));
   written += sizeof(_req_header.type_type);
-  DEBUG("Request bytes written: %d", (int)written);
   
   memmove(output + written, &_req_header.type_value, sizeof(_req_header.type_value));
   written += sizeof(_req_header.type_value);
-  DEBUG("Request bytes written: %d", (int)written);
   
   memmove(output + written, &_req_header.id_type, sizeof(_req_header.id_type));
   written += sizeof(_req_header.id_type);
-  DEBUG("Request bytes written: %d", (int)written);
 
   /* Pack request ID */
   memmove(output + written, &_id, sizeof(uint32_t));
   written += sizeof(uint32_t);
-  DEBUG("Request bytes written: %d", (int)written);
   _id++;
 
   /* Pack method call */
@@ -104,7 +98,6 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   CHECK(buffer_write >= 0, "Failed to pack object.");
   memmove(output + written, buffer, buffer_write);
   written += buffer_write;
-  DEBUG("Request bytes written: %d", (int)written);
 
   /* Pack parameters */
   CHECK(written < olen, "Output buffer too small.");
@@ -156,36 +149,40 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   /* Pack response header */
   memmove(output + written, &_resp_header.list_type, sizeof(_resp_header.list_type));
   written += sizeof(_resp_header.list_type);
-  DEBUG("Response bytes written: %d", (int)written);
 
   memmove(output + written, &_resp_header.list_len, sizeof(_resp_header.list_len));
   written += sizeof(_resp_header.list_len);
-  DEBUG("Response bytes written: %d", (int)written);
 
   memmove(output + written, &_resp_header.type_type, sizeof(_resp_header.type_type));
   written += sizeof(_resp_header.type_type);
-  DEBUG("Response bytes written: %d", (int)written);
   
   memmove(output + written, &_resp_header.type_value, sizeof(_resp_header.type_value));
   written += sizeof(_resp_header.type_value);
-  DEBUG("Response bytes written: %d", (int)written);
   
   memmove(output + written, &_resp_header.id_type, sizeof(_resp_header.id_type));
   written += sizeof(_resp_header.id_type);
-  DEBUG("Response bytes written: %d", (int)written);
 
   /* Pack response ID */
   memmove(output + written, &id, sizeof(uint32_t));
   written += sizeof(uint32_t);
-  DEBUG("Response bytes written: %d", (int)written);
 
   /* Pack error code */
-  CHECK(IS_STR(error) || IS_NIL(error), "Not a valid error name.");
-  char *buffer = NULL;
-  size_t buffer_write = co_obj_raw(&buffer, error);
-  memmove(output + written, buffer, buffer_write);
-  written += buffer_write;
-  DEBUG("Response bytes written: %d", (int)written);
+  //CHECK(IS_STR(error) || IS_NIL(error), "Not a valid error name.");
+  if(error != NULL)
+  {
+    if(IS_LIST(error))
+      written += co_list_raw(output + written, olen - written, error);
+    else if(IS_TREE(error))
+    {
+      written += co_tree_raw(output + written, olen - written, error);
+    }
+    else
+    {
+      s = co_obj_raw(&cursor, error);
+      memmove(output + written, cursor, s);
+      written += s;
+    }
+  }
 
   /* Pack method result */
   CHECK(written < olen, "Output buffer too small.");
@@ -200,8 +197,8 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
     else
     {
       s = co_obj_raw(&cursor, result);
-      written += s;
       memmove(output + written, cursor, s);
+      written += s;
     }
   }
 
