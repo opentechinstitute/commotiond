@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 #include "extern/halloc.h"
 
 
@@ -492,6 +493,10 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
   co_obj_t *obj = NULL;
   switch((uint8_t)input[0])
   {
+    case _nil:
+      *output = co_nil_create(0);
+      read = 1;
+      break;
     case _float32:
       *output = co_float32_create((float)(*(input + 1)), flags);
       read += sizeof(float) + 1;
@@ -559,6 +564,11 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
     case _list16:
     case _list32:
       read += co_list_import(&obj, input, in_size);
+      *output = obj;
+      break;
+    case _tree16:
+    case _tree32:
+      read += co_tree_import(&obj, input, in_size);
       *output = obj;
       break;
     default:

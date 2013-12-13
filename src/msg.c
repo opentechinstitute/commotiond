@@ -41,6 +41,7 @@
 #include "msg.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 
 static uint32_t _id = 0;
 
@@ -192,7 +193,11 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   {
     if(IS_LIST(result))
       written += co_list_raw(output + written, olen - written, result);
-    else 
+    else if(IS_TREE(result))
+    {
+      written += co_tree_raw(output + written, olen - written, result);
+    }
+    else
     {
       s = co_obj_raw(&cursor, result);
       written += s;

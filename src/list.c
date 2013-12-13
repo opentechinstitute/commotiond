@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 #include "extern/halloc.h"
 
 #define _DEFINE_LIST(L) int co_list##L##_alloc(co_obj_t *output) \
@@ -324,10 +325,11 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
     {
       olen = co_list_import(&obj, cursor, ilen - read);
     }
-    else
+    else if(((uint8_t)cursor[0] == _tree16) || ((uint8_t)cursor[0] == _tree32))
     {
-      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+      olen = co_tree_import(&obj, cursor, ilen - read);
     }
+    else olen = co_obj_import(&obj, cursor, ilen - read, 0);
     CHECK(olen > 0, "Failed to import object.");
     cursor +=olen;
     read += olen;

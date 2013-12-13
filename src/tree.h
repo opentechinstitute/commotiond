@@ -77,6 +77,7 @@ int co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context);
 void co_tree_destroy(co_obj_t *root);
 size_t co_tree_raw(char *output, const size_t olen, co_obj_t *tree);
 size_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
+int co_tree_print(co_obj_t *tree);
 
 
 #endif

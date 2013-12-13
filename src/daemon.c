@@ -313,7 +313,7 @@ int main(int argc, char *argv[]) {
   co_schema_register(default_schema);
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
   
-  co_cmd_register("help", sizeof("help") - 1, "help <none>", sizeof("help <none>") - 1, "Print list of commands and usage information.", sizeof("Print list of commands and usage information.") - 1, cmd_help);
+  co_cmd_register("help", sizeof("help"), "help <none>", sizeof("help <none>"), "Print list of commands and usage information.", sizeof("Print list of commands and usage information."), cmd_help);
   /* Add standard commands */
   /*
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
