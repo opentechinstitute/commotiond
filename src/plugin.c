@@ -83,7 +83,7 @@ error:
 int
 co_plugins_start(void)
 {
-  CHECK(co_list_parse(_plugins, _co_plugins_start_i, NULL),"Failed to start all plugins");
+  CHECK(co_list_parse(_plugins, _co_plugins_start_i, NULL) == NULL,"Failed to start all plugins");
   return 1;
 error:
   return 0;
@@ -130,7 +130,7 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   
   CHECK(co_plugin_name(NULL, &(plugin->name), NULL), "Failed to set plugin name.");
   hattach(plugin->name, plugin);
-  CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename), 0));
+  CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename)+1, 0));
   hattach(plugin->filename, plugin);
   if(co_plugin_shutdown != NULL) plugin->shutdown = co_plugin_shutdown;
   plugin->init = co_plugin_init;

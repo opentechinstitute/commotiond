@@ -108,6 +108,7 @@ static co_obj_t *_co_loop_match_socket_i(co_obj_t *list, co_obj_t *sock, void *u
 }
 
 static co_obj_t *_co_loop_match_process_i(co_obj_t *list, co_obj_t *proc, void *pid) {
+  if(!IS_PROCESS(proc)) return NULL;
   const co_process_t *this_proc = (co_process_t*)proc;
   const pid_t *this_pid = pid;
   if(this_proc->pid == *this_pid) return proc;
@@ -122,6 +123,7 @@ static long _co_loop_tv_diff(const struct timeval *t1, const struct timeval *t2)
 }
 
 static co_obj_t *_co_loop_compare_timer_i(co_obj_t *list, co_obj_t *timer, void *time) {
+  if(!IS_TIMER(timer)) return NULL;
   const co_timer_t *this_timer = (co_timer_t*)timer;
   const struct timeval *this_time = time;
   if(_co_loop_tv_diff(&this_timer->deadline, this_time) > 0) return timer;
@@ -129,6 +131,7 @@ static co_obj_t *_co_loop_compare_timer_i(co_obj_t *list, co_obj_t *timer, void 
 }
 
 static co_obj_t *_co_loop_match_timer_i(co_obj_t *list, co_obj_t *timer, void *ptr) {
+  if(!IS_TIMER(timer)) return NULL;
   const co_timer_t *this_timer = (co_timer_t*)timer;
   const void *match_ptr = ptr;
   if(this_timer->ptr == match_ptr) return timer;
@@ -136,6 +139,7 @@ static co_obj_t *_co_loop_match_timer_i(co_obj_t *list, co_obj_t *timer, void *p
 }
 
 static co_obj_t *_co_loop_poll_process_i(co_obj_t *list, co_obj_t *proc, void *pid) {
+  if(!IS_PROCESS(proc)) return NULL;
   pid_t *this_pid = pid;
   co_process_t *this_proc = (co_process_t*)proc;
   
@@ -439,7 +443,11 @@ co_obj_t *co_timer_create(struct timeval deadline, co_cb_t timer_cb, void *ptr) 
   new_timer->_exttype = _co_timer;
   new_timer->_len = sizeof(co_timer_t);
   new_timer->pending = false;
-  new_timer->deadline = (deadline.tv_sec == 0 && deadline.tv_usec == 0) ? deadline : (struct timeval){0};
+  if (deadline.tv_sec > 0 && deadline.tv_usec > 0) {
+    new_timer->deadline.tv_sec = deadline.tv_sec;
+    new_timer->deadline.tv_usec = deadline.tv_usec;
+  } else
+    new_timer->deadline = (struct timeval){0};
   new_timer->timer_cb = timer_cb ? timer_cb : NULL;
   new_timer->ptr = ptr ? ptr : (void*)new_timer;
   
