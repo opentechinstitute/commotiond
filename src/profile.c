@@ -255,7 +255,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
         if(key != NULL && klen > 0)
         {
-          if(!co_profile_set_str(new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
+          if(!co_profile_set_str(new_profile, key, klen + 1, _co_json_token_stringify(buffer, t), t->end - t->start))
           {
             INFO("Value not in schema.");
           }
