@@ -680,6 +680,7 @@ _co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
   char *value = NULL;
   if(co_node_value(current) != NULL)
   {
+    (*count)++;
     co_obj_data(&key, co_node_key(current));
     co_obj_data(&value, co_node_value(current));
     //CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
@@ -691,7 +692,6 @@ _co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
     {
       printf(" \"%s\": \"%s\" ", key, value);
     }
-    (*count)++;
   }
   _co_tree_print_r(tree, current->low, count); 
   _co_tree_print_r(tree, current->equal, count); 
