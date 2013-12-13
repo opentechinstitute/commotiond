@@ -140,17 +140,21 @@ proto_commotion_setup() {
 }
 
 proto_commotion_teardown() {
-	local interface="$1"
-	
+	local config="$1"
+	local ifname="$2"
+		
 	logger -t "commotion.proto" -s "Initiating teardown."
 	
+	local type = "$(commotion_get_type "$ifname")"
 	
-	local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
-	unset_bridge "$client_bridge" "$iface"
-	logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
+	if [ "$type" != "mesh" ]; then
+	    local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
+	    unset_bridge "$client_bridge" "$ifname"
+	    logger -t "commotion.proto" -s "Removing $ifname from bridge $client_bridge"
 	
-	proto_kill_command "$interface"
-}
+	    proto_kill_command "$config"
+	fi
+}	
 
 add_protocol commotion
 
