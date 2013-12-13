@@ -144,8 +144,6 @@ co_tree_find_node(_treenode_t *root, const char *key, const size_t klen)
 
   while(i < klen && n) 
   {
-    DEBUG("i: %d, klen: %d", (int)i, (int)klen);
-    DEBUG("Tree node: %c", key[i]);
     if (key[i] < n->splitchar) 
     {
       n = n->low; 
@@ -264,7 +262,6 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
     current->splitchar = *key; 
   }
 
-  DEBUG("Tree current: %s", key);
   if (*key < current->splitchar) 
   {
     current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value); 
@@ -330,6 +327,7 @@ static int
 _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
 {
   CHECK(n != NULL, "Invalid node supplied.");
+  CHECK(n->value != NULL, "Invalid node supplied.");
   switch(CO_TYPE(n->value))
   {
     case _str8:
@@ -558,34 +556,34 @@ co_tree_destroy(co_obj_t *root)
 }
 
 static inline void
-_co_tree_raw_r(char *output, size_t olen, size_t *count, _treenode_t *current)
+_co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *current)
 {
-  CHECK(current != NULL, "Reached edge of tree.");
-  size_t klen = 0, vlen = 0, written = 0;
-  char *kbuf = NULL, *vbuf = NULL, *out = output;
+  if(current == NULL) return;
+  size_t klen = 0, vlen = 0; 
+  char *kbuf = NULL, *vbuf = NULL;
   if(current->value != NULL)
   {
     CHECK((klen = co_obj_raw(&kbuf, current->key)) > 0, "Failed to read key.");
     CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
-    written = klen + vlen;
-    CHECK(written < olen, "Data too large for buffer.");
+    CHECK(klen + vlen < *olen - *written, "Data too large for buffer.");
     DEBUG("Dumping value %s of size %d with key %s of size %d.", vbuf, (int)vlen, kbuf, (int)klen);
-    memmove(out, kbuf, klen);
-    out += klen;
-    memmove(out, vbuf, vlen);
-    out += vlen;
+    memmove(*output, kbuf, klen);
+    *output += klen;
+    *written += klen;
+    memmove(*output, vbuf, vlen);
+    *written += vlen;
+    *output += vlen;
   }
-  _co_tree_raw_r(out, olen - written, count, current->low); 
-  _co_tree_raw_r(out, olen - written, count, current->equal); 
-  _co_tree_raw_r(out, olen - written, count, current->high); 
-  *count += written;
+  _co_tree_raw_r(output, olen, written, current->low); 
+  _co_tree_raw_r(output, olen, written, current->equal); 
+  _co_tree_raw_r(output, olen, written, current->high); 
   return; 
 error:
   return;
 }
 
 size_t
-co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
+co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
 {
   char *out = output;
   size_t written = 0;
@@ -612,7 +610,7 @@ co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
       break;
   }
   
-  _co_tree_raw_r(out, olen - written, &written, co_tree_root(tree));
+  _co_tree_raw_r(&out, &olen, &written, co_tree_root(tree));
   return written;
 error:
   return -1;
@@ -677,7 +675,7 @@ static inline void
 _co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
 {
   CHECK(IS_TREE(tree), "Recursion target is not a tree.");
-  CHECK(current != NULL, "Reached edge of tree.");
+  if(current == NULL) return;
   char *key = NULL;
   char *value = NULL;
   if(co_node_value(current) != NULL)
@@ -685,7 +683,6 @@ _co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
     co_obj_data(&key, co_node_key(current));
     co_obj_data(&value, co_node_value(current));
     //CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
-    DEBUG("count: %d tree length: %d", *count, (int)co_tree_length(tree));
     if(*count < co_tree_length(tree))
     {
       printf(" \"%s\": \"%s\", ", key, value);
@@ -694,6 +691,7 @@ _co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
     {
       printf(" \"%s\": \"%s\" ", key, value);
     }
+    (*count)++;
   }
   _co_tree_print_r(tree, current->low, count); 
   _co_tree_print_r(tree, current->equal, count); 
@@ -707,11 +705,11 @@ int
 co_tree_print(co_obj_t *tree)
 {
   CHECK_MEM(tree);
-  int count = 1;
+  int count = 0;
 
   printf("{");
   _co_tree_print_r(tree, co_tree_root(tree), &count);
-  printf("}");
+  printf("}\n");
 
   return 1;
 error:
