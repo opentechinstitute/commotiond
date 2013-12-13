@@ -87,6 +87,8 @@ _co_cmd_create(const char *name, const size_t nlen, const char *usage, const siz
   cmd->_len = (sizeof(co_obj_t *) * 3);
   cmd->_exttype = _cmd;
   cmd->_header._type = _ext8;
+  cmd->_header._ref = 0;
+  cmd->_header._flags = 0;
   return (co_obj_t *)cmd;
 error:
   DEBUG("Failed to create command %s.", name);

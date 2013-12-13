@@ -218,8 +218,16 @@ static void print_usage() {
   );
 }
 
-static void *debug_alloc(void *ptr, size_t len)
+static void *co_obj_alloc(void *ptr, size_t len)
 {
+  if(len == 0 && ptr != NULL)
+  {
+    if(((co_obj_t *)ptr)->_ref > 0)
+    {
+      ((co_obj_t *)ptr)->_ref--;
+      return NULL;
+    }
+  }
   void *ret = realloc(ptr, len);
   DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, (int)len);
   return ret;
@@ -239,7 +247,7 @@ default_schema(co_obj_t *self, co_obj_t **output, co_obj_t *params)
  * 
  */
 int main(int argc, char *argv[]) {
-  /*  halloc_allocator = debug_alloc; */
+  halloc_allocator = co_obj_alloc;
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;

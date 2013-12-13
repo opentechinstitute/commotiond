@@ -42,6 +42,8 @@
       output->_type = _tree##L; \
       output->_next = NULL; \
       output->_prev = NULL; \
+      output->_ref = 0; \
+      output->_flags = 0; \
       ((co_tree##L##_t *)output)->_len = 0; \
       ((co_tree##L##_t *)output)->root = NULL; \
       return 1; \
@@ -204,6 +206,7 @@ _co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, cons
       {
         DEBUG("Found current value.");
         hattach(current->value, NULL);
+        current->value->_ref--;
         *value = current->value;
         current->value = NULL;
       }
@@ -287,6 +290,8 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
       current->key = co_str8_create(orig_key, orig_klen, 0);
       hattach(current->key, current);
       hattach(current->value, current);
+      current->key->_ref++;
+      current->value->_ref++;
     }
   } 
   else 

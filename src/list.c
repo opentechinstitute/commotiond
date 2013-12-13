@@ -43,6 +43,8 @@
       output->_type = _list##L; \
       output->_next = NULL; \
       output->_prev = NULL; \
+      output->_flags = 0; \
+      output->_ref = 0; \
       ((co_list##L##_t *)output)->_len = 0; \
       return 1; \
     } \
@@ -149,6 +151,7 @@ co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
     _LIST_PREV(this_obj) = new_obj;
   }
   hattach(new_obj, list);
+  new_obj->_ref++;
   co_list_increment(list);
   return 1;
 error:
@@ -176,6 +179,7 @@ co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
   _LIST_NEXT(this_obj) = new_obj;
   _LIST_PREV(new_obj) = this_obj; 
   hattach(new_obj, list);
+  new_obj->_ref++;
   co_list_increment(list);
   return 1;
 error:
@@ -210,6 +214,7 @@ _co_list_delete_i(co_obj_t *data, co_obj_t *current, void *context)
     if(_LIST_NEXT(current) != NULL) _LIST_PREV(_LIST_NEXT(current)) = \
       _LIST_PREV(current);
     hattach(current, NULL);
+    current->_ref--;
     co_list_decrement(data);
     return current;
   }
