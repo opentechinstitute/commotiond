@@ -450,7 +450,8 @@ char *co_list_profiles(void) {
 static co_obj_t *
 _co_profile_find_i(co_obj_t *list, co_obj_t *current, void *context) 
 {
-  if(!co_str_cmp(((co_profile_t *)current)->name, ((co_profile_t *)context)->name)) return current;
+  if (IS_PROFILE(current))
+    if(!co_str_cmp(((co_profile_t *)current)->name, context)) return current;
   return NULL;
 }
 

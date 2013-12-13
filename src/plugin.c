@@ -73,7 +73,8 @@ error:
 static co_obj_t *
 _co_plugins_start_i(co_obj_t *data, co_obj_t *current, void *context)
 {
-  CHECK(((co_plugin_t *)current)->init(current, NULL, NULL),"Failed to start plugin %s",co_obj_data_ptr(((co_plugin_t *)current)->name));
+  if (IS_PLUG(current))
+    CHECK(((co_plugin_t *)current)->init(current, NULL, NULL),"Failed to start plugin %s",co_obj_data_ptr(((co_plugin_t *)current)->name));
   return NULL;
 error:
   return current;

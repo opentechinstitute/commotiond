@@ -111,7 +111,7 @@
 
 /* Extension type checking */
 #define IS_CMD(J) (IS_EXT(J) && ((co_cmd_t *)J)->_exttype == _cmd)
-#define IS_PLUG(J) (IS_EXT(J) && ((co_plug_t *)J)->_exttype == _plug)
+#define IS_PLUG(J) (IS_EXT(J) && ((co_plugin_t *)J)->_exttype == _plug)
 #define IS_PROFILE(J) (IS_EXT(J) && ((co_profile_t *)J)->_exttype == _profile)
 #define IS_CBPTR(J) (IS_EXT(J) && ((co_cbptr_t *)J)->_exttype == _cbptr)
 #define IS_SOCK(J) (IS_EXT(J) && ((co_socket_t *)J)->_exttype == _sock)

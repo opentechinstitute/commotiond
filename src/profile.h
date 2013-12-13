@@ -116,7 +116,7 @@ int co_profile_set(co_obj_t *profile, const char *key, const char *value);
 /**
  * @brief returns list of available profiles
  */
-char *co_list_profiles(void);
+// char *co_list_profiles(void);
 
 /**
  * @brief searches the profile list for a specified profile
