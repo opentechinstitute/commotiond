@@ -104,6 +104,13 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context);
 int co_loop_remove_socket(co_obj_t *old_sock, co_obj_t *context);
 
 /**
+ * @brief gets a socket that is registered with the event loop
+ * @param uri a URI to match against the available sockets
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+co_obj_t *co_loop_get_socket(char *uri, co_obj_t *context);
+
+/**
  * @brief schedules a new timer with the event loop
  * @param timer the timer to schedule
  * @param context a co_obj_t context pointer (currently unused)
@@ -124,6 +131,13 @@ int co_loop_remove_timer(co_obj_t *old_timer, co_obj_t *context);
  * @param context a co_obj_t context pointer (currently unused)
  */
 int co_loop_set_timer(co_obj_t *timer, long msecs, co_obj_t *context);
+
+/**
+ * @brief gets a socket that is registered with the event loop
+ * @param ptr void pointer to match against the available timers
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+co_obj_t *co_loop_get_timer(void *ptr, co_obj_t *context);
 
 /**
  * @brief malloc and initialize a timer

@@ -367,6 +367,14 @@ error:
   return 0;
 }
 
+co_obj_t *co_loop_get_socket(char *uri, co_obj_t *context) {
+  co_obj_t *sock = NULL;
+  CHECK((sock = co_list_parse(sockets, _co_loop_match_socket_i, uri)), "Failed to find socket %s", uri);
+  return sock;
+error:
+  return NULL;
+}
+
 int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
   co_timer_t *timer = (co_timer_t*)new_timer;
   co_obj_t *node = NULL;
@@ -377,7 +385,7 @@ int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
   
   _co_loop_gettime(&now);
   CHECK(timer->timer_cb,"No callback function associated with timer");
-  CHECK(_co_loop_tv_diff(&timer->deadline,&now) > 0,"Invalid timer deadline");
+  CHECK(_co_loop_tv_diff(&timer->deadline,&now) > -1000,"Invalid timer deadline");
     
   CHECK(co_list_parse(timers,_co_loop_match_timer_i,timer->ptr) == NULL,"Timer already scheduled");
   
@@ -388,7 +396,7 @@ int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
     CHECK(co_list_append(timers,(co_obj_t*)timer),"Failed to insert timer.");
   }
   
-  DEBUG("Successfully added timer %ld.%06ld",timer->deadline.tv_sec,timer->deadline.tv_usec);
+  DEBUG("Successfully added timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
   
   timer->pending = true;
   return 1;
@@ -414,6 +422,15 @@ int co_loop_remove_timer(co_obj_t *old_timer, co_obj_t *context) {
 
 error:
   return 0;
+}
+
+co_obj_t *co_loop_get_timer(void *ptr, co_obj_t *context) {
+  co_obj_t *timer = NULL;
+  DEBUG("timer length: %ld",co_list_length(timers));
+  CHECK((timer = co_list_parse(timers, _co_loop_match_timer_i, ptr)), "Failed to find timer: %p",ptr);
+  return timer;
+error:
+  return NULL;
 }
 
 int co_loop_set_timer(co_obj_t *old_timer, long msecs, co_obj_t *context) {
