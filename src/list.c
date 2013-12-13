@@ -211,8 +211,10 @@ _co_list_delete_i(co_obj_t *data, co_obj_t *current, void *context)
   {
     if(_LIST_PREV(current) != NULL) _LIST_NEXT(_LIST_PREV(current)) = \
       _LIST_NEXT(current);
-    if(_LIST_NEXT(current) != NULL) _LIST_PREV(_LIST_NEXT(current)) = \
-      _LIST_PREV(current);
+    if(_LIST_NEXT(current) != NULL) 
+      _LIST_PREV(_LIST_NEXT(current)) = _LIST_PREV(current);
+    else
+      _LIST_PREV(data) = _LIST_PREV(current);
     hattach(current, NULL);
     current->_ref--;
     co_list_decrement(data);
