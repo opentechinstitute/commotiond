@@ -338,6 +338,7 @@ co_float64_create(const double input, const uint8_t flags)
 /*-----------------------------------------------------------------------------
  *   Deconstructors
  *-----------------------------------------------------------------------------*/
+/*  
 static void *
 co_obj_alloc(void *ptr, size_t len)
 {
@@ -352,11 +353,12 @@ co_obj_alloc(void *ptr, size_t len)
   void *ret = realloc(ptr, len);
   return ret;
 }
+*/
 
 void
 co_obj_free(co_obj_t *object)
 {
-  halloc_allocator = co_obj_alloc;
+  //halloc_allocator = co_obj_alloc;
   if(object != NULL) h_free(object);
   return;
 }
