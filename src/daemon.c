@@ -260,26 +260,12 @@ static void print_usage() {
   );
 }
 
-static void *co_obj_alloc(void *ptr, size_t len)
-{
-  if(len == 0 && ptr != NULL)
-  {
-    if(((co_obj_t *)ptr)->_ref > 0)
-    {
-      ((co_obj_t *)ptr)->_ref--;
-      return NULL;
-    }
-  }
-  void *ret = realloc(ptr, len);
-  return ret;
-}
 
 /**
  * @brief Creates sockets for event loop, daemon and dispatcher. Starts/stops event loop.
  * 
  */
 int main(int argc, char *argv[]) {
-  halloc_allocator = co_obj_alloc;
   int opt = 0;
   int opt_index = 0;
   int daemonize = 1;
