@@ -85,6 +85,17 @@ SCHEMA(default)
   return 1;
 }
 
+SCHEMA(global)
+{
+  SCHEMA_ADD("bind", COMMOTION_MANAGESOCK); 
+  SCHEMA_ADD("state", COMMOTION_STATEDIR); 
+  SCHEMA_ADD("pid", COMMOTION_PIDFILE); 
+  SCHEMA_ADD("plugins", COMMOTION_PLUGINDIR); 
+  SCHEMA_ADD("profiles", COMMOTION_PROFILEDIR); 
+  SCHEMA_ADD("id", "0"); 
+  return 1;
+}
+
 static co_obj_t *
 _cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
 {
@@ -152,10 +163,12 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
 
   co_obj_free(nil);
   co_obj_free(request);
+  co_obj_free(ret);
   return 1;
 error:
   co_obj_free(nil);
   co_obj_free(request);
+  co_obj_free(ret);
   return 1;
 }
 
@@ -249,6 +262,7 @@ static void print_usage() {
           "Usage: commotiond [options]\n"
           "\n"
           "Options:\n"
+          " -c, --config <file>   Specify global config file.\n"
           " -b, --bind <uri>      Specify management socket.\n"
           " -d, --plugins <dir>   Specify plugin directory.\n"
           " -f, --profiles <dir>  Specify profile directory.\n"
@@ -270,15 +284,17 @@ int main(int argc, char *argv[]) {
   int opt_index = 0;
   int daemonize = 1;
   uint32_t newid = 0;
-  char *pidfile = COMMOTION_PIDFILE;
-  char *statedir = COMMOTION_STATEDIR;
-  char *socket_uri = COMMOTION_MANAGESOCK;
-  char *plugindir = COMMOTION_PLUGINDIR;
-  char *profiledir = COMMOTION_PROFILEDIR;
+  char *config = COMMOTION_CONFIGFILE;
+  char *pid = NULL;
+  char *state = NULL;
+  char *bind = NULL;
+  char *plugins = NULL;
+  char *profiles = NULL;
 
-  static const char *opt_string = "b:d:f:i:np:s:h";
+  static const char *opt_string = "c:b:d:f:i:np:s:h";
 
   static struct option long_opts[] = {
+    {"config", required_argument, NULL, 'c'},
     {"bind", required_argument, NULL, 'b'},
     {"plugins", required_argument, NULL, 'd'},
     {"profiles", required_argument, NULL, 'f'},
@@ -295,14 +311,17 @@ int main(int argc, char *argv[]) {
 
   while(opt != -1) {
     switch(opt) {
+      case 'c':
+        config = optarg;
+        break;
       case 'b':
-        socket_uri = optarg;
+        bind = optarg;
         break;
       case 'd':
-        plugindir = optarg;
+        plugins = optarg;
         break;
       case 'f':
-        profiledir = optarg;
+        profiles = optarg;
         break;
       case 'i':
         newid = strtoul(optarg,NULL,10);
@@ -311,10 +330,10 @@ int main(int argc, char *argv[]) {
         daemonize = 0;
         break;
       case 'p':
-        pidfile = optarg;
+        pid = optarg;
         break;
       case 's':
-        statedir = optarg;
+        state = optarg;
         break;
       case 'h':
       default:
@@ -325,19 +344,29 @@ int main(int argc, char *argv[]) {
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
 
-  /* If the daemon is needed, start the daemon */
-  if(daemonize) daemon_start((char *)statedir, (char *)pidfile); /* Input state directory and lockfile with process id */
   co_id_set_from_int(newid);
   nodeid_t id = co_id_get();
   DEBUG("Node ID: %d", (int) id.id);
+
+  co_profiles_init(16); /* Set up profiles */
+  SCHEMA_GLOBAL(global);
+  if(!co_profile_import_global(config)) WARN("Failed to load global configuration file %s!", config);
+  co_obj_t *settings = co_profile_global();
+  
+
+  if(pid == NULL) co_profile_get_str(settings, &pid, "pid", sizeof("pid"));
+  if(bind == NULL) co_profile_get_str(settings, &bind, "bind", sizeof("bind"));
+  if(state == NULL) co_profile_get_str(settings, &state, "state", sizeof("state"));
+  if(plugins == NULL) co_profile_get_str(settings, &plugins, "plugins", sizeof("plugins"));
+  if(profiles == NULL) co_profile_get_str(settings, &profiles, "profiles", sizeof("profiles"));
+
   co_plugins_init(16);
   co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
-  co_profiles_init(16); /* Set up profiles */
-  co_plugins_load(plugindir); /* Load plugins and register plugin profile schemas */
+  co_plugins_load(plugins); /* Load plugins and register plugin profile schemas */
   SCHEMA_REGISTER(default); /* Register default schema */
-  co_profile_import_files(profiledir); /* Import profiles from profiles directory */
+  co_profile_import_files(profiles); /* Import profiles from profiles directory */
   CMD_REGISTER(help, "help <none>", "Print list of commands and usage information.");
   
   /* Add standard commands */
@@ -359,9 +388,12 @@ int main(int argc, char *argv[]) {
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
-  socket->bind((co_obj_t*)socket, socket_uri);
-
+  socket->bind((co_obj_t*)socket, bind);
   co_plugins_start();
+
+  /* If the daemon is needed, start the daemon */
+  if(daemonize) daemon_start((char *)state, (char *)pid); /* Input state directory and lockfile with process id */
+
   co_loop_start();
   co_loop_destroy();
   co_cmds_shutdown();

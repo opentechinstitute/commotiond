@@ -46,6 +46,8 @@
 
 static co_obj_t *_profiles = NULL;
 static co_obj_t *_schemas = NULL;
+static co_obj_t *_profile_global = NULL;
+static co_obj_t *_schemas_global = NULL;
 
 static co_obj_t *
 _co_schema_create(co_cb_t cb)
@@ -74,6 +76,16 @@ error:
   return 0;
 }
 
+int
+co_schema_register_global(co_cb_t cb)
+{
+  DEBUG("Registering global schema.");
+  CHECK(co_list_append(_schemas_global, _co_schema_create(cb)), "Failed to register schema.");
+  return 1;
+error:
+  return 0;
+}
+
 static co_obj_t *
 _co_schemas_load_i(co_obj_t *list, co_obj_t *current, void *context) 
 {
@@ -89,12 +101,12 @@ _co_schemas_load_i(co_obj_t *list, co_obj_t *current, void *context)
   return NULL;
 }
 
-int
-co_schemas_load(co_obj_t *profile) 
+static int
+_co_schemas_load(co_obj_t *profile, co_obj_t *schemas) 
 {
   CHECK(IS_PROFILE(profile), "Not a valid search index.");
-  CHECK(_schemas != NULL, "Schemas not initialized.");
-  co_list_parse(_schemas, _co_schemas_load_i, profile);
+  CHECK(schemas != NULL, "Schemas not initialized.");
+  co_list_parse(schemas, _co_schemas_load_i, profile);
   return 1;
 error:
   return 0;
@@ -104,6 +116,7 @@ void
 co_profiles_shutdown(void) 
 {
   if(_profiles != NULL) co_obj_free(_profiles);
+  if(_profile_global != NULL) co_obj_free(_profile_global);
   return;
 }
 
@@ -112,17 +125,22 @@ co_profiles_init(const size_t index_size)
 {
   if(index_size == 16)
   {
-    CHECK((_profiles = (co_obj_t *)co_list16_create()) != NULL, "Plugin list creation failed.");
+    CHECK((_profiles = (co_obj_t *)co_list16_create()) != NULL, "Profile list creation failed.");
   }
   else if(index_size == 32)
   {
-    CHECK((_profiles = (co_obj_t *)co_list32_create()) != NULL, "Plugin list creation failed.");
+    CHECK((_profiles = (co_obj_t *)co_list32_create()) != NULL, "Profile list creation failed.");
   }
   else SENTINEL("Invalid list index size.");
 
   if(_schemas == NULL)
   {
     CHECK((_schemas = (co_obj_t *)co_list16_create()) != NULL, "Schema list creation failed.");
+  }
+
+  if(_schemas_global == NULL)
+  {
+    CHECK((_schemas_global = (co_obj_t *)co_list16_create()) != NULL, "Global schema list creation failed.");
   }
 
   return 1;
@@ -145,7 +163,6 @@ _co_profile_create(const char *name, const size_t nlen)
   profile->_header._type = _ext8;
   profile->_header._ref = 0;
   profile->_header._flags = 0;
-  CHECK(co_schemas_load((co_obj_t *)profile), "Failed to initialize profile with schema.");
   profile->_len = (sizeof(co_obj_t *) * 2);
   return (co_obj_t *)profile;
 error:
@@ -213,6 +230,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
   size_t object_tokens = 0;
   co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
+  CHECK(_co_schemas_load(new_profile, _schemas), "Failed to initialize profile with schema.");
   char *key = NULL;
   size_t klen = 0;
 
@@ -255,7 +273,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
         if(key != NULL && klen > 0)
         {
-          if(!co_profile_set_str(new_profile, key, klen + 1, _co_json_token_stringify(buffer, t), t->end - t->start))
+          if(!co_profile_set_str(new_profile, key, klen + 1, _co_json_token_stringify(buffer, t), t->end - t->start + 1))
           {
             INFO("Value not in schema.");
           }
@@ -298,6 +316,105 @@ int co_profile_import_files(const char *path) {
   return 1;
 
 error:
+  return 0;
+}
+
+int co_profile_import_global(const char *path) {
+  FILE *config_file = NULL;
+
+  DEBUG("Importing file at path %s", path);
+
+  config_file = fopen(path, "rb");
+  CHECK(config_file != NULL, "File %s could not be opened", path);
+  fseek(config_file, 0, SEEK_END);
+  long fsize = ftell(config_file);
+  rewind(config_file);
+  char *buffer = h_calloc(1, fsize + 1);
+  CHECK(fread(buffer, fsize, 1, config_file) != 0, "Failed to read from file.");
+  fclose(config_file);
+  
+  buffer[fsize] = '\0';
+  jsmntok_t *tokens = _co_json_string_tokenize(buffer);
+
+  typedef enum { START, KEY, VALUE, STOP } parse_state;
+  parse_state state = START;
+
+  size_t object_tokens = 0;
+  _profile_global = _co_profile_create("global", sizeof("global"));
+  CHECK(_co_schemas_load(_profile_global, _schemas_global), "Failed to initialize profile with schema.");
+  char *key = NULL;
+  size_t klen = 0;
+
+  for (size_t i = 0, j = 1; j > 0; i++, j--)
+  {
+    jsmntok_t *t = &tokens[i];
+
+    // Should never reach uninitialized tokens
+    CHECK(t->start != -1 && t->end != -1, "Tokens uninitialized.");
+
+    if (t->type == JSMN_ARRAY || t->type == JSMN_OBJECT)
+      j += t->size;
+
+    switch (state)
+    {
+      case START:
+        CHECK(t->type == JSMN_OBJECT, "Invalid root element.");
+
+        state = KEY;
+        object_tokens = t->size;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        CHECK(object_tokens % 2 == 0, "Object must have even number of children.");
+        break;
+
+      case KEY:
+        object_tokens--;
+
+        CHECK(t->type == JSMN_STRING, "Keys must be strings.");
+        state = VALUE;
+        key = _co_json_token_stringify(buffer, t);
+        klen = t->end - t->start;
+
+        break;
+
+      case VALUE:
+        CHECK(t->type == JSMN_STRING, "Values must be strings.");
+
+        if(key != NULL && klen > 0)
+        {
+          if(!co_profile_set_str(_profile_global, key, klen + 1, _co_json_token_stringify(buffer, t), t->end - t->start + 1))
+          {
+            INFO("Value not in schema.");
+          }
+          
+        }
+
+        key = NULL;
+        klen = 0;
+        object_tokens--;
+        state = KEY;
+
+        if (object_tokens == 0)
+          state = STOP;
+
+        break;
+
+      case STOP:
+        // Just consume the tokens
+        break;
+
+      default:
+        SENTINEL("Invalid state %u", state);
+    }
+  }
+
+  return 1;
+
+error:
+  if(config_file != NULL) fclose(config_file);
+  if(_profile_global != NULL) co_obj_free(_profile_global);
   return 0;
 }
 
@@ -468,6 +585,12 @@ co_profile_find(co_obj_t *name)
   return result;
 error:
   return NULL;
+}
+
+co_obj_t *
+co_profile_global(void) 
+{
+  return _profile_global;
 }
 
 static inline void
