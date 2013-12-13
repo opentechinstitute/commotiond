@@ -17,6 +17,7 @@
 #include "serval-dna.h"
 
 #define CHECK_ERR(A, M, ...) if(!(A)) { \
+    ERROR(M, ##__VA_ARGS__); \
     if (err_msg == NULL) \
       err_msg = co_list16_create(); \
     char *msg = NULL; \
@@ -96,7 +97,7 @@ int _serval_init(unsigned char *sid,
     keyringFile[keyring_len] = '\0';
     
     // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-    CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file");
+    CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file: %s",keyringFile);
     *strrchr(abs_path,'/') = '\0';
     CHECK_ERR(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   }
@@ -355,7 +356,7 @@ int serval_crypto_register(void) {
   "      * Verify any arbitrary text, a signature, and a Serval key ID (SID), and will\n"
   "             determine if the signature is valid.\n\n";
   
-  CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_crypto_handler),"Failed to register commands");
+  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
   
   return 1;
 error:
@@ -370,7 +371,7 @@ int olsrd_mdp_register(void) {
    */
   const char name[] = "olsrd-mdp";
   
-  CHECK(co_cmd_register(name,strlen(name),NULL,0,NULL,0,olsrd_mdp_init),"Failed to register command");
+  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_init),"Failed to register command");
   
   return 1;
 error:
@@ -385,7 +386,7 @@ int olsrd_mdp_sign_register(void) {
   
   const char name[] = "mdp-sign";
   
-  CHECK(co_cmd_register(name,strlen(name),NULL,0,NULL,0,olsrd_mdp_sign),"Failed to register command");
+  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_sign),"Failed to register command");
   
   return 1;
 error:
@@ -442,10 +443,10 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 				  keypath ? co_str_len(co_list_element(params,4)) - 10 : 0);
     if (verdict == 1) {
       char msg[] = "Message verified!";
-      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,strlen(msg),0)),"Failed to set return value");
+      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,sizeof(msg),0)),"Failed to set return value");
     } else if (verdict == 0) {
       char msg[] = "Message NOT verified!";
-      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,strlen(msg),0)),"Failed to set return value");
+      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,sizeof(msg),0)),"Failed to set return value");
     }
     
   }
