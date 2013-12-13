@@ -248,7 +248,7 @@ error:
 }
 
 size_t
-co_list_raw(char *output, const size_t olen, co_obj_t *list)
+co_list_raw(char *output, const size_t olen, const co_obj_t *list)
 {
   size_t written = 0, read = 0;
   char *in = NULL;
