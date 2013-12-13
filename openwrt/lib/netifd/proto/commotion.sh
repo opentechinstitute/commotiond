@@ -148,11 +148,10 @@ proto_commotion_teardown() {
 	logger -t "commotion.proto" -s "Initiating teardown."
 	
 	
-	if [ "$type" = "plug" ]; then 
-		local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
-		unset_bridge "$client_bridge" "$iface"
-		logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
-	fi
+	local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
+	unset_bridge "$client_bridge" "$iface"
+	logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
+	
 	proto_kill_command "$interface"
 }
 
