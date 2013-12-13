@@ -103,9 +103,6 @@ proto_commotion_setup() {
 			
 			logger -t "commotion.proto" -s "Restarting dnsmasq"
 			/etc/init.d/dnsmasq restart
-			
-			logger -t "commotion.proto" -s "Restarting firewall"
-			/etc/init.d/firewall restart
 						
 			return
 		fi
