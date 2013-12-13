@@ -63,6 +63,43 @@
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
 
+SCHEMA(default)
+{
+  SCHEMA_ADD("ssid", "commotionwireless.net"); 
+  SCHEMA_ADD("bssid", "02:CA:FF:EE:BA:BE"); 
+  SCHEMA_ADD("bssidgen", "true"); 
+  SCHEMA_ADD("channel", "5"); 
+  SCHEMA_ADD("mode", "adhoc"); 
+  SCHEMA_ADD("type", "mesh"); 
+  SCHEMA_ADD("dns", "208.67.222.222"); 
+  SCHEMA_ADD("domain", "mesh.local"); 
+  SCHEMA_ADD("ipgen", "true"); 
+  SCHEMA_ADD("ip", "100.64.0.0"); 
+  SCHEMA_ADD("netmask", "255.192.0.0"); 
+  SCHEMA_ADD("ipgenmask", "255.192.0.0"); 
+  SCHEMA_ADD("wpa", "true"); 
+  SCHEMA_ADD("wpakey", "c0MM0t10n!r0cks"); 
+  SCHEMA_ADD("servald", "false"); 
+  SCHEMA_ADD("servalsid", ""); 
+  SCHEMA_ADD("announce", "true"); 
+  return 1;
+}
+
+static co_obj_t *
+_cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
+{
+  co_tree_insert((co_obj_t *)context, "command", sizeof("command"), ((co_cmd_t *)current)->name);
+  co_tree_insert((co_obj_t *)context, "usage", sizeof("usage"), ((co_cmd_t *)current)->usage);
+  co_tree_insert((co_obj_t *)context, "description", sizeof("description"), ((co_cmd_t *)current)->desc);
+  return NULL;
+}
+
+CMD(help)
+{
+  *output = co_tree16_create();
+  return co_cmd_process(_cmd_help_i, (void *)*output);
+}
+
 int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 
 /**
@@ -105,6 +142,11 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   if(co_cmd_exec(co_list_element(request, 2), &ret, co_list_element(request, 3)))
   {
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
+    sock->send((co_obj_t*)sock, respbuf, resplen);
+  }
+  else
+  {
+    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, ret, nil);
     sock->send((co_obj_t*)sock, respbuf, resplen);
   }
 
@@ -229,17 +271,7 @@ static void *co_obj_alloc(void *ptr, size_t len)
     }
   }
   void *ret = realloc(ptr, len);
-  DEBUG("Return: %p from pointer: %p with length: %d", ret, ptr, (int)len);
   return ret;
-}
-
-
-int 
-default_schema(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  DEBUG("Loading default schema.");
-  co_tree_insert(self, "ssid", sizeof("ssid") - 1, co_str8_create("commotionwireless.net", sizeof("commotionwireless.net"), 0));  
-  return 1;
 }
 
 /**
@@ -317,11 +349,11 @@ int main(int argc, char *argv[]) {
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */
-  co_schema_register(default_schema);
   co_plugins_load(plugindir); /* Load plugins and register plugin profile schemas */
+  SCHEMA_REGISTER(default); /* Register default schema */
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
+  CMD_REGISTER(help, "help <none>", "Print list of commands and usage information.");
   
-  co_cmd_register("help", sizeof("help"), "help <none>", sizeof("help <none>"), "Print list of commands and usage information.", sizeof("Print list of commands and usage information."), cmd_help);
   /* Add standard commands */
   /*
   co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
