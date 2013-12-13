@@ -70,6 +70,25 @@ error:
   return 0;
 }
 
+static co_obj_t *
+_co_plugins_start_i(co_obj_t *data, co_obj_t *current, void *context)
+{
+  if (IS_PLUG(current))
+    CHECK(((co_plugin_t *)current)->init(current, NULL, NULL),"Failed to start plugin %s",co_obj_data_ptr(((co_plugin_t *)current)->name));
+  return NULL;
+error:
+  return current;
+}
+
+int
+co_plugins_start(void)
+{
+  CHECK(co_list_parse(_plugins, _co_plugins_start_i, NULL) == NULL,"Failed to start all plugins");
+  return 1;
+error:
+  return 0;
+}
+
 int 
 co_plugins_init(size_t index_size)
 {
@@ -98,27 +117,29 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   dlerror(); //Clear existing error codes.
   void *handle = dlopen(path_tmp, RTLD_NOW);
   CHECK(handle != NULL, "Failed to load plugin %s: %s", path_tmp, dlerror());
-  co_cb_t _name = dlsym(handle, "_name");
-  CHECK(_name != NULL, "Failed to name plugin %s: %s", path_tmp, dlerror());
-  co_cb_t _init = dlsym(handle, "_init");
-  CHECK(_init != NULL, "Failed to init plugin %s: %s", path_tmp, dlerror());
-  co_cb_t _shutdown = dlsym(handle, "_shutdown");
+  co_cb_t co_plugin_name = dlsym(handle, "co_plugin_name");
+  CHECK(co_plugin_name != NULL, "Failed to name plugin %s: %s", path_tmp, dlerror());
+  co_cb_t co_plugin_register = dlsym(handle, "co_plugin_register");
+  co_cb_t co_plugin_init = dlsym(handle, "co_plugin_init");
+  CHECK(co_plugin_init != NULL, "Failed to init plugin %s: %s", path_tmp, dlerror());
+  co_cb_t co_plugin_shutdown = dlsym(handle, "co_plugin_shutdown");
 
   //TODO: API version checks.
   co_plugin_t *plugin = h_calloc(1, sizeof(co_plugin_t));
   plugin->handle = handle;
   
-  CHECK(_name(NULL, &(plugin->name), NULL), "Failed to set plugin name.");
+  CHECK(co_plugin_name(NULL, &(plugin->name), NULL), "Failed to set plugin name.");
   hattach(plugin->name, plugin);
-  CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename), 0));
+  CHECK_MEM(plugin->filename = co_str8_create(filename, strlen(filename)+1, 0));
   hattach(plugin->filename, plugin);
-  if(_shutdown != NULL) plugin->shutdown = _shutdown;
+  if(co_plugin_shutdown != NULL) plugin->shutdown = co_plugin_shutdown;
+  plugin->init = co_plugin_init;
   plugin->_len = (sizeof(co_plugin_t));
   plugin->_exttype = _plug;
   plugin->_header._type = _ext8;
   plugin->_header._ref = 0;
   plugin->_header._flags = 0;
-  _init((co_obj_t *)plugin, NULL, NULL);
+  if(co_plugin_register != NULL) co_plugin_register((co_obj_t *)plugin, NULL, NULL);
   
   co_list_append(_plugins, (co_obj_t *)plugin);
   return 1; 

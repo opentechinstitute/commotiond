@@ -96,7 +96,7 @@ int co_profile_import_files(const char *path);
  * @param key key in profile
  * @param value key's value
  */
-int co_profile_set(co_profile_t *profile, const char *key, const char *value);
+int co_profile_set(co_obj_t *profile, const char *key, const char *value);
 
 /**
  * @brief returns the key value (if an int) from the profile. If no value set, returns the default value
@@ -104,7 +104,7 @@ int co_profile_set(co_profile_t *profile, const char *key, const char *value);
  * @param key key in profile
  * @param def default key value
  */
-signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
+// signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
 
 /**
  * @brief returns the key value (if a string) from the profile. If no value set, returns the default value
@@ -116,29 +116,29 @@ signed long co_profile_get_int(co_profile_t *profile, const char *key, const siz
 /**
  * @brief returns list of available profiles
  */
-char *co_list_profiles(void);
+// char *co_list_profiles(void);
 
 /**
  * @brief searches the profile list for a specified profile
  * @param name profile name (search key)
  */
-co_profile_t *co_profile_find(co_obj_t *name);
+co_obj_t *co_profile_find(co_obj_t *name);
 
 /**
  * @brief dumps profile data 
  * @param profile profile struct
  */
-void co_profile_dump(co_profile_t *profile);
+void co_profile_dump(co_obj_t *profile);
 
-co_obj_t *co_profile_get(co_profile_t *profile, const co_obj_t *key);
-int co_profile_set_str(co_profile_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
-size_t co_profile_get_str(co_profile_t *profile, char **output, const char *key, const size_t klen);
-int co_profile_set_int(co_profile_t *profile, const char *key, const size_t klen, const signed long value);
-signed long co_profile_get_int(co_profile_t *profile, const char *key, const size_t klen);
-int co_profile_set_uint(co_profile_t *profile, const char *key, const size_t klen, const unsigned long value);
-unsigned long co_profile_get_uint(co_profile_t *profile, const char *key, const size_t klen);
-int co_profile_set_float(co_profile_t *profile, const char *key, const size_t klen, const double value);
-double co_profile_get_float(co_profile_t *profile, const char *key, const size_t klen);
-int co_profile_export_file(co_profile_t *profile, const char *path);
+co_obj_t *co_profile_get(co_obj_t *profile, const co_obj_t *key);
+int co_profile_set_str(co_obj_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
+size_t co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen);
+int co_profile_set_int(co_obj_t *profile, const char *key, const size_t klen, const signed long value);
+signed long co_profile_get_int(co_obj_t *profile, const char *key, const size_t klen);
+int co_profile_set_uint(co_obj_t *profile, const char *key, const size_t klen, const unsigned long value);
+unsigned long co_profile_get_uint(co_obj_t *profile, const char *key, const size_t klen);
+int co_profile_set_float(co_obj_t *profile, const char *key, const size_t klen, const double value);
+double co_profile_get_float(co_obj_t *profile, const char *key, const size_t klen);
+int co_profile_export_file(co_obj_t *profile, const char *path);
 co_obj_t *co_profiles_process(co_iter_t iter, void *context);
 #endif

@@ -10,10 +10,16 @@
 #include "loop.h"
 #include "util.h"
 #include "list.h"
+#include "tree.h"
+#include "profile.h"
 
-#include "servald.h"
+#include "serval-dna.h"
 #include "client.h"
 #include "crypto.h"
+
+#define DEFAULT_SID "0000000000000000000000000000000000000000000000000000000000000000"
+#define DEFAULT_MDP_PATH "/etc/commotion/keys.d/mdp/serval.keyring"
+#define DEFAULT_SERVAL_PATH "/var/serval-node"
 
 // Types & constructors
 
@@ -43,6 +49,11 @@ error:
 
 // Globals
 
+extern keyring_file *mdp_keyring;
+extern unsigned char *mdp_key;
+extern int mdp_key_len;
+
+char *serval_path = NULL;
 co_socket_t co_socket_proto = {};
 
 static co_obj_t *sock_alarms = NULL;
@@ -110,10 +121,10 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
     
     DEBUG("CALLING ALARM FUNC");
     alarm->function(alarm); // Serval callback function associated with alarm/socket
-    return 0;
+    return 1;
   }
   
-  return -1;
+  return 0;
 }
 
 int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
@@ -135,7 +146,7 @@ int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
 
   return 0;
 error:
-  return -1;
+  return 1;
 }
 
 /** Overridden Serval function to schedule timed events */
@@ -260,8 +271,9 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     co_list_append(socks, (co_obj_t*)sock);
   }
   
-error:
   return 0;
+error:
+  return -1;
 }
 
 int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
@@ -285,7 +297,7 @@ error:
   return -1;
 }
 
-static void setup_sockets() {
+static void setup_sockets(void) {
   /* Setup up MDP & monitor interface unix domain sockets */
   DEBUG("MDP SOCKETS");
   overlay_mdp_setup_sockets();
@@ -337,14 +349,54 @@ schedule(&_sched_##X); }
 
 }
 
-int _name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+int co_plugin_name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   const char name[] = "servald";
-  *output = co_str8_create(name,strlen(name),0);
+  CHECK((*output = co_str8_create(name,strlen(name),0)),"Failed to create plugin name");
+  return 1;
+error:
   return 0;
 }
 
-int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+int serval_schema(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  DEBUG("Loading serval schema.");
+  co_tree_insert(self, "serval_path", strlen("serval_path"), co_str8_create(DEFAULT_SERVAL_PATH, strlen(DEFAULT_SERVAL_PATH), 0));
+  co_tree_insert(self, "mdp_sid", strlen("mdp_sid"), co_str8_create(DEFAULT_SID, strlen(DEFAULT_SID), 0));
+  co_tree_insert(self, "mdp_keyring", strlen("mdp_keyring"), co_str8_create(DEFAULT_MDP_PATH, strlen(DEFAULT_MDP_PATH), 0));
+  return 1;
+}
+
+int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  CHECK(co_schema_register(serval_schema),"Failed to register plugin schema");
+  return 1;
+error:
+  return 0;
+}
+
+int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("INIT");
+  int ret = 0, mdp_sid_len, mdp_path_len;
+  co_obj_t *global = co_str8_create("global",6,0);
+  char *mdp_sid = NULL, *mdp_path = NULL;
+  unsigned char packedSid[SID_SIZE] = {0};
+  
+  // TODO PARSE CONFIG OPTIONS (INCLUDING MDP PARAMS)
+  CHECK(co_profile_get_str(global,&serval_path,"serval_path",11) < PATH_MAX - 16,"serval_path config parameter too long");
+  CHECK(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
+  
+  mdp_sid_len = co_profile_get_str(global,&mdp_sid,"mdp_sid",7);
+  CHECK(mdp_sid_len == 2*SID_SIZE && str_is_subscriber_id(mdp_sid) == 1,"Invalid mdp_sid config parameter");
+  
+  mdp_path_len = co_profile_get_str(global,&mdp_path,"mdp_keyring",11);
+  CHECK(mdp_path_len < PATH_MAX,"mdp_keyring config parameter too long");
+  
+  stowSid(packedSid,0,mdp_sid);
+  CHECK(_serval_init(packedSid,
+			 mdp_sid_len,
+			 mdp_path,
+			 mdp_path_len,
+			 &mdp_keyring,
+			 &mdp_key,
+			 &mdp_key_len), "Failed to initialize olsrd-mdp Serval keyring");
   
   CHECK(serval_register() == 0,"Failed to register Serval commands");
   CHECK(serval_crypto_register() == 0,"Failed to register Serval-crypto commands");
@@ -374,9 +426,10 @@ int _init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   setup_sockets();
   
-  return 0;
+  ret = 1;
 error:
-  return -1;
+  co_obj_free(global);
+  return ret;
 }
 
 static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context) {
@@ -389,8 +442,10 @@ static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context
   return NULL;
 }
 
-void teardown(void) {
+int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("TEARDOWN");
+  
+  if (mdp_keyring) keyring_free(mdp_keyring);
   
   servalShutdown = 1;
   
@@ -408,5 +463,5 @@ void teardown(void) {
   
   keyring_free(keyring);
   
-  return;
+  return 1;
 }

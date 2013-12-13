@@ -313,12 +313,12 @@ int main(int argc, char *argv[]) {
   nodeid_t id = co_id_get();
   DEBUG("Node ID: %d", (int) id.id);
   co_plugins_init(16);
-  co_plugins_load(plugindir);
   co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_profiles_init(16); /* Set up profiles */
   co_schema_register(default_schema);
+  co_plugins_load(plugindir); /* Load plugins and register plugin profile schemas */
   co_profile_import_files(profiledir); /* Import profiles from profiles directory */
   
   co_cmd_register("help", sizeof("help"), "help <none>", sizeof("help <none>"), "Print list of commands and usage information.", sizeof("Print list of commands and usage information."), cmd_help);
@@ -342,7 +342,8 @@ int main(int argc, char *argv[]) {
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
   socket->bind((co_obj_t*)socket, socket_uri);
-  
+
+  co_plugins_start();
   co_loop_start();
   co_loop_destroy();
   co_cmds_shutdown();

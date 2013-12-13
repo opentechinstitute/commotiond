@@ -121,7 +121,7 @@ cmd_up(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     co_id_set_from_mac(mac, sizeof(mac));
   }
   /* Load profile */
-  co_profile_t *prof = co_profile_find(co_list_element(params, 0));
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
   CHECK(prof != NULL, "Failed to load profile.");
 #ifndef _OPENWRT
   co_profile_dump(prof);
@@ -215,7 +215,7 @@ cmd_state(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
   DEBUG("profile_name: %s", profile_name);
   co_obj_t *p = co_str8_create(profile_name, sizeof(profile_name), 0);
-  co_profile_t *prof = NULL;
+  co_obj_t *prof = NULL;
   CHECK((prof = co_profile_find(p)), "Could not load profile."); 
   *output = co_profile_get(prof, prop);
   CHECK(*output != NULL, "Failed to get property.");
