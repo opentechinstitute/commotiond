@@ -80,9 +80,9 @@ _co_cmd_create(const char *name, const size_t nlen, const char *usage, const siz
   cmd->exec = handler;
   CHECK_MEM(cmd->name = co_str8_create(name, nlen, 0));
   hattach(cmd->name, cmd);
-  CHECK_MEM(cmd->usage = co_str8_create(usage, ulen, 0));
+  CHECK_MEM(cmd->usage = co_str16_create(usage, ulen, 0));
   hattach(cmd->usage, cmd);
-  CHECK_MEM(cmd->desc = co_str8_create(desc, dlen, 0));
+  CHECK_MEM(cmd->desc = co_str16_create(desc, dlen, 0));
   hattach(cmd->desc, cmd);
   cmd->_len = (sizeof(co_obj_t *) * 3);
   cmd->_exttype = _cmd;

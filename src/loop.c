@@ -385,7 +385,9 @@ int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
   
   _co_loop_gettime(&now);
   CHECK(timer->timer_cb,"No callback function associated with timer");
-  CHECK(_co_loop_tv_diff(&timer->deadline,&now) > -1000,"Invalid timer deadline");
+  CHECK(_co_loop_tv_diff(&timer->deadline,&now) > -1000,"Invalid timer deadline: %ld.%06ld  %ld.%06ld",
+	timer->deadline.tv_sec,timer->deadline.tv_usec,
+	now.tv_sec,now.tv_usec);
     
   CHECK(co_list_parse(timers,_co_loop_match_timer_i,timer->ptr) == NULL,"Timer already scheduled");
   

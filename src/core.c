@@ -178,7 +178,7 @@ cmd_status(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   CHECK(co_obj_data(&ifname, iface), "Incorrect parameters.");
   char *profile_name = NULL; 
   CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
-  *output = co_str8_create(profile_name, strlen(profile_name), 0);
+  *output = co_str8_create(profile_name, strlen(profile_name)+1, 0);
   return 1;
 error:
   *output = co_str8_create("No profile found.", sizeof("No profile found."), 0);
@@ -201,7 +201,7 @@ cmd_state(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   char *profile_name = NULL; 
   CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
   DEBUG("profile_name: %s", profile_name);
-  co_obj_t *p = co_str8_create(profile_name, sizeof(profile_name), 0);
+  co_obj_t *p = co_str8_create(profile_name, strlen(profile_name)+1, 0);
   co_obj_t *prof = NULL;
   CHECK((prof = co_profile_find(p)), "Could not load profile."); 
   *output = co_profile_get(prof, prop);
