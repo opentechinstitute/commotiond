@@ -137,6 +137,8 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   plugin->_len = (sizeof(co_plugin_t));
   plugin->_exttype = _plug;
   plugin->_header._type = _ext8;
+  plugin->_header._ref = 0;
+  plugin->_header._flags = 0;
   if(co_plugin_register != NULL) co_plugin_register((co_obj_t *)plugin, NULL, NULL);
   
   co_list_append(_plugins, (co_obj_t *)plugin);

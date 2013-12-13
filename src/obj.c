@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 #include "extern/halloc.h"
 
 
@@ -175,6 +176,7 @@ _DEFINE_EXT(32);
       } \
       output->_type = _str##L; \
       output->_flags = flags; \
+      output->_ref = 0; \
       ((co_str##L##_t *)output)->_len = (uint##L##_t)(out_size - sizeof(uint##L##_t) - \
           sizeof(co_obj_t)); \
       ((co_str##L##_t *)output)->data[in_size - 1] = '\0'; \
@@ -208,6 +210,7 @@ _DEFINE_STR(32);
     { \
       output->_type = _##T##L; \
       output->_flags = flags; \
+      output->_ref = 0; \
       (((co_##T##L##_t *)output)->data) = (uint32_t)input; \
       return 1; \
     } \
@@ -239,6 +242,7 @@ co_nil_alloc(co_obj_t *output, const uint8_t flags)
 {
   output->_type = _nil;
   output->_flags = flags;
+  output->_ref = 0;
   return 1;
 } 
 
@@ -256,6 +260,7 @@ co_bool_alloc(co_obj_t *output, const bool input, const uint8_t flags)
 {
   output->_type = _false;
   output->_flags = flags;
+  output->_ref = 0;
   if(input) output->_type = _true;
   return 1;
 } 
@@ -276,6 +281,7 @@ co_fixint_alloc(co_obj_t *output, const int input, const uint8_t flags)
   CHECK(input < 128, "Value too large for a fixint.");
   output->_type = (uint8_t)input;
   output->_flags = flags;
+  output->_ref = 0;
   return 1;
 error:
   return 0;
@@ -297,6 +303,7 @@ co_float32_alloc(co_obj_t *output, const float input, const uint8_t flags)
 {
   output->_type = _float32;
   output->_flags = flags;
+  output->_ref = 0;
   ((co_float32_t *)output)->data = input;
   return 1;
 } 
@@ -315,6 +322,7 @@ co_float64_alloc(co_obj_t *output, const double input, const uint8_t flags)
 {
   output->_type = _float64;
   output->_flags = flags;
+  output->_ref = 0;
   ((co_float64_t *)output)->data = input;
   return 1;
 } 
@@ -492,6 +500,10 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
   co_obj_t *obj = NULL;
   switch((uint8_t)input[0])
   {
+    case _nil:
+      *output = co_nil_create(0);
+      read = 1;
+      break;
     case _float32:
       *output = co_float32_create((float)(*(input + 1)), flags);
       read += sizeof(float) + 1;
@@ -559,6 +571,11 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
     case _list16:
     case _list32:
       read += co_list_import(&obj, input, in_size);
+      *output = obj;
+      break;
+    case _tree16:
+    case _tree32:
+      read += co_tree_import(&obj, input, in_size);
       *output = obj;
       break;
     default:

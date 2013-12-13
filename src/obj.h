@@ -137,6 +137,7 @@ struct co_obj_t
   /*  For "list" types. */
   co_obj_t *_prev;
   co_obj_t *_next;
+  uint16_t _ref;
   _type_t _type;
 } __attribute__ ((packed));
 

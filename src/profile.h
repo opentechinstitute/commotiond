@@ -37,6 +37,12 @@
 #include <stddef.h>
 #include "obj.h"
 
+#define SCHEMA(N) static int schema_##N(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+
+#define SCHEMA_ADD(K, V) co_tree_insert(self, K, sizeof(K), co_str8_create(V, sizeof(V), 0))
+
+#define SCHEMA_REGISTER(N) co_schema_register(schema_##N)
+
 typedef struct co_cbptr_t co_cbptr_t;
 
 /**

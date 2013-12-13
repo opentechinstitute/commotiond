@@ -180,6 +180,8 @@ co_obj_t *co_iface_add(const char *iface_name, const int family) {
   iface->_len = (sizeof(co_iface_t));
   iface->_exttype = _iface;
   iface->_header._type = _ext8;
+  iface->_header._flags = 0;
+  iface->_header._ref = 0;
   
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
   strlcpy(iface->ifr.ifr_name, iface_name, IFNAMSIZ);

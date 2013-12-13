@@ -46,6 +46,7 @@
 #include "socket.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 
 #define REQUEST_MAX 1024
 #define RESPONSE_MAX 1024
@@ -148,6 +149,7 @@ static void print_usage() {
 
 
 int main(int argc, char *argv[]) {
+  int retval = 0;
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
@@ -185,14 +187,26 @@ int main(int argc, char *argv[]) {
   char response[RESPONSE_MAX];
   memset(response, '\0', sizeof(response));
   size_t resplen = 0;
+  co_obj_t *rlist = NULL, *rtree = NULL;
   if(optind < argc) 
   {
     reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
     CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
     if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
     {
-      response[resplen] = '\0';
-      printf("%s\n", response);
+      CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
+      rtree = co_list_element(rlist, 3);
+      if(!IS_NIL(rtree))
+      {
+        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+        retval = 0;
+      }
+      else
+      {
+        rtree = co_list_element(rlist, 2);
+        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+        retval = 1;
+      }
     }
   } 
   else 
@@ -206,16 +220,28 @@ int main(int argc, char *argv[]) {
       CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
       if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
       {
-        response[resplen] = '\0';
-        printf("%s\n", response);
+        CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
+        rtree = co_list_element(rlist, 3);
+        if(!IS_NIL(rtree))
+        {
+          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+          retval = 0;
+        }
+        else
+        {
+          rtree = co_list_element(rlist, 2);
+          printf("Error: ");
+          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+          retval = 1;
+        }
       }
     }
   }
 
   ((co_socket_t*)socket)->destroy(socket);
-  return 0;
+  return retval;
 error:
   ((co_socket_t*)socket)->destroy(socket);
-  return 1;
+  return retval;
 }
 

@@ -87,6 +87,8 @@ _co_cmd_create(const char *name, const size_t nlen, const char *usage, const siz
   cmd->_len = (sizeof(co_obj_t *) * 3);
   cmd->_exttype = _cmd;
   cmd->_header._type = _ext8;
+  cmd->_header._ref = 0;
+  cmd->_header._flags = 0;
   return (co_obj_t *)cmd;
 error:
   DEBUG("Failed to create command %s.", name);
@@ -140,6 +142,22 @@ co_cmd_desc(co_obj_t *key)
   return cmd->desc;
 error:
   return NULL;
+}
+
+int
+co_cmd_hook_str(const char *key, const size_t klen, co_obj_t *cb)
+{
+  co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, key, klen);
+
+  CHECK((cmd != NULL), "No such command!");
+  if(cmd->hooks == NULL)
+  {
+    cmd->hooks = co_tree16_create();
+  }
+  CHECK(co_list_append(cmd->hooks, cb), "Failed to add hook to command.");
+  return 1;
+error:
+  return 0;
 }
 
 int

@@ -258,6 +258,12 @@ int unix_socket_bind(co_obj_t *self, const char *endpoint) {
 	setsockopt(this->_(fd), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
   //int flags = fcntl(this->_(fd), F_GETFL, 0);
   //fcntl(this->_(fd), F_SETFL, flags | O_NONBLOCK); //Set non-blocking.
+  //Set default timeout
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
+	setsockopt(this->_(fd), SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+	setsockopt(this->_(fd), SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
 
   //Bind socket to file descriptor.
   socklen_t size = offsetof(struct sockaddr_un, sun_path) + sizeof(address->sun_path);

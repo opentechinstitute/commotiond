@@ -54,6 +54,8 @@ _co_schema_create(co_cb_t cb)
   co_cbptr_t *schema = NULL;
   CHECK_MEM(schema = h_calloc(1, sizeof(co_cbptr_t)));
   schema->_header._type = _ext8;
+  schema->_header._ref = 0;
+  schema->_header._flags = 0;
   schema->_exttype = _cbptr;
   schema->_len = sizeof(co_cb_t *);
   schema->cb = cb;
@@ -141,6 +143,8 @@ _co_profile_create(const char *name, const size_t nlen)
   hattach(profile->data, profile);
   profile->_exttype = _profile;
   profile->_header._type = _ext8;
+  profile->_header._ref = 0;
+  profile->_header._flags = 0;
   CHECK(co_schemas_load((co_obj_t *)profile), "Failed to initialize profile with schema.");
   profile->_len = (sizeof(co_obj_t *) * 2);
   return (co_obj_t *)profile;
@@ -251,7 +255,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
         if(key != NULL && klen > 0)
         {
-          if(!co_profile_set_str(new_profile, key, klen, _co_json_token_stringify(buffer, t), t->end - t->start))
+          if(!co_profile_set_str(new_profile, key, klen + 1, _co_json_token_stringify(buffer, t), t->end - t->start))
           {
             INFO("Value not in schema.");
           }

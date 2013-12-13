@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "obj.h"
 #include "list.h"
+#include "tree.h"
 #include "extern/halloc.h"
 
 #define _DEFINE_LIST(L) int co_list##L##_alloc(co_obj_t *output) \
@@ -42,6 +43,8 @@
       output->_type = _list##L; \
       output->_next = NULL; \
       output->_prev = NULL; \
+      output->_flags = 0; \
+      output->_ref = 0; \
       ((co_list##L##_t *)output)->_len = 0; \
       return 1; \
     } \
@@ -148,6 +151,7 @@ co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
     _LIST_PREV(this_obj) = new_obj;
   }
   hattach(new_obj, list);
+  new_obj->_ref++;
   co_list_increment(list);
   return 1;
 error:
@@ -175,6 +179,7 @@ co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
   _LIST_NEXT(this_obj) = new_obj;
   _LIST_PREV(new_obj) = this_obj; 
   hattach(new_obj, list);
+  new_obj->_ref++;
   co_list_increment(list);
   return 1;
 error:
@@ -209,6 +214,7 @@ _co_list_delete_i(co_obj_t *data, co_obj_t *current, void *context)
     if(_LIST_NEXT(current) != NULL) _LIST_PREV(_LIST_NEXT(current)) = \
       _LIST_PREV(current);
     hattach(current, NULL);
+    current->_ref--;
     co_list_decrement(data);
     return current;
   }
@@ -242,7 +248,7 @@ error:
 }
 
 size_t
-co_list_raw(char *output, const size_t olen, co_obj_t *list)
+co_list_raw(char *output, const size_t olen, const co_obj_t *list)
 {
   size_t written = 0, read = 0;
   char *in = NULL;
@@ -324,10 +330,11 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
     {
       olen = co_list_import(&obj, cursor, ilen - read);
     }
-    else
+    else if(((uint8_t)cursor[0] == _tree16) || ((uint8_t)cursor[0] == _tree32))
     {
-      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+      olen = co_tree_import(&obj, cursor, ilen - read);
     }
+    else olen = co_obj_import(&obj, cursor, ilen - read, 0);
     CHECK(olen > 0, "Failed to import object.");
     cursor +=olen;
     read += olen;

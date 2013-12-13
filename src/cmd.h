@@ -38,6 +38,16 @@
 #include <stdint.h>
 #include "obj.h"
 
+#define CMD(N) static int cmd_##N(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+
+#define CMD_REGISTER(N, U, D) co_cmd_register(#N, sizeof("##N##"), U, sizeof(U), D, sizeof(D), cmd_##N )
+
+#define CMD_OUTPUT(K, V) if(*output == NULL) *output = co_tree16_create(); co_tree_insert(*output, K, sizeof(K), V)
+
+#define HOOK(N) static int hook_##N##(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+
+#define HOOK_REGISTER(N, C) co_cmd_hook_str(N, sizeof(N), hook_##N)
+
 typedef struct co_cmd_t co_cmd_t;
 
 void co_cmds_shutdown(void);
@@ -85,6 +95,8 @@ co_obj_t *co_cmd_usage(co_obj_t *key);
 co_obj_t *co_cmd_desc(co_obj_t *key);
 
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
+
+int co_cmd_hook_str(const char *key, const size_t klen, co_obj_t *cb);
 
 int co_cmd_process(co_iter_t iter, void *context);
 #endif

@@ -42,6 +42,8 @@
       output->_type = _tree##L; \
       output->_next = NULL; \
       output->_prev = NULL; \
+      output->_ref = 0; \
+      output->_flags = 0; \
       ((co_tree##L##_t *)output)->_len = 0; \
       ((co_tree##L##_t *)output)->root = NULL; \
       return 1; \
@@ -86,13 +88,19 @@ error:
 co_obj_t *
 co_node_key(_treenode_t *node)
 {
-  return node->key;
+  if(node != NULL)
+    return node->key;
+  else
+    return NULL;
 }
 
 co_obj_t *
 co_node_value(_treenode_t *node)
 {
-  return node->value;
+  if(node != NULL)
+    return node->value;
+  else
+    return NULL;
 }
 
 size_t 
@@ -136,8 +144,6 @@ co_tree_find_node(_treenode_t *root, const char *key, const size_t klen)
 
   while(i < klen && n) 
   {
-    DEBUG("i: %d, klen: %d", (int)i, (int)klen);
-    DEBUG("Tree node: %c", key[i]);
     if (key[i] < n->splitchar) 
     {
       n = n->low; 
@@ -198,6 +204,7 @@ _co_tree_delete_r(_treenode_t *root, _treenode_t *current, const char *key, cons
       {
         DEBUG("Found current value.");
         hattach(current->value, NULL);
+        current->value->_ref--;
         *value = current->value;
         current->value = NULL;
       }
@@ -255,7 +262,6 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
     current->splitchar = *key; 
   }
 
-  DEBUG("Tree current: %s", key);
   if (*key < current->splitchar) 
   {
     current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value); 
@@ -281,6 +287,8 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
       current->key = co_str8_create(orig_key, orig_klen, 0);
       hattach(current->key, current);
       hattach(current->value, current);
+      current->key->_ref++;
+      current->value->_ref++;
     }
   } 
   else 
@@ -319,6 +327,7 @@ static int
 _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
 {
   CHECK(n != NULL, "Invalid node supplied.");
+  CHECK(n->value != NULL, "Invalid node supplied.");
   switch(CO_TYPE(n->value))
   {
     case _str8:
@@ -545,46 +554,164 @@ co_tree_destroy(co_obj_t *root)
         h_free(root);
     }
 }
-/*
+
 static inline void
-_co_tree_raw_r(char *output, size_t olen, _treenode_t *current)
+_co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *current)
 {
-  size_t written = 0, read = 0;
-  char *in = NULL;
+  if(current == NULL) return;
+  size_t klen = 0, vlen = 0; 
+  char *kbuf = NULL, *vbuf = NULL;
   if(current->value != NULL)
   {
-    read = co_obj_raw(in, next);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
-    written += read;
-    out += read;
-    next = _LIST_NEXT(next);
+    CHECK((klen = co_obj_raw(&kbuf, current->key)) > 0, "Failed to read key.");
+    CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
+    CHECK(klen + vlen < *olen - *written, "Data too large for buffer.");
+    DEBUG("Dumping value %s of size %d with key %s of size %d.", vbuf, (int)vlen, kbuf, (int)klen);
+    memmove(*output, kbuf, klen);
+    *output += klen;
+    *written += klen;
+    memmove(*output, vbuf, vlen);
+    *written += vlen;
+    *output += vlen;
   }
-  _co_tree_raw_r(tree, current->low, iter, context); 
-  _co_tree_raw_r(tree, current->equal, iter, context); 
-  _co_tree_raw_r(tree, current->high, iter, context); 
+  _co_tree_raw_r(output, olen, written, current->low); 
+  _co_tree_raw_r(output, olen, written, current->equal); 
+  _co_tree_raw_r(output, olen, written, current->high); 
   return; 
 error:
   return;
 }
 
 size_t
-co_tree_raw(char *output, const size_t olen, co_obj_t *tree)
+co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
 {
   char *out = output;
-  CHECK(IS_TREE(tree), "Not a tree object.");
-  co_obj_t *next = list;
-  while(next != NULL && written <= olen)
+  size_t written = 0;
+  switch(CO_TYPE(tree))
   {
-    read = co_obj_raw(in, next);
-    CHECK(read + written < olen, "Data too large for buffer.");
-    memmove(out, in, read);
-    written += read;
-    out += read;
-    next = _LIST_NEXT(next);
+    case _tree16:
+      memmove(out, &(tree->_type), sizeof(tree->_type));
+      out += sizeof(tree->_type);
+      written += sizeof(tree->_type);
+      memmove(out, &(((co_tree16_t *)tree)->_len), sizeof(((co_tree16_t *)tree)->_len));
+      out += sizeof(((co_tree16_t *)tree)->_len);
+      written += sizeof(tree->_type);
+      break;
+    case _tree32:
+      memmove(out, &(tree->_type), sizeof(tree->_type));
+      out += sizeof(tree->_type);
+      written += sizeof(tree->_type);
+      memmove(out, &(((co_tree32_t *)tree)->_len), sizeof(((co_tree32_t *)tree)->_len));
+      out += sizeof(((co_tree32_t *)tree)->_len);
+      written += sizeof(tree->_type);
+      break;
+    default:
+      SENTINEL("Not a tree object.");
+      break;
   }
+  
+  _co_tree_raw_r(&out, &olen, &written, co_tree_root(tree));
   return written;
 error:
   return -1;
 }
-*/
+
+
+size_t
+co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
+{
+  size_t length = 0, olen = 0, read = 0, klen = 0;
+  char *kstr = NULL;
+  co_obj_t *obj = NULL;
+  const char *cursor = input;
+  switch((uint8_t)input[0])
+  {
+    case _tree16:
+      length = *((uint16_t *)(input + 1));
+      *tree = co_tree16_create();
+      cursor += sizeof(uint16_t) + 1;
+      read = sizeof(uint16_t) + 1;
+      break;
+    case _tree32:
+      length = (uint32_t)(*(input + 1));
+      *tree = co_tree32_create();
+      cursor += sizeof(uint32_t) + 1;
+      read = sizeof(uint32_t) + 1;
+      break;
+    default:
+      SENTINEL("Not a list.");
+      break;
+  }
+  for(int i = 0; (i < length && read <= ilen); i++)
+  {
+    DEBUG("Importing tuple:");
+    if((uint8_t)cursor[0] == _str8)
+    {
+      DEBUG("Reading key...");
+      cursor += 1;
+      read += 1;
+      klen = (uint8_t)cursor[0];
+      kstr = (char *)&cursor[1];
+      cursor += klen + 1;
+      read += klen + 1;
+
+      DEBUG("Reading value...");
+      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+      CHECK(olen > 0, "Failed to import object.");
+      cursor +=olen;
+      read += olen;
+
+      DEBUG("Inserting value into tree with key.");
+      CHECK(co_tree_insert(*tree, kstr, klen, obj), "Failed to insert object.");
+    }
+  }
+  return read;
+error:
+  if(obj != NULL) co_obj_free(obj);
+  return -1;
+}
+
+static inline void
+_co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
+{
+  CHECK(IS_TREE(tree), "Recursion target is not a tree.");
+  if(current == NULL) return;
+  char *key = NULL;
+  char *value = NULL;
+  if(co_node_value(current) != NULL)
+  {
+    (*count)++;
+    co_obj_data(&key, co_node_key(current));
+    co_obj_data(&value, co_node_value(current));
+    //CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
+    if(*count < co_tree_length(tree))
+    {
+      printf(" \"%s\": \"%s\", ", key, value);
+    }
+    else
+    {
+      printf(" \"%s\": \"%s\" ", key, value);
+    }
+  }
+  _co_tree_print_r(tree, current->low, count); 
+  _co_tree_print_r(tree, current->equal, count); 
+  _co_tree_print_r(tree, current->high, count); 
+  return; 
+error:
+  return;
+}
+
+int 
+co_tree_print(co_obj_t *tree)
+{
+  CHECK_MEM(tree);
+  int count = 0;
+
+  printf("{");
+  _co_tree_print_r(tree, co_tree_root(tree), &count);
+  printf("}\n");
+
+  return 1;
+error:
+  return 0;
+}

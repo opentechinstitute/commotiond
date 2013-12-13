@@ -70,7 +70,7 @@ co_obj_t *co_list_delete(co_obj_t *list, co_obj_t *item);
 
 co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
 
-size_t co_list_raw(char *output, const size_t olen, co_obj_t *list);
+size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
 
 size_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
 #endif

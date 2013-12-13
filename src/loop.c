@@ -457,6 +457,8 @@ co_obj_t *co_timer_create(struct timeval deadline, co_cb_t timer_cb, void *ptr) 
   co_timer_t *new_timer = h_calloc(1,sizeof(co_timer_t));
   
   new_timer->_header._type = _ext8;
+  new_timer->_header._ref = 0;
+  new_timer->_header._flags = 0;
   new_timer->_exttype = _co_timer;
   new_timer->_len = sizeof(co_timer_t);
   new_timer->pending = false;

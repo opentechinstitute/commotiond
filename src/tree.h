@@ -75,6 +75,9 @@ int co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const u
 int co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const double value);
 int co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context);
 void co_tree_destroy(co_obj_t *root);
+size_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
+size_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
+int co_tree_print(co_obj_t *tree);
 
 
 #endif

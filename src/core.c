@@ -44,41 +44,22 @@
 #include "core.h"
 
 
-static co_obj_t *
-_cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
-{
-  char *name = NULL;
-  char *usage = NULL;
-  co_obj_data(&name, ((co_cmd_t *)current)->name);
-  co_obj_data(&usage, ((co_cmd_t *)current)->usage);
-  snprintfcat((char *)context, OUTPUT_MAX, "Command: %s Usage: %s\n", name, usage);
-  return NULL;
-}
 
-int
-cmd_help(co_obj_t *self, co_obj_t **output, co_obj_t *params) 
-{
-  char *data = NULL;
-  *output = co_str16_create(NULL, OUTPUT_MAX, 0);
-  co_obj_data(&data, *output);
-  return co_cmd_process(_cmd_help_i, (void *)*output);
-}
+
 
 static co_obj_t *
 _cmd_list_profiles_i(co_obj_t *data, co_obj_t *current, void *context) 
 {
   char *name = NULL;
-  co_obj_data(&name, ((co_cmd_t *)current)->name);
-  snprintfcat((char *)context, OUTPUT_MAX, "%s\n", name);
+  size_t nlen = co_obj_data(&name, ((co_cmd_t *)current)->name);
+  co_tree_insert((co_obj_t *)context, name, nlen, ((co_cmd_t *)current)->name);
   return NULL;
 }
 
 int
 cmd_list_profiles(co_obj_t *self, co_obj_t **output, co_obj_t *params) 
 {
-  char *data = NULL;
-  *output = co_str16_create(NULL, OUTPUT_MAX, 0);
-  co_obj_data(&data, *output);
+  *output = co_tree16_create();
   co_profiles_process(_cmd_list_profiles_i, (void *)*output);
   return 1;
 }
