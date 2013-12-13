@@ -149,6 +149,7 @@ static void print_usage() {
 
 
 int main(int argc, char *argv[]) {
+  int retval = 0;
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
@@ -195,7 +196,17 @@ int main(int argc, char *argv[]) {
     {
       CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
       rtree = co_list_element(rlist, 3);
-      if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+      if(!IS_NIL(rtree))
+      {
+        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+        retval = 0;
+      }
+      else
+      {
+        rtree = co_list_element(rlist, 2);
+        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+        retval = 1;
+      }
     }
   } 
   else 
@@ -211,15 +222,26 @@ int main(int argc, char *argv[]) {
       {
         CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
         rtree = co_list_element(rlist, 3);
-        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+        if(!IS_NIL(rtree))
+        {
+          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+          retval = 0;
+        }
+        else
+        {
+          rtree = co_list_element(rlist, 2);
+          printf("Error: ");
+          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
+          retval = 1;
+        }
       }
     }
   }
 
   ((co_socket_t*)socket)->destroy(socket);
-  return 0;
+  return retval;
 error:
   ((co_socket_t*)socket)->destroy(socket);
-  return 1;
+  return retval;
 }
 
