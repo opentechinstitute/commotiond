@@ -61,12 +61,6 @@ proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
 	local have_ip=0
-    
-	local pause=3
-	
-	sleep $pause
-	
-	logger -t "commotion.proto" -s "Waiting $pause seconds."
 	
 	logger -s -t commotion.proto "Running protocol handler."
 	local profile type ip netmask dns domain announce lease_zone nolease_zone
@@ -102,6 +96,17 @@ proto_commotion_setup() {
 			uci_set_state network "$config" lease 1
 			set_bridge "$client_bridge" "$iface"
 			logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
+			
+			logger -t "commotion.proto" -s "Restarting $client_bridge interface"
+			ubus call network.interface.client down
+			ubus call network.interface.client up
+			
+			logger -t "commotion.proto" -s "Restarting dnsmasq"
+			/etc/init.d/dnsmasq restart
+			
+			logger -t "commotion.proto" -s "Restarting firewall"
+			/etc/init.d/firewall restart
+						
 			return
 		fi
 	fi
