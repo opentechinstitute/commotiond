@@ -353,14 +353,49 @@ int main(int argc, char *argv[]) {
   if(!co_profile_import_global(config)) WARN("Failed to load global configuration file %s!", config);
   co_obj_t *settings = co_profile_global();
   
+  if(pid == NULL)
+  {
+    if(settings != NULL)
+      co_profile_get_str(settings, &pid, "pid", sizeof("pid"));
+    else
+      pid = COMMOTION_PIDFILE;
+  }
 
-  if(pid == NULL) co_profile_get_str(settings, &pid, "pid", sizeof("pid"));
-  if(bind == NULL) co_profile_get_str(settings, &bind, "bind", sizeof("bind"));
-  if(state == NULL) co_profile_get_str(settings, &state, "state", sizeof("state"));
-  if(plugins == NULL) co_profile_get_str(settings, &plugins, "plugins", sizeof("plugins"));
-  if(profiles == NULL) co_profile_get_str(settings, &profiles, "profiles", sizeof("profiles"));
+  if(bind == NULL)
+  {
+    if(settings != NULL)
+      co_profile_get_str(settings, &bind, "bind", sizeof("bind"));
+    else
+      bind = COMMOTION_MANAGESOCK;
+  }
+  
+  if(state == NULL)
+  {
+    if(settings != NULL)
+      co_profile_get_str(settings, &state, "state", sizeof("state"));
+    else
+      state = COMMOTION_STATEDIR;
+  }
+  
+  if(plugins == NULL)
+  {
+    if(settings != NULL)
+      co_profile_get_str(settings, &plugins, "plugins", sizeof("plugins"));
+    else
+      plugins = COMMOTION_PLUGINDIR;
+  }
 
+  if(profiles == NULL)
+  {
+    if(settings != NULL)
+      co_profile_get_str(settings, &profiles, "profiles", sizeof("profiles"));
+    else
+      profiles = COMMOTION_PROFILEDIR;
+  }
+
+  //co_profile_delete_global();
   co_plugins_init(16);
+  co_profile_import_global(config);
   co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */

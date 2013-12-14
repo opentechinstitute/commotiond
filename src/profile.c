@@ -120,6 +120,26 @@ co_profiles_shutdown(void)
   return;
 }
 
+static co_obj_t *
+_co_profile_create(const char *name, const size_t nlen) 
+{
+  DEBUG("Creating profile %s", name);
+  co_profile_t *profile = h_calloc(1, sizeof(co_profile_t));
+  CHECK_MEM(profile->name = co_str8_create(name, nlen, 0));
+  hattach(profile->name, profile);
+  CHECK_MEM(profile->data = co_tree16_create());
+  hattach(profile->data, profile);
+  profile->_exttype = _profile;
+  profile->_header._type = _ext8;
+  profile->_header._ref = 0;
+  profile->_header._flags = 0;
+  profile->_len = (sizeof(co_obj_t *) * 2);
+  return (co_obj_t *)profile;
+error:
+  DEBUG("Failed to create profile %s.", name);
+  return NULL;
+}
+
 int 
 co_profiles_init(const size_t index_size) 
 {
@@ -143,31 +163,15 @@ co_profiles_init(const size_t index_size)
     CHECK((_schemas_global = (co_obj_t *)co_list16_create()) != NULL, "Global schema list creation failed.");
   }
 
+  if(_profile_global == NULL)
+  {
+    CHECK((_profile_global = _co_profile_create("global", sizeof("global"))) != NULL, "Global profile creation failed."); 
+  }
   return 1;
 
 error:
   co_profiles_shutdown();
   return 0;
-}
-
-static co_obj_t *
-_co_profile_create(const char *name, const size_t nlen) 
-{
-  DEBUG("Creating profile %s", name);
-  co_profile_t *profile = h_calloc(1, sizeof(co_profile_t));
-  CHECK_MEM(profile->name = co_str8_create(name, nlen, 0));
-  hattach(profile->name, profile);
-  CHECK_MEM(profile->data = co_tree16_create());
-  hattach(profile->data, profile);
-  profile->_exttype = _profile;
-  profile->_header._type = _ext8;
-  profile->_header._ref = 0;
-  profile->_header._flags = 0;
-  profile->_len = (sizeof(co_obj_t *) * 2);
-  return (co_obj_t *)profile;
-error:
-  DEBUG("Failed to create profile %s.", name);
-  return NULL;
 }
 
 static jsmntok_t *_co_json_string_tokenize(const char *js)
@@ -322,6 +326,12 @@ error:
 int co_profile_import_global(const char *path) {
   FILE *config_file = NULL;
 
+  if(_profile_global == NULL)
+  {
+    _profile_global = _co_profile_create("global", sizeof("global"));
+  }
+  _co_schemas_load(_profile_global, _schemas_global);
+
   DEBUG("Importing file at path %s", path);
 
   config_file = fopen(path, "rb");
@@ -340,8 +350,6 @@ int co_profile_import_global(const char *path) {
   parse_state state = START;
 
   size_t object_tokens = 0;
-  _profile_global = _co_profile_create("global", sizeof("global"));
-  CHECK(_co_schemas_load(_profile_global, _schemas_global), "Failed to initialize profile with schema.");
   char *key = NULL;
   size_t klen = 0;
 
@@ -414,7 +422,6 @@ int co_profile_import_global(const char *path) {
 
 error:
   if(config_file != NULL) fclose(config_file);
-  if(_profile_global != NULL) co_obj_free(_profile_global);
   return 0;
 }
 
@@ -585,6 +592,14 @@ co_profile_find(co_obj_t *name)
   return result;
 error:
   return NULL;
+}
+
+void
+co_profile_delete_global(void) 
+{
+  free(_profile_global);
+  //co_obj_free(_profile_global);
+  return;
 }
 
 co_obj_t *
