@@ -69,6 +69,7 @@ size_t co_tree_decrement(co_obj_t *tree);
 co_obj_t *co_tree_find(const co_obj_t *root, const char *key, const size_t klen);
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
 int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+int co_tree_insert_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
 int co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *value, const size_t vlen);
 int co_tree_set_int(co_obj_t *root, const char *key, const size_t klen, const signed long value);
 int co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const unsigned long value);

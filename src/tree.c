@@ -299,8 +299,8 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
   return current; 
 }
 
-int 
-co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+static int 
+_co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
 {
   _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
@@ -321,6 +321,22 @@ co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *val
   return 1;
 error:
   return 0;
+}
+
+int
+co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+{
+  _treenode_t *n = co_tree_find_node(co_tree_root(root), key, klen);
+  CHECK(n == NULL, "Key exists.");
+  return _co_tree_insert(root, key, klen, value);
+error:
+  return 0;
+}
+
+int
+co_tree_insert_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+{
+  return _co_tree_insert(root, key, klen, value);
 }
 
 static int
@@ -622,6 +638,7 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
 {
   size_t length = 0, olen = 0, read = 0, klen = 0;
   char *kstr = NULL;
+  int i = 0;
   co_obj_t *obj = NULL;
   const char *cursor = input;
   switch((uint8_t)input[0])
@@ -642,7 +659,7 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
       SENTINEL("Not a list.");
       break;
   }
-  for(int i = 0; (i < length && read <= ilen); i++)
+  while(i < length && read <= ilen)
   {
     DEBUG("Importing tuple:");
     if((uint8_t)cursor[0] == _str8)
@@ -663,6 +680,7 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
 
       DEBUG("Inserting value into tree with key.");
       CHECK(co_tree_insert(*tree, kstr, klen, obj), "Failed to insert object.");
+      i++;
     }
   }
   return read;
