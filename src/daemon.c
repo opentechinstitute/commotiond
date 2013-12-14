@@ -360,6 +360,7 @@ int main(int argc, char *argv[]) {
     else
       pid = COMMOTION_PIDFILE;
   }
+  DEBUG("PID file: %s", pid);
 
   if(bind == NULL)
   {
@@ -368,6 +369,7 @@ int main(int argc, char *argv[]) {
     else
       bind = COMMOTION_MANAGESOCK;
   }
+  DEBUG("Client socket: %s", bind);
   
   if(state == NULL)
   {
@@ -376,6 +378,7 @@ int main(int argc, char *argv[]) {
     else
       state = COMMOTION_STATEDIR;
   }
+  DEBUG("State directory: %s", state);
   
   if(plugins == NULL)
   {
@@ -384,6 +387,7 @@ int main(int argc, char *argv[]) {
     else
       plugins = COMMOTION_PLUGINDIR;
   }
+  DEBUG("Plugins directory: %s", plugins);
 
   if(profiles == NULL)
   {
@@ -392,14 +396,15 @@ int main(int argc, char *argv[]) {
     else
       profiles = COMMOTION_PROFILEDIR;
   }
+  DEBUG("Profiles directory: %s", profiles);
 
   //co_profile_delete_global();
   co_plugins_init(16);
-  co_profile_import_global(config);
   co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
   co_plugins_load(plugins); /* Load plugins and register plugin profile schemas */
+  co_profile_import_global(config);
   SCHEMA_REGISTER(default); /* Register default schema */
   co_profile_import_files(profiles); /* Import profiles from profiles directory */
   CMD_REGISTER(help, "help <none>", "Print list of commands and usage information.");
