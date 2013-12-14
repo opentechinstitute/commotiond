@@ -48,8 +48,8 @@
 #include "list.h"
 #include "tree.h"
 
-#define REQUEST_MAX 1024
-#define RESPONSE_MAX 1024
+#define REQUEST_MAX 4096
+#define RESPONSE_MAX 4096
 #define INPUT_MAX 255
 
 extern co_socket_t unix_socket_proto;
