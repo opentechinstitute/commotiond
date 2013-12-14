@@ -2,10 +2,10 @@
 #include <stdio.h>
 
 #include "serval.h"
-#include "serval/conf.h"
-#include "serval/mdp_client.h"
-#include "serval/rhizome.h"
-#include "serval/crypto.h"
+#include "conf.h"
+#include "mdp_client.h"
+#include "rhizome.h"
+#include "crypto.h"
 
 #include "client.h"
 #include "obj.h"
