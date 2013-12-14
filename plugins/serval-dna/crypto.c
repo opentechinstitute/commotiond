@@ -2,10 +2,10 @@
 #include <string.h>
 #include <assert.h>
 #include <serval.h>
-#include <serval/overlay_address.h>
-#include <serval/mdp_client.h>
-#include <serval/crypto.h>
-#include <serval/str.h>
+#include "serval/overlay_address.h"
+#include "serval/mdp_client.h"
+#include "serval/crypto.h"
+#include "serval/str.h"
 
 #include "obj.h"
 #include "list.h"
