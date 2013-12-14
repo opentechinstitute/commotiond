@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <poll.h>
 #include "serval.h"
-#include "serval/conf.h"
+#include "conf.h"
 
 #include "debug.h"
 #include "plugin.h"
