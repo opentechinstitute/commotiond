@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "obj.h"
 #include "tree.h"
+#include "util.h"
 #include "extern/halloc.h"
 
 #define _DEFINE_TREE(L) int co_tree##L##_alloc(co_obj_t *output) \
@@ -656,7 +657,7 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
       read = sizeof(uint32_t) + 1;
       break;
     default:
-      SENTINEL("Not a list.");
+      SENTINEL("Not a tree.");
       break;
   }
   while(i < length && read <= ilen)
@@ -729,6 +730,40 @@ co_tree_print(co_obj_t *tree)
   _co_tree_print_r(tree, co_tree_root(tree), &count);
   printf("}\n");
 
+  return 1;
+error:
+  return 0;
+}
+
+static inline void
+_co_tree_print_raw_r(co_obj_t *tree, _treenode_t *current)
+{
+  CHECK(IS_TREE(tree), "Recursion target is not a tree.");
+  if(current == NULL) return;
+  size_t klen = 0, vlen = 0; 
+  char *kbuf = NULL, *vbuf = NULL;
+  if(current->value != NULL)
+  {
+    CHECK((klen = co_obj_raw(&kbuf, current->key)) > 0, "Failed to read key.");
+    CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
+    printf("KEY:\n");
+    hexdump((void *)kbuf, klen);
+    printf("VAL:\n");
+    hexdump((void *)vbuf, vlen);
+  }
+  _co_tree_print_raw_r(tree, current->low); 
+  _co_tree_print_raw_r(tree, current->equal); 
+  _co_tree_print_raw_r(tree, current->high); 
+  return; 
+error:
+  return;
+}
+
+int
+co_tree_print_raw(co_obj_t *tree)
+{
+  CHECK_MEM(tree);
+  _co_tree_print_raw_r(tree, co_tree_root(tree));
   return 1;
 error:
   return 0;

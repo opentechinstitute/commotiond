@@ -132,4 +132,12 @@ int wifi_freq(const int channel);
  * @param frequency specified frequency
   */
 int wifi_chan(const int frequency);
+
+/**
+ * @brief prints a raw byte array in hex and ascii output
+ * @param mem the byte array to print
+ * @param len length of the byte array
+ */
+void hexdump(void *mem, unsigned int len);
+
 #endif
