@@ -2,10 +2,10 @@
 #include <string.h>
 #include <assert.h>
 #include <serval.h>
-#include <serval/overlay_address.h>
-#include <serval/mdp_client.h>
-#include <serval/crypto.h>
-#include <serval/str.h>
+#include "serval/overlay_address.h"
+#include "serval/mdp_client.h"
+#include "serval/crypto.h"
+#include "serval/str.h"
 
 #include "obj.h"
 #include "list.h"
@@ -17,6 +17,7 @@
 #include "serval-dna.h"
 
 #define CHECK_ERR(A, M, ...) if(!(A)) { \
+    ERROR(M, ##__VA_ARGS__); \
     if (err_msg == NULL) \
       err_msg = co_list16_create(); \
     char *msg = NULL; \
@@ -96,7 +97,7 @@ int _serval_init(unsigned char *sid,
     keyringFile[keyring_len] = '\0';
     
     // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-    CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file");
+    CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file: %s",keyringFile);
     *strrchr(abs_path,'/') = '\0';
     CHECK_ERR(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   }
@@ -355,7 +356,7 @@ int serval_crypto_register(void) {
   "      * Verify any arbitrary text, a signature, and a Serval key ID (SID), and will\n"
   "             determine if the signature is valid.\n\n";
   
-  CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_crypto_handler),"Failed to register commands");
+  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
   
   return 1;
 error:
@@ -370,7 +371,7 @@ int olsrd_mdp_register(void) {
    */
   const char name[] = "olsrd-mdp";
   
-  CHECK(co_cmd_register(name,strlen(name),NULL,0,NULL,0,olsrd_mdp_init),"Failed to register command");
+  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_init),"Failed to register command");
   
   return 1;
 error:
@@ -385,7 +386,7 @@ int olsrd_mdp_sign_register(void) {
   
   const char name[] = "mdp-sign";
   
-  CHECK(co_cmd_register(name,strlen(name),NULL,0,NULL,0,olsrd_mdp_sign),"Failed to register command");
+  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_sign),"Failed to register command");
   
   return 1;
 error:
@@ -441,11 +442,9 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 				  keypath ? _LIST_ELEMENT(params,4) + 10 : NULL, // strlen("--length=") == 10
 				  keypath ? co_str_len(co_list_element(params,4)) - 10 : 0);
     if (verdict == 1) {
-      char msg[] = "Message verified!";
-      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,strlen(msg),0)),"Failed to set return value");
+      CMD_OUTPUT("result",co_str8_create("Message verified!",sizeof("Message verified!"),0));
     } else if (verdict == 0) {
-      char msg[] = "Message NOT verified!";
-      CHECK(co_tree_insert(*output,"result",6,co_str8_create(msg,strlen(msg),0)),"Failed to set return value");
+      CMD_OUTPUT("result",co_str8_create("Message NOT verified!",sizeof("Message NOT verified!"),0));
     }
     
   }
@@ -478,7 +477,7 @@ int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     &mdp_key,
 		     &mdp_key_len), "Failed to initialize Serval keyring");
   
-  CHECK(co_tree_insert(*output,"success",7,co_bool_create(true,0)),"Failed to set return value");
+  CMD_OUTPUT("success",co_bool_create(true,0));
   
   return 1;
 error:
@@ -499,7 +498,7 @@ int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 //   CHECK(IS_LIST(params) && list_len == 2,"Invalid params");
   
   msg_len = co_obj_data((char**)&msg,co_list_element(params,1));
-  sig_buf_len = SIGNATURE_BYTES + msg_len;
+  sig_buf_len = SIGNATURE_BYTES + msg_len + 1;
   sig_buf = calloc(sig_buf_len,sizeof(unsigned char));
   
   CHECK(serval_create_signature(mdp_key,
@@ -508,7 +507,7 @@ int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     sig_buf,
 		     sig_buf_len),"Failed to sign OLSRd packet");
   
-  CHECK(co_tree_insert(*output,"sig",3,co_bin8_create((char*)sig_buf,sig_buf_len,0)),"Failed to set return value");
+  CMD_OUTPUT("sig",co_bin8_create((char*)sig_buf,sig_buf_len,0));
   
   ret = 1;
 error:

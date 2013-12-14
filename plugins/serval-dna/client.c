@@ -163,7 +163,7 @@ struct arguments {
 };
 
 static co_obj_t *_serialize_params_i(co_obj_t *list, co_obj_t *param, void *args) {
-  CHECK(IS_STR(param),"Invalid param");
+  if(!IS_STR(param)) return NULL;
   struct arguments *these_args = (struct arguments*)args;
   CHECK(these_args->i < these_args->argc,"Out of bounds");
   CHECK(co_obj_data(&these_args->argv[these_args->i], param) == sizeof(co_str8_t),"Error fetching param");
@@ -242,11 +242,11 @@ int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   dup2(old_stdout, STDOUT_FILENO);  /* reconnect stdout for testing */
 
   if (len < UINT8_MAX) {
-    CHECK(co_tree_insert(*output,"result",6,co_str8_create(retbuf,len,0)),"Failed to set return value");
+    CMD_OUTPUT("result",co_str8_create(retbuf,len+1,0));
   } else if (len < UINT16_MAX) {
-    CHECK(co_tree_insert(*output,"result",6,co_str16_create(retbuf,len,0)),"Failed to set return value");
+    CMD_OUTPUT("result",co_str16_create(retbuf,len+1,0));
   } else if (len < UINT32_MAX) {
-    CHECK(co_tree_insert(*output,"result",6,co_str32_create(retbuf,len,0)),"Failed to set return value");
+    CMD_OUTPUT("result",co_str32_create(retbuf,len+1,0));
   }
   
   if (ret == -1) 
@@ -262,7 +262,7 @@ int serval_register(void) {
   const char name[] = "serval",
                usage[] = "run \"help\" for usage information",
 	       desc[] = "Serval DNA";
-  CHECK(co_cmd_register(name,strlen(name),usage,strlen(usage),desc,strlen(desc),serval_handler),"Failed to register commands");
+  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_handler),"Failed to register commands");
   
   return 1;
 error:
