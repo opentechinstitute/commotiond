@@ -153,11 +153,11 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
 	 __whence.function,__whence.file,__whence.line);
   
   // if the alarm has already expired, execute callback function
-  if (alarm->alarm <= now) {
-    DEBUG("ALREADY EXPIRED, DEADLINE %lld %lld",alarm->alarm, gettime_ms());
-    alarm->function(alarm);
-    return 0;
-  }
+//   if (alarm->deadline <= now) {
+//     DEBUG("ALREADY EXPIRED, DEADLINE %lld %lld",alarm->alarm, gettime_ms());
+//     alarm->function(alarm);
+//     return 0;
+//   }
   
   DEBUG("NEW TIMER: ALARM %lld - %lld = %lld %p",alarm->alarm,now,alarm->alarm - now,alarm);
   CHECK(alarm->alarm - now < 86400000,"Timer deadline is more than 24 hrs from now, ignoring");
