@@ -4,6 +4,7 @@
 #include "serval.h"
 #include "conf.h"
 
+
 #include "debug.h"
 #include "plugin.h"
 #include "socket.h"
@@ -344,36 +345,30 @@ error:
   return 0;
 }
 
-int serval_schema(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+SCHEMA(serval) {
   DEBUG("Loading serval schema.");
-  co_tree_insert(self, "serval_path", sizeof("serval_path"), co_str8_create(DEFAULT_SERVAL_PATH, sizeof(DEFAULT_SERVAL_PATH), 0));
-  co_tree_insert(self, "mdp_sid", sizeof("mdp_sid"), co_str8_create(DEFAULT_SID, sizeof(DEFAULT_SID), 0));
-  co_tree_insert(self, "mdp_keyring", sizeof("mdp_keyring"), co_str8_create(DEFAULT_MDP_PATH, sizeof(DEFAULT_MDP_PATH), 0));
+  SCHEMA_ADD("serval_path",DEFAULT_SERVAL_PATH);
+  SCHEMA_ADD("mdp_sid",DEFAULT_SID);
+  SCHEMA_ADD("mdp_keyring",DEFAULT_MDP_PATH);
   return 1;
 }
 
 int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  DEBUG("REGISTER");
-  CHECK(co_schema_register(serval_schema),"Failed to register plugin schema");
+  DEBUG("SERVAL REGISTER");
+  SCHEMA_GLOBAL(serval);
   return 1;
-error:
-  return 0;
 }
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("INIT");
   int ret = 0, mdp_sid_len, mdp_path_len;
-  co_obj_t *global_str = NULL, *global = NULL;
   char *mdp_sid = NULL, *mdp_path = NULL;
   unsigned char packedSid[SID_SIZE] = {0};
   
-  global_str = co_str8_create("global.profile",sizeof("global.profile")-1,0);
-  CHECK((global = co_profile_find(global_str)),"Failed to fetch global profile");
+  mdp_sid_len = co_profile_get_str(co_profile_global() ,&mdp_sid,"mdp_sid",sizeof("mdp_sid")) - 1; // compensate for NULL byte
+  CHECK(mdp_sid_len == 2*SID_SIZE && str_is_subscriber_id(mdp_sid) == 1,"Invalid mdp_sid config parameter: %s %d",mdp_sid,mdp_sid_len);
   
-  mdp_sid_len = co_profile_get_str(global,&mdp_sid,"mdp_sid",sizeof("mdp_sid"));
-  CHECK(mdp_sid_len == 2*SID_SIZE && str_is_subscriber_id(mdp_sid) == 1,"Invalid mdp_sid config parameter");
-  
-  mdp_path_len = co_profile_get_str(global,&mdp_path,"mdp_keyring",sizeof("mdp_keyring"));
+  mdp_path_len = co_profile_get_str(co_profile_global() ,&mdp_path,"mdp_keyring",sizeof("mdp_keyring")) - 1; // compensate for NULL byte
   CHECK(mdp_path_len < PATH_MAX,"mdp_keyring config parameter too long");
   
   DEBUG("mdp_sid: %s",mdp_sid);
@@ -389,7 +384,7 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 			 &mdp_key,
 			 &mdp_key_len), "Failed to initialize olsrd-mdp Serval keyring");
   
-  CHECK(co_profile_get_str(global,&serval_path,"serval_path",sizeof("serval_path")) < PATH_MAX - 16,"serval_path config parameter too long");
+  CHECK(co_profile_get_str(co_profile_global(),&serval_path,"serval_path",sizeof("serval_path")) < PATH_MAX - 16,"serval_path config parameter too long");
   CHECK(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   
   DEBUG("serval_path: %s",serval_path);
@@ -422,7 +417,6 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   ret = 1;
 error:
-  co_obj_free(global_str);
   return ret;
 }
 
