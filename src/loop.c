@@ -199,7 +199,7 @@ static void _co_loop_process_timers(struct timeval *now) {
   co_timer_t *timer = NULL;
   
   while (co_list_length(timers)) {
-    timer = (co_timer_t*)_LIST_FIRST(timers);
+    timer = (co_timer_t*)co_list_get_first(timers);
     if (_co_loop_tv_diff(&timer->deadline,now) > 0)
       break;
     if (co_loop_remove_timer((co_obj_t*)timer,NULL) == 0) {
@@ -226,7 +226,7 @@ static int _co_loop_get_next_deadline(struct timeval *now) {
   if (co_list_length(timers) == 0)
     return 0;
   
-  timer = (co_timer_t*)_LIST_FIRST(timers);
+  timer = (co_timer_t*)co_list_get_first(timers);
   return _co_loop_tv_diff(&timer->deadline,now);
 }
 
