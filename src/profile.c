@@ -229,7 +229,7 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   parse_state state = START;
 
   size_t object_tokens = 0;
-  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename));
+  co_obj_t *new_profile = _co_profile_create(filename, strlen(filename) + 1);
   CHECK(_co_schemas_load(new_profile, _schemas), "Failed to initialize profile with schema.");
   char *key = NULL;
   size_t klen = 0;
