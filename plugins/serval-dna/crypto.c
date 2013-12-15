@@ -41,6 +41,7 @@
 
 extern char *serval_path;
 extern struct subscriber *my_subscriber;
+extern keyring_file *co_keyring;
 
 keyring_file *mdp_keyring = NULL;
 unsigned char *mdp_key = NULL;
@@ -68,6 +69,16 @@ static int serval_create_signature(unsigned char *key,
   
 error:  
   return 0;
+}
+
+static int _serval_fetch_sas(unsigned char **key, int *key_len, keyring_file *_keyring, unsigned char *_sid) {
+    DEBUG("FETCH SAS");
+    *key=keyring_find_sas_private(_keyring, _sid, NULL); // get SAS key associated with our SID
+    CHECK_ERR(*key,"Failed to fetch SAS key");
+    if (key_len) *key_len = crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
+    return 1;
+error:
+    return 0;
 }
 
 int _serval_init(unsigned char *sid,
@@ -120,11 +131,8 @@ int _serval_init(unsigned char *sid,
     _sid = new_ident->subscriber->sid;
   }
   
-  if (key) {
-    *key=keyring_find_sas_private(*_keyring, _sid, NULL); // get SAS key associated with our SID
-    CHECK_ERR(*key,"Failed to fetch SAS key");
-    if (key_len) *key_len = crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
-  }
+  if (key)
+    _serval_fetch_sas(key,key_len, *_keyring, _sid);
   
   ret = 1;
 error:
@@ -146,6 +154,8 @@ static int serval_sign(const char *sid_str,
   keyring_file *_keyring = NULL;
   unsigned char *key = NULL;
   unsigned char packedSid[SID_SIZE] = {0};
+  char keyring_dir[keyring_len + 1];
+  memset(keyring_dir,0,keyring_len + 1);
   
   CHECK(sig_str_size >= 2*SIGNATURE_BYTES + 1,"Signature buffer too small");
   
@@ -154,13 +164,23 @@ static int serval_sign(const char *sid_str,
     stowSid(packedSid,0,sid_str);
   }
   
-  CHECK_ERR(_serval_init(sid_str ? packedSid : NULL,
+  if (keyring_path) {
+    memmove(keyring_dir,keyring_path,keyring_len);
+    keyring_dir[keyring_len] = '\0';
+    *strrchr(keyring_dir,'/') = '\0';
+  }
+  
+  if (keyring_path && strcmp(serval_path,keyring_dir) != 0) {
+    CHECK_ERR(_serval_init(sid_str ? packedSid : NULL,
                      sid_str ? SID_SIZE : 0,
 		     keyring_path,
 		     keyring_len,
 		     &_keyring,
 		     &key,
 		     NULL), "Failed to initialize Serval keyring");
+  } else {
+    CHECK_ERR(_serval_fetch_sas(&key,NULL,co_keyring,packedSid),"Failed to fetch SAS key");
+  }
   
   CHECK_ERR(serval_create_signature(key, msg, msg_len, signed_msg, SIGNATURE_BYTES + msg_len),"Failed to create signature");
   
@@ -291,6 +311,8 @@ static int serval_verify(const char *sid_str,
   unsigned char combined_msg[msg_len + SIGNATURE_BYTES];
   keyring_file *_keyring = NULL;
   unsigned char packedSid[SID_SIZE] = {0};
+  char keyring_dir[keyring_len + 1];
+  memset(keyring_dir,0,keyring_len + 1);
   
   CHECK_ERR(sid_len == 2*SID_SIZE,"Invalid SID length");
   CHECK_ERR(sig_len == 2*SIGNATURE_BYTES,"Invalid signature length");
@@ -302,13 +324,20 @@ static int serval_verify(const char *sid_str,
   CHECK_ERR(str_is_subscriber_id(sid_str) != 0,"Invalid SID");
   stowSid(packedSid,0,sid_str);
   
-  CHECK_ERR(_serval_init(packedSid,
-			 SID_SIZE,
-			 keyring_path,
-			 keyring_len,
-			 &_keyring,
-			 NULL,
-			 NULL), "Failed to initialize Serval keyring");
+  if (keyring_path) {
+    memmove(keyring_dir,keyring_path,keyring_len);
+    keyring_dir[keyring_len] = '\0';
+    *strrchr(keyring_dir,'/') = '\0';
+    if (strcmp(serval_path,keyring_dir) != 0) {
+      CHECK_ERR(_serval_init(packedSid,
+			   SID_SIZE,
+			   keyring_path,
+			   keyring_len,
+			   &_keyring,
+			   NULL,
+			   NULL), "Failed to initialize Serval keyring");
+    }
+  }
   
   memcpy(combined_msg,msg,msg_len);
   memcpy(combined_msg + msg_len,bin_sig,SIGNATURE_BYTES); // append signature to end of message
@@ -387,6 +416,7 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   CLEAR_ERR();
   
   int list_len = co_list_length(params), keypath = 0;
+  DEBUG("listlen %d",list_len);
   
   CHECK_ERR(IS_LIST(params) && list_len >= 2,"Invalid params");
   
@@ -400,6 +430,8 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     CHECK_ERR(list_len == 2 || list_len == 3,"Invalid arguments");
     char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
     if (list_len == 3) {
+      char *a = NULL;
+      size_t b = co_obj_data(&a,co_list_element(params,1));
       CHECK_ERR(serval_sign(_LIST_ELEMENT(params,1),
 			co_str_len(co_list_element(params,1)),
 			(unsigned char*)_LIST_ELEMENT(params,2),
@@ -418,7 +450,8 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 			keypath ? _LIST_ELEMENT(params,2) + 10 : NULL, // strlen("--length=") == 10
 			keypath ? co_str_len(co_list_element(params,2)) - 10 : 0),"Failed to create signature");
     }
-    CHECK(co_tree_insert(*output,"result",6,co_str8_create(sig_buf,2*SIGNATURE_BYTES+1,0)),"Failed to set return value");
+    DEBUG("%s",sig_buf);
+    CMD_OUTPUT("result",co_str8_create(sig_buf,2*SIGNATURE_BYTES+1,0));
     
   } else if (co_str_cmp_str(co_list_element(params,0),"verify") == 0) {
     
