@@ -461,7 +461,7 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
       read = sizeof(uint16_t) + 1;
       break;
     case _list32:
-      length = (uint32_t)(*(input + 1));
+      length = *((uint32_t *)(input + 1));
       *list = co_list32_create();
       cursor += sizeof(uint32_t) + 1;
       read = sizeof(uint32_t) + 1;
