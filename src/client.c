@@ -64,10 +64,9 @@ static size_t
 cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
 {
   CHECK(((argv != NULL) && (argc > 0)), "No input.");
-  co_obj_t *params = NULL;
+  co_obj_t *params = co_list16_create();
   if(argc > 1) 
   {
-    params = co_list16_create();
     for(int i = 1; i < argc; i++)
     {
       CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]) + 1, 0)), "Failed to add to argument list.");
@@ -81,7 +80,7 @@ cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
   co_obj_free(method);
   return retval;
 error:
-  if(params != NULL) co_obj_free(params);
+  co_obj_free(params);
   return -1; 
 }
 
@@ -100,6 +99,7 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
   co_obj_t *params = NULL;
   if(ilen > 2) /* Make sure it's not just, say, a null byte and a newline. */
   {
+    params = co_list16_create();
     buf = h_calloc(1, ilen);
     strstrip(input, buf, blen);
     if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
@@ -108,7 +108,6 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
     if(strlen(token) < 2) token = "help";
     method = co_str8_create(token, strlen(token) + 1, 0);
     token = strtok_r(NULL, " ", &saveptr);
-    if(token != NULL) params = co_list16_create();
     while(token != NULL)
     {
       CHECK(co_list_append(params, co_str8_create(token, strlen(token) + 1, 0)), "Failed to add to argument list.");
@@ -122,11 +121,13 @@ cli_parse_string(char *output, const size_t olen, const char *input, const size_
   }
   size_t retval = co_request_alloc(output, olen, method, params);
   co_obj_free(method);
+  co_obj_free(params);
   if(buf != NULL) h_free(buf);
   return retval;
 
 error:
   co_obj_free(method);
+  co_obj_free(params);
   if(buf != NULL) h_free(buf);
   return -1;
 }
