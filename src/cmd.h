@@ -40,7 +40,7 @@
 
 #define CMD(N) static int cmd_##N(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 
-#define CMD_REGISTER(N, U, D) co_cmd_register(#N, sizeof("##N##"), U, sizeof(U), D, sizeof(D), cmd_##N )
+#define CMD_REGISTER(N, U, D) co_cmd_register(#N, sizeof(#N), U, sizeof(U), D, sizeof(D), cmd_##N )
 
 #define CMD_OUTPUT(K, V) if(*output == NULL) *output = co_tree16_create(); co_tree_insert(*output, K, sizeof(K), V)
 
