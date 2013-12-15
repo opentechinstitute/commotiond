@@ -136,6 +136,7 @@ co_obj_t *co_profile_find(co_obj_t *name);
 co_obj_t *co_profile_global(void); 
 void co_profile_delete_global(void); 
 int co_profile_add(const char *name, const size_t nlen);
+int co_profile_remove(const char *name, const size_t nlen);
 
 /**
  * @brief dumps profile data 

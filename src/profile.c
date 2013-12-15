@@ -137,6 +137,21 @@ error:
 }
 
 int
+co_profile_remove(const char *name, const size_t nlen)
+{
+  co_obj_t *n = co_str8_create(name, nlen, 0);
+  co_obj_t *prof = co_profile_find(n);
+  prof = co_list_delete(_profiles, prof);
+  CHECK(prof != NULL, "Failed to remove profile.");
+
+  co_obj_free(n);
+  return 1;
+error:
+  co_obj_free(n);
+  return 0;
+}
+
+int
 co_profile_add(const char *name, const size_t nlen)
 {
   co_obj_t *new_profile = _co_profile_create(name, nlen);
