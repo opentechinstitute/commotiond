@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #include "config.h"
 #include "debug.h"
 #include "cmd.h"
@@ -102,6 +103,7 @@ _cmd_help_i(co_obj_t *data, co_obj_t *current, void *context)
   char *cmd_name = NULL;
   size_t cmd_len = 0;
   CHECK((cmd_len = co_obj_data(&cmd_name, ((co_cmd_t *)current)->name)) > 0, "Failed to read command name.");
+  DEBUG("Command: %s, Length: %d", cmd_name, (int)cmd_len);
   co_tree_insert((co_obj_t *)context, cmd_name, cmd_len, ((co_cmd_t *)current)->usage);
   return NULL;
 error:
@@ -127,6 +129,264 @@ CMD(help)
     else return 0;
   }
   return co_cmd_process(_cmd_help_i, (void *)*output);
+}
+
+static co_obj_t *
+_cmd_profiles_i(co_obj_t *data, co_obj_t *current, void *context) 
+{
+  char *name = NULL;
+  size_t nlen = co_obj_data(&name, ((co_profile_t *)current)->name);
+  co_tree_insert((co_obj_t *)context, name, nlen, ((co_profile_t *)current)->name);
+  return NULL;
+}
+
+CMD(profiles)
+{
+  *output = co_tree16_create();
+  co_profiles_process(_cmd_profiles_i, (void *)*output);
+  return 1;
+}
+
+CMD(up)
+{
+  *output = co_list16_create();
+  unsigned char mac[6];
+  memset(mac, '\0', sizeof(mac));
+  char address[16];
+  memset(address, '\0', sizeof(address));
+  char *ifname = NULL;
+  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  co_obj_t *iface = co_iface_add(ifname, AF_INET);
+  DEBUG("Bringing up iface %s", ifname);
+  CHECK(iface != NULL, "Failed to create interface %s.", ifname);
+  /* Get node id */
+  nodeid_t id = co_id_get();
+  /* If no node id specified, create id from mac address */
+  if(!id.id && co_iface_get_mac(iface, mac, sizeof(mac))) {
+    //print_mac(mac);
+    co_id_set_from_mac(mac, sizeof(mac));
+  }
+  /* Load profile */
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  CHECK(prof != NULL, "Failed to load profile.");
+#ifndef _OPENWRT
+  co_profile_dump(prof);
+  char *ipgen, *ip, *ipgenmask, *ssid, *bssid, *mode, *dns, *domain, *netmask;
+  unsigned int chan;
+  CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")), "Failed to get 'ip' option.");
+  CHECK(co_profile_get_str(prof, &netmask, "netmask", sizeof("netmask")), "Failed to get 'netmask' option.");
+  CHECK(co_profile_get_str(prof, &ipgen, "ipgenerate", sizeof("ipgenerate")), "Failed to get 'ipgenerate' option.");
+  CHECK(co_profile_get_str(prof, &ipgenmask, "ipgeneratemask", sizeof("ipgeneratemask")), "Failed to get 'ipgeneratemask' option.");
+  CHECK(co_profile_get_str(prof, &ssid, "ssid", sizeof("ssid")), "Failed to get 'ssid' option.");
+  CHECK(co_profile_get_str(prof, &bssid, "bssid", sizeof("bssid")), "Failed to get 'bssid' option.");
+  CHECK(co_profile_get_str(prof, &mode, "mode", sizeof("mode")), "Failed to get 'mode' option.");
+  CHECK(co_profile_get_str(prof, &dns, "dns", sizeof("dns")), "Failed to get 'dns' option.");
+  CHECK(co_profile_get_str(prof, &domain, "domain", sizeof("domain")), "Failed to get 'domain' option.");
+  chan = co_profile_get_uint(prof, "channel", sizeof("channel"));
+  CHECK(chan >= 0, "Failed to get 'channel' option.");
+  /* Load interface configurations from profile */
+  if(!strcmp("true", ipgen )) {
+    co_generate_ip(ip, ipgenmask, co_id_get(), address, 0);
+  }
+  DEBUG("Address: %s", address);
+  
+  /* If no profile use default configuration */
+  if(((co_iface_t *)iface)->wireless && co_iface_wpa_connect(iface)) {
+    co_iface_set_ssid(iface, ssid);
+    co_iface_set_bssid(iface, bssid);
+    co_iface_set_frequency(iface, chan);
+    co_iface_set_mode(iface, mode);
+    co_iface_set_apscan(iface, 0);
+    co_iface_wireless_enable(iface);
+  }
+  
+  /* Set DNS configuration */
+  co_set_dns(dns, domain, "/tmp/resolv.commotion");
+  co_iface_set_ip(iface, address, netmask);
+#endif
+  ((co_iface_t *)iface)->profile = strdup(ifname);
+
+  co_tree_insert(*output, ifname, iflen, co_str8_create("up", sizeof("up"), 0));
+  return 1;
+error:
+  co_iface_remove(ifname);
+  co_tree_insert(*output, ifname, iflen, co_str8_create("fail", sizeof("fail"), 0));
+  return 0;
+}
+
+CMD(down)
+{
+  *output = co_tree16_create();
+  char *ifname = NULL;
+  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  CHECK(iflen > 0, "Incorrect parameters.");
+  CHECK(co_iface_remove(ifname), "Failed to bring down interface %s.", ifname);
+  co_tree_insert(*output, ifname, iflen, co_str8_create("down", sizeof("down"), 0));
+  return 1;
+error:
+  co_tree_insert(*output, ifname, iflen, co_str8_create("fail", sizeof("fail"), 0));
+  return 0;
+}
+
+CMD(status)
+{
+
+  *output = co_tree16_create();
+  char *ifname = NULL;
+  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  CHECK(iflen > 0, "Incorrect parameters.");
+  char *profile_name = NULL; 
+  CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
+  *output = co_str8_create(profile_name, strlen(profile_name)+1, 0);
+  co_tree_insert(*output, "status", sizeof("status"), co_str8_create(profile_name, strlen(profile_name)+1, 0));
+  return 1;
+error:
+  co_tree_insert(*output, "status", sizeof("status"), co_str8_create("down", sizeof("down"), 0));
+  return 0;
+}
+
+CMD(state)
+{
+  *output = co_tree16_create();
+  char mac[6];
+  memset(mac, '\0', sizeof(mac));
+  char address[16];
+  memset(address, '\0', sizeof(address));
+  char *ifname = NULL;
+  char *propname = NULL;
+  co_obj_t *iface = co_list_element(params, 0);
+  CHECK(IS_STR(iface), "Incorrect parameters.");
+  co_obj_t *prop = co_list_element(params, 1);
+  CHECK(IS_STR(prop), "Incorrect parameters.");
+  size_t proplen = co_obj_data(&propname, prop);
+  CHECK(co_obj_data(&ifname, iface), "Incorrect parameters.");
+  char *profile_name = NULL; 
+  CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
+  DEBUG("profile_name: %s", profile_name);
+  co_obj_t *p = co_str8_create(profile_name, strlen(profile_name)+1, 0);
+  co_obj_t *prof = NULL;
+  CHECK((prof = co_profile_find(p)), "Could not load profile."); 
+  co_obj_t *object = co_profile_get(prof, prop);
+  CHECK(object != NULL, "Failed to get property.");
+  co_tree_insert(*output, propname, proplen, object);
+  co_obj_free(p);
+  return 1;
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Failed to get property.", sizeof("Failed to get property."), 0));
+  co_obj_free(p);
+  return 0;
+}
+
+CMD(nodeid)
+{
+  *output = co_tree16_create();
+  char *ret = NULL;
+  co_obj_t *out = co_str8_create(NULL, 11, 0);
+  nodeid_t id;
+  size_t plen = co_list_length(params);
+  if(plen == 0)
+  {
+    co_obj_data(&ret, out);
+    id = co_id_get();
+    snprintf(ret, 11, "%u", ntohl(id.id));
+    INFO("Node ID: %u", ntohl(id.id));
+    co_tree_insert(*output, "id", sizeof("id"), out);
+    return 1;
+  }
+  else if(plen == 1)
+  {
+    int n = 0;
+    out = co_list_element(params, 0);
+    co_obj_data(&ret, out);
+    CHECK(sscanf(ret, "%d", &n) > 0, "Failed to read new nodeid."); 
+    co_id_set_from_int(n);
+    id = co_id_get();
+    snprintf(ret, 11, "%u", ntohl(id.id));
+    INFO("Node ID: %u", ntohl(id.id));
+    co_tree_insert(*output, "id", sizeof("id"), out);
+    return 1;
+  }
+  else if(plen == 2)
+  {
+    co_obj_t *macobj = co_str8_create("mac", sizeof("mac"), 0);
+    if(!co_str_cmp(co_list_element(params, 0), macobj))
+    {
+      unsigned char mac[6];
+      char *macstr = NULL;
+      co_obj_t *macaddr = co_list_element(params, 1);
+      CHECK(IS_STR(macaddr), "Incorrect parameters.");
+      co_obj_data(&macstr, macaddr);
+      mac_string_to_bytes(macstr, mac);
+      co_id_set_from_mac(mac, sizeof(mac));
+      co_obj_data(&ret, out);
+      id = co_id_get();
+      snprintf(ret, 11, "%u", ntohl(id.id));
+      INFO("Node ID: %u", ntohl(id.id));
+      co_tree_insert(*output, "id", sizeof("id"), out);
+      co_obj_free(macobj);
+      return 1;
+    }
+    else
+    {
+      co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect nodeid parameters.", sizeof("Incorrect nodeid parameters."), 0));
+      co_obj_free(macobj);
+      return 0;
+    }
+
+  }
+  else
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect nodeid parameters.", sizeof("Incorrect nodeid parameters."), 0));
+    return 0;
+  }
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect nodeid parameters.", sizeof("Incorrect nodeid parameters."), 0));
+  return 0;
+
+}
+
+CMD(genip)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen <= 3, "Incorrect parameters.");
+
+  int type = 0;
+
+  char *subnet = NULL;
+  co_obj_data(&subnet, co_list_element(params, 0));
+
+  char *netmask = NULL;
+  co_obj_data(&netmask, co_list_element(params, 1));
+
+  char address[16]; 
+  memset(address, '\0', sizeof(address));
+    
+  /* Get node id */
+  nodeid_t id = co_id_get();
+
+  if(plen == 3)
+  {
+    co_obj_t *gwobj = co_str8_create("gw", sizeof("gw"), 0);
+    if(co_str_cmp(co_list_element(params, 2), gwobj) == 0) 
+    {
+      DEBUG("Gateway-type address.");
+      type = 1;
+    }
+    co_obj_free(gwobj);
+  }
+
+  /* Generate local ip */
+  CHECK(co_generate_ip (subnet, netmask, id, address, type), "IP generation unsuccessful.");   
+    
+  DEBUG("Local address for this node: %s", address);
+  
+  // NOTE: whoever calls this function must then free the heap space for "address"
+  co_tree_insert(*output, "address", sizeof("address"), co_str8_create(address, sizeof(address), 0));
+  return 1;
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect genip parameters.", sizeof("Incorrect genip parameters."), 0));
+  return 0;
 }
 
 int dispatcher_cb(co_obj_t *self, co_obj_t *context);
@@ -430,22 +690,16 @@ int main(int argc, char *argv[]) {
   co_profile_import_global(config);
   SCHEMA_REGISTER(default); /* Register default schema */
   co_profile_import_files(profiles); /* Import profiles from profiles directory */
+
+  /* Register commands */
   CMD_REGISTER(help, "help <none>", "Print list of commands and usage information.");
-  
-  /* Add standard commands */
-  /*
-  co_cmd_add("help", cmd_help, "help <none>\n", "Print list of commands and usage information.\n", 0);
-  co_cmd_add("list_profiles", cmd_list_profiles, "list_profiles <none>\n", "Print list of available profiles.\n", 0);
-  co_cmd_add("up", cmd_up, "up <interface> <profile>\n", "Apply profile to interface.\n", 0);
-  co_cmd_add("down", cmd_down, "down <interface>\n", "Bring specified interface down.\n", 0);
-  co_cmd_add("status", cmd_status, "status <interface>\n", "Report profile of connected interface.\n", 0);
-  co_cmd_add("state", cmd_state, "state <interface> <property>\n", "Report properties of connected interface.\n", 0);
-  co_cmd_add("nodeid", cmd_nodeid, "nodeid <none>\n", "Print unique ID for this node\n", 0);
-  co_cmd_add("nodeidset", cmd_set_nodeid_from_mac, "nodeid <mac>\n", "Use mac address to generate identifier for this node.\n", 0);
-  co_cmd_add("localipset", cmd_generate_local_ip, "localipset <none>\n", "Generate the local ip address for this node\n", 0);
-  */
-  //plugins_create();
-  //plugins_load_all(plugindir);
+  CMD_REGISTER(profiles, "profiles <none>", "Print list of available profiles.");
+  CMD_REGISTER(up, "up <interface> <profile>", "Apply a configuration profile to an interface.");
+  CMD_REGISTER(down, "down <interface>", "Deconfigure a configured interface.");
+  CMD_REGISTER(status, "status <interface>", "Show configured profile for interface.");
+  CMD_REGISTER(state, "state <interface> <property>", "Show configured property for interface.");
+  CMD_REGISTER(nodeid, "nodeid [<nodeid>] [mac <mac address>]", "Get or set node ID number.");
+  CMD_REGISTER(genip, "genip <subnet> <netmask> [gw]", "Generate IP address.");
   
   /* Set up sockets */
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
