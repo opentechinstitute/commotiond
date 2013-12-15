@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include "debug.h"
 #include "obj.h"
+#include "list.h"
 #include "tree.h"
 #include "util.h"
 #include "extern/halloc.h"
@@ -581,13 +582,26 @@ _co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *
   if(current->value != NULL)
   {
     CHECK((klen = co_obj_raw(&kbuf, current->key)) > 0, "Failed to read key.");
-    CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
-    CHECK(klen + vlen < *olen - *written, "Data too large for buffer.");
-    DEBUG("Dumping value %s of size %d with key %s of size %d.", vbuf, (int)vlen, kbuf, (int)klen);
     memmove(*output, kbuf, klen);
     *output += klen;
     *written += klen;
-    memmove(*output, vbuf, vlen);
+    if(IS_TREE(current->value))
+    {
+      vlen = co_tree_raw(*output, *olen - *written, current->value);
+      CHECK(vlen > 0, "Failed to dump tree value.");
+    }
+    else if(IS_LIST(current->value))
+    {
+      vlen = co_list_raw(*output, *olen, current->value);
+      CHECK(vlen > 0, "Failed to dump tree value.");
+    }
+    else
+    {
+      CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
+      CHECK(klen + vlen < *olen - *written, "Data too large for buffer.");
+      DEBUG("Dumping value %s of size %d with key %s of size %d.", vbuf, (int)vlen, kbuf, (int)klen);
+      memmove(*output, vbuf, vlen);
+    }
     *written += vlen;
     *output += vlen;
   }
@@ -674,7 +688,20 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
       read += klen + 1;
 
       DEBUG("Reading value...");
-      olen = co_obj_import(&obj, cursor, ilen - read, 0);
+      switch((uint8_t)cursor[0])
+      {
+        case _list16:
+        case _list32:
+          olen = co_list_import(&obj, cursor, ilen - read);
+          break;
+        case _tree16:
+        case _tree32:
+          olen = co_tree_import(&obj, cursor, ilen - read);
+          break;
+        default:
+          olen = co_obj_import(&obj, cursor, ilen - read, 0);
+          break;
+      }
       CHECK(olen > 0, "Failed to import object.");
       cursor +=olen;
       read += olen;
