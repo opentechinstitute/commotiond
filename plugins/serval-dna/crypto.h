@@ -26,4 +26,22 @@ int _serval_init(unsigned char *sid,
 		 unsigned char **key,
 		 int *key_len);
 
+int keyring_send_sas_request_client(struct subscriber *subscriber);
+
+int serval_verify(const char *sid_str,
+		  const size_t sid_len,
+		  const unsigned char *msg,
+		  const size_t msg_len,
+		  const char *sig,
+		  const size_t sig_len);
+
+int serval_sign(const char *sid_str, 
+		const size_t sid_len,
+		const unsigned char *msg,
+		const size_t msg_len,
+		char *sig_str_buf,
+		const size_t sig_str_size,
+		const char *keyring_path,
+		const size_t keyring_len);
+
 #endif

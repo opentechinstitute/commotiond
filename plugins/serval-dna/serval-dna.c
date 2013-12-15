@@ -54,8 +54,8 @@ extern keyring_file *mdp_keyring;
 extern unsigned char *mdp_key;
 extern int mdp_key_len;
 
-keyring_file *co_keyring = NULL;
-char *serval_path = NULL;
+extern keyring_file *keyring;  // Serval global
+extern char *serval_path;
 co_socket_t co_socket_proto = {};
 
 static co_obj_t *sock_alarms = NULL;
@@ -389,8 +389,8 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   DEBUG("serval_path: %s",serval_path);
   
-  CHECK(serval_register(),"Failed to register Serval commands");
-  CHECK(serval_crypto_register(),"Failed to register Serval-crypto commands");
+//   CHECK(serval_register(),"Failed to register Serval commands");
+//   CHECK(serval_crypto_register(),"Failed to register Serval-crypto commands");
   CHECK(olsrd_mdp_register(),"Failed to register OLSRd-mdp commands");
   
   srandomdev();
@@ -402,10 +402,10 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   serverMode = 1;
   
-  CHECK((co_keyring = keyring_open_instance()),"Could not open serval keyring file.");
-  keyring_enter_pin(co_keyring , "");
+  CHECK((keyring = keyring_open_instance()),"Could not open serval keyring file.");
+  keyring_enter_pin(keyring , "");
   /* put initial identity in if we don't have any visible */	
-  keyring_seed(co_keyring );
+  keyring_seed(keyring );
   
   overlay_queue_init();
   
@@ -445,7 +445,7 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   co_list_parse(timer_alarms,destroy_alarms,NULL);
   co_obj_free(timer_alarms); // halloc will free list items
   
-  keyring_free(co_keyring);
+  keyring_free(keyring);
   
   return 1;
 }
