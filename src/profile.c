@@ -89,10 +89,6 @@ error:
 static co_obj_t *
 _co_schemas_load_i(co_obj_t *list, co_obj_t *current, void *context) 
 {
-  DEBUG("Is a callback pointer reference: %d.", IS_CBPTR(current));
-  DEBUG("Is a profile: %d.", IS_PROFILE(context));
-  DEBUG("Callback exists: %d.", ((co_cbptr_t *)current)->cb != NULL);
-  DEBUG("Exttype: %d", ((co_profile_t *)context)->_exttype);
   if(IS_CBPTR(current) && IS_PROFILE(context) && (((co_cbptr_t *)current)->cb != NULL))
   {
     DEBUG("Running schema callback.");

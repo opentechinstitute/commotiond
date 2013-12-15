@@ -38,6 +38,21 @@
 #include "tree.h"
 #include "extern/halloc.h"
 
+#undef _LIST_NEXT
+#undef _LIST_PREV
+
+#define _LIST_NEXT(J) (((_listnode_t *)J)->next)
+#define _LIST_PREV(J) (((_listnode_t *)J)->prev)
+
+struct _listnode_t
+{
+    _listnode_t *prev;
+    _listnode_t *next;
+    co_obj_t *value;
+} __attribute__((packed));
+
+typedef _listnode_t *(*_listiter_t)(co_obj_t *data, _listnode_t *current, void *context);
+
 #define _DEFINE_LIST(L) int co_list##L##_alloc(co_obj_t *output) \
     { \
       output->_type = _list##L; \
@@ -62,8 +77,102 @@
 _DEFINE_LIST(16);
 _DEFINE_LIST(32);
 
-size_t 
-co_list_change_length(co_obj_t *list, const int delta)
+static _listnode_t *
+_listnode_create(co_obj_t *value)
+{
+  _listnode_t *ret = h_calloc(1, sizeof(_listnode_t));
+  _LIST_PREV(ret) = NULL;
+  _LIST_NEXT(ret) = NULL;
+  if(value != NULL)
+  {
+    ret->value = value;
+    hattach(value, ret);
+  }
+  else
+    ret->value = NULL;
+  return ret;
+}
+
+static _listnode_t * /* Done */
+_co_list_get_first(const co_obj_t *list)
+{
+  CHECK_MEM(list);
+  _listnode_t *n = NULL;
+  if(CO_TYPE(list) == _list16)
+  {
+    n = ((co_list16_t *)list)->_first;
+  } 
+  else if(CO_TYPE(list) == _list32) 
+  {
+    n = ((co_list32_t *)list)->_first;
+  }
+  else SENTINEL("Specified object is not a list.");
+
+  return n;
+error:
+  return NULL;
+}
+
+static int /* Done */
+_co_list_set_first(co_obj_t *list, _listnode_t *node)
+{
+  CHECK_MEM(list);
+  if(CO_TYPE(list) == _list16)
+  {
+    ((co_list16_t *)list)->_first = node;
+  } 
+  else if(CO_TYPE(list) == _list32) 
+  {
+    ((co_list32_t *)list)->_first = node;
+  }
+  else SENTINEL("Specified object is not a list.");
+
+  return 1;
+error:
+  return 0;
+}
+
+static _listnode_t * /* Done */
+_co_list_get_last(const co_obj_t *list)
+{
+  CHECK_MEM(list);
+  _listnode_t *n = NULL;
+  if(CO_TYPE(list) == _list16)
+  {
+    n = ((co_list16_t *)list)->_last;
+  } 
+  else if(CO_TYPE(list) == _list32) 
+  {
+    n = ((co_list32_t *)list)->_last;
+  }
+  else SENTINEL("Specified object is not a list.");
+
+  return n;
+error:
+  return NULL;
+}
+
+static int /* Done */
+_co_list_set_last(co_obj_t *list, _listnode_t *node)
+{
+  CHECK_MEM(list);
+  if(CO_TYPE(list) == _list16)
+  {
+    ((co_list16_t *)list)->_last = node;
+  } 
+  else if(CO_TYPE(list) == _list32) 
+  {
+    ((co_list32_t *)list)->_last = node;
+  }
+  else SENTINEL("Specified object is not a list.");
+
+  return 1;
+error:
+  return 0;
+}
+
+static size_t  /* Done */
+_co_list_change_length(co_obj_t *list, const int delta)
 { 
   if(CO_TYPE(list) == _list16)
   {
@@ -77,34 +186,47 @@ co_list_change_length(co_obj_t *list, const int delta)
   return -1;
 }
 
-size_t 
+static size_t  /* Done */
+_co_list_increment(co_obj_t *list)
+{ 
+  return _co_list_change_length(list, 1);
+}
+
+static size_t /* Done */
+_co_list_decrement(co_obj_t *list)
+{ 
+  return _co_list_change_length(list, -1);
+}
+
+size_t /* Done */
 co_list_length(co_obj_t *list)
 { 
-  return co_list_change_length(list, 0);
+  return _co_list_change_length(list, 0);
 }
 
-size_t 
-co_list_increment(co_obj_t *list)
-{ 
-  return co_list_change_length(list, 1);
+static _listnode_t * /* Done */ 
+_co_list_parse_node(co_obj_t *root, _listiter_t iter, void *context)
+{
+  _listnode_t *result = NULL;
+  _listnode_t *next = _co_list_get_first(root);
+  while(next != NULL && result == NULL)
+  {
+    result = iter(root, next, context);
+    next = _LIST_NEXT(next);
+  }
+  return result;
 }
 
-size_t 
-co_list_decrement(co_obj_t *list)
-{ 
-  return co_list_change_length(list, -1);
-}
-
-co_obj_t * 
+co_obj_t * /* Done */
 co_list_parse(co_obj_t *list, co_iter_t iter, void *context)
 {
   co_obj_t *result = NULL;
   CHECK(IS_LIST(list), "Not a list object.");
   //co_obj_t *next = _LIST_NEXT(list);
-  co_obj_t *next = list;
+  _listnode_t *next = _co_list_get_first(list);
   while(next != NULL && result == NULL)
   {
-    result = iter(list, next, context);
+    result = iter(list, next->value, context);
     next = _LIST_NEXT(next);
   }
   return result;
@@ -112,128 +234,150 @@ error:
   return result;
 }
 
-static co_obj_t *
-_co_list_contains_i(co_obj_t *data, co_obj_t *current, void *context)
+static _listnode_t * /* Done */
+_co_list_contains_i(co_obj_t *data, _listnode_t *current, void *context)
 {
-  if((co_obj_t *)context == current) return current;
+  if((co_obj_t *)context == current->value) return current;
   return NULL;
 }
 
-int
+int /* Done */
 co_list_contains(co_obj_t *list, co_obj_t *item)
 {
-  co_obj_t * result = co_list_parse(list, _co_list_contains_i, (void *)item);
+  _listnode_t * result = _co_list_parse_node(list, _co_list_contains_i, (void *)item);
   if(result != NULL) return 1;
   return 0;
 }
 
-int
+static _listnode_t * /* Done */
+_co_list_find_node(co_obj_t *list, co_obj_t *item)
+{
+  return _co_list_parse_node(list, _co_list_contains_i, (void *)item);
+}
+
+
+int /* Done */
 co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
+  _listnode_t *this_node = _co_list_find_node(list, this_obj);
+  CHECK(this_node != NULL, "Unable to find existing node in \
+specified list.");
   CHECK(!co_list_contains(list, new_obj), "New node already in specified \
-      list.");
-  CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
-      specified list.");
-  co_obj_t *adjacent = _LIST_PREV(this_obj);
+list.");
+  _listnode_t *adjacent = _LIST_PREV(this_node);
+  _listnode_t *new_node = _listnode_create(new_obj);
+  hattach(new_node, list);
   if(adjacent == NULL)
   {
-    _LIST_NEXT(list) = new_obj; //It's the first in the list.
-    _LIST_PREV(new_obj) = list;
-    _LIST_NEXT(new_obj) = NULL;
+    /* First in list. */
+    _co_list_set_first(list, new_node);
   }
   else
   {
-    //List is empty.
-    _LIST_NEXT(adjacent) = new_obj;
-    _LIST_PREV(new_obj) = adjacent;
-    _LIST_NEXT(new_obj) = this_obj;
-    _LIST_PREV(this_obj) = new_obj;
+    _LIST_NEXT(adjacent) = new_node;
+    _LIST_PREV(new_node) = adjacent;
   }
-  hattach(new_obj, list);
-  new_obj->_ref++;
-  co_list_increment(list);
+  _LIST_NEXT(new_node) = this_node;
+  _LIST_PREV(this_node) = new_node;
+  _co_list_increment(list);
   return 1;
 error:
   return 0;
 }
 
-int
+int /* Done */
 co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
 {
   CHECK(IS_LIST(list), "Not a list object.");
+  _listnode_t *this_node = _co_list_find_node(list, this_obj);
+  CHECK(this_node != NULL, "Unable to find existing node in \
+specified list.");
   CHECK(!co_list_contains(list, new_obj), "New node already in specified \
-      list.");
-  CHECK(co_list_contains(list, this_obj), "Unable to find existing node in \
-      specified list.");
-  co_obj_t *adjacent = _LIST_NEXT(this_obj);
-  if(adjacent == NULL) 
+list.");
+  _listnode_t *adjacent = _LIST_NEXT(this_node);
+  _listnode_t *new_node = _listnode_create(new_obj);
+  hattach(new_node, list);
+  if(adjacent == NULL)
   {
-    _LIST_PREV(list) = new_obj; //It's the last in the list.
+    /* Last in list. */
+    _co_list_set_last(list, new_node);
   }
   else
   {
-    _LIST_PREV(adjacent) = new_obj;
+    _LIST_PREV(adjacent) = new_node;
+    _LIST_NEXT(new_node) = adjacent;
   }
-  _LIST_NEXT(new_obj) = adjacent;
-  _LIST_NEXT(this_obj) = new_obj;
-  _LIST_PREV(new_obj) = this_obj; 
-  hattach(new_obj, list);
-  new_obj->_ref++;
-  co_list_increment(list);
+  _LIST_PREV(new_node) = this_node;
+  _LIST_NEXT(this_node) = new_node;
+  _co_list_increment(list);
   return 1;
 error:
   return 0;
 }
 
-int
+int /* Done */
 co_list_prepend(co_obj_t *list, co_obj_t *new_obj)
 {
-  return co_list_insert_after(list, new_obj, list);
+  if(co_list_length(list) == 0)
+  {
+    /* First item in list. */
+    _listnode_t *new_node = _listnode_create(new_obj);
+    _co_list_set_first(list, new_node);
+    _co_list_set_last(list, new_node);
+    hattach(new_node, list);
+    _co_list_increment(list);
+    return 1;
+  }
+  return co_list_insert_before(list, new_obj, (_co_list_get_first(list))->value);
 }
 
-int
+int /* Done */
 co_list_append(co_obj_t *list, co_obj_t *new_obj)
 {
-  int ret = co_list_insert_before(list, new_obj, list);
-  if(ret)
+  if(co_list_length(list) == 0)
   {
-    _LIST_PREV(list) = new_obj;
-    _LIST_NEXT(new_obj) = NULL;
+    /* First item in list. */
+    _listnode_t *new_node = _listnode_create(new_obj);
+    _co_list_set_first(list, new_node);
+    _co_list_set_last(list, new_node);
+    hattach(new_node, list);
+    _co_list_increment(list);
+    return 1;
   }
-  return ret;
+  return co_list_insert_after(list, new_obj, (_co_list_get_last(list))->value);
 }
 
-static co_obj_t *
-_co_list_delete_i(co_obj_t *data, co_obj_t *current, void *context)
+co_obj_t * /* Done */
+co_list_delete(co_obj_t *list, co_obj_t *item)
 {
-  if((co_obj_t *)context == current) 
+  co_obj_t *ret = NULL;
+  _listnode_t *current = _co_list_find_node(list, item);
+  if(current != NULL) 
   {
-    if(_LIST_PREV(current) != NULL) _LIST_NEXT(_LIST_PREV(current)) = \
-      _LIST_NEXT(current);
+    if(_LIST_PREV(current) != NULL) 
+      _LIST_NEXT(_LIST_PREV(current)) = _LIST_NEXT(current);
+    else
+      _co_list_set_first(list, _LIST_NEXT(current));
+
     if(_LIST_NEXT(current) != NULL) 
       _LIST_PREV(_LIST_NEXT(current)) = _LIST_PREV(current);
     else
-      _LIST_PREV(data) = _LIST_PREV(current);
-    hattach(current, NULL);
-    current->_ref--;
-    co_list_decrement(data);
-    return current;
+      _co_list_set_last(list, _LIST_PREV(current));
+
+    ret = current->value;
+    h_free(current);
+    _co_list_decrement(list);
+    return ret;
   }
   return NULL;
 }
 
-co_obj_t *
-co_list_delete(co_obj_t *list, co_obj_t *item)
-{
-  return co_list_parse(list, _co_list_delete_i, (void *)item);
-}
-
-co_obj_t *
+co_obj_t * /* Done. */
 co_list_element(co_obj_t *list, const unsigned int index)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  co_obj_t *next = _LIST_NEXT(list);
+  _listnode_t *next = _co_list_get_first(list);
   unsigned int i = 0;
   if(next != NULL)
   {
@@ -244,7 +388,7 @@ co_list_element(co_obj_t *list, const unsigned int index)
     }
   }
   CHECK(i == index, "List index not found.");
-  return next;
+  return next->value;
 error:
   return NULL;
 }
@@ -275,18 +419,18 @@ co_list_raw(char *output, const size_t olen, const co_obj_t *list)
       SENTINEL("Not a list object.");
       break;
   }
-  co_obj_t *next = _LIST_NEXT(list);
-  while(next != NULL && written <= olen)
+  _listnode_t *next = _co_list_get_first(list);
+  while(next != NULL && next->value != NULL && written <= olen)
   {
-    if((CO_TYPE(next) == _list16) || (CO_TYPE(next) == _list32))
+    if((CO_TYPE(next->value) == _list16) || (CO_TYPE(next->value) == _list32))
     {
-        read = co_list_raw(out, olen - written, next);
+        read = co_list_raw(out, olen - written, next->value);
         CHECK(read >= 0, "Failed to dump object.");
         CHECK(read + written < olen, "Data too large for buffer.");
     }
     else
     {
-        read = co_obj_raw(&in, next);
+        read = co_obj_raw(&in, next->value);
         CHECK(read >= 0, "Failed to dump object.");
         CHECK(read + written < olen, "Data too large for buffer.");
         memmove(out, in, read);

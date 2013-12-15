@@ -36,22 +36,18 @@
 #include "debug.h"
 #include "extern/halloc.h"
 
+typedef struct _listnode_t _listnode_t;
+
 /* Type "list" declaration macros */
 #define _DECLARE_LIST(L) typedef struct __attribute__((packed)) \
-  { co_obj_t _header; uint##L##_t _len; } co_list##L##_t; \
+  { co_obj_t _header; uint##L##_t _len; _listnode_t *_first; _listnode_t *_last; } co_list##L##_t; \
   int co_list##L##_alloc(co_obj_t *output); co_obj_t *\
   co_list##L##_create(void);
 
 _DECLARE_LIST(16);
 _DECLARE_LIST(32);
 
-size_t co_list_change_length(co_obj_t *list, const int delta);
-
 size_t co_list_length(co_obj_t *list);
-
-size_t co_list_increment(co_obj_t *list);
-
-size_t co_list_decrement(co_obj_t *list);
 
 co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
 

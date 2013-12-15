@@ -72,12 +72,10 @@ co_tree_root(const co_obj_t *tree)
   _treenode_t *n = NULL;
   if(CO_TYPE(tree) == _tree16)
   {
-    DEBUG("Is a size 16 tree.");
     n = ((co_tree16_t *)tree)->root;
   } 
   else if(CO_TYPE(tree) == _tree32) 
   {
-    DEBUG("Is a size 32 tree.");
     n = ((co_tree32_t *)tree)->root;
   }
   else SENTINEL("Specified object is not a tree.");
@@ -349,7 +347,6 @@ _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
   switch(CO_TYPE(n->value))
   {
     case _str8:
-      DEBUG("Is a size 8 string.");
       CHECK(vlen <= UINT8_MAX, "Value too large for type str8.");
       if(vlen != (((co_str8_t *)(n->value))->_len))
       {
@@ -359,7 +356,6 @@ _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
       (((co_str8_t *)(n->value))->_len) = (uint8_t)vlen;
       break;
     case _str16:
-      DEBUG("Is a size 16 string.");
       CHECK(vlen <= UINT16_MAX, "Value too large for type str16.");
       if(vlen != (((co_str16_t *)(n->value))->_len))
       {
@@ -369,7 +365,6 @@ _co_node_set_str(_treenode_t *n, const char *value, const size_t vlen)
       (((co_str16_t *)(n->value))->_len) = (uint16_t)vlen;
       break;
     case _str32:
-      DEBUG("Is a size 32 string.");
       CHECK(vlen <= UINT32_MAX, "Value too large for type str32.");
       if(vlen != (((co_str32_t *)(n->value))->_len))
       {
@@ -409,19 +404,15 @@ _co_node_set_int(_treenode_t *n, const signed long value)
   switch(CO_TYPE(n->value))
   {
     case _int8:
-      DEBUG("Is a size 8 signed int.");
       (((co_int8_t *)(n->value))->data) = value;
       break;
     case _int16:
-      DEBUG("Is a size 16 signed int.");
       (((co_int16_t *)(n->value))->data) = value;
       break;
     case _int32:
-      DEBUG("Is a size 32 signed int.");
       (((co_int32_t *)(n->value))->data) = value;
       break;
     case _int64:
-      DEBUG("Is a size 64 signed int.");
       (((co_int64_t *)(n->value))->data) = value;
       break;
     default:
@@ -454,19 +445,15 @@ _co_node_set_uint(_treenode_t *n, const unsigned long value)
   switch(CO_TYPE(n->value))
   {
     case _uint8:
-      DEBUG("Is a size 8 unsigned uint.");
       (((co_uint8_t *)(n->value))->data) = value;
       break;
     case _uint16:
-      DEBUG("Is a size 16 unsigned uint.");
       (((co_uint16_t *)(n->value))->data) = value;
       break;
     case _uint32:
-      DEBUG("Is a size 32 unsigned uint.");
       (((co_uint32_t *)(n->value))->data) = value;
       break;
     case _uint64:
-      DEBUG("Is a size 64 unsigned uint.");
       (((co_uint64_t *)(n->value))->data) = value;
       break;
     default:
@@ -499,12 +486,10 @@ _co_node_set_float(_treenode_t *n, const double value)
   CHECK(n != NULL, "Invalid node supplied.");
   if(CO_TYPE(n->value) == _float32)
   {
-    DEBUG("Is a size 32 float.");
     (((co_float32_t *)(n->value))->data) = value;
   } 
   else if(CO_TYPE(n->value) == _float64) 
   {
-    DEBUG("Is a size 64 float.");
     (((co_float64_t *)(n->value))->data) = value;
   }
   else ERROR("Specified object is not a floating-point value.");
@@ -626,7 +611,7 @@ co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
       written += sizeof(tree->_type);
       memmove(out, &(((co_tree16_t *)tree)->_len), sizeof(((co_tree16_t *)tree)->_len));
       out += sizeof(((co_tree16_t *)tree)->_len);
-      written += sizeof(tree->_type);
+      written += sizeof(((co_tree16_t *)tree)->_len);
       break;
     case _tree32:
       memmove(out, &(tree->_type), sizeof(tree->_type));
@@ -634,7 +619,7 @@ co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
       written += sizeof(tree->_type);
       memmove(out, &(((co_tree32_t *)tree)->_len), sizeof(((co_tree32_t *)tree)->_len));
       out += sizeof(((co_tree32_t *)tree)->_len);
-      written += sizeof(tree->_type);
+      written += sizeof(((co_tree32_t *)tree)->_len);
       break;
     default:
       SENTINEL("Not a tree object.");
@@ -642,6 +627,7 @@ co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
   }
   
   _co_tree_raw_r(&out, &olen, &written, co_tree_root(tree));
+  DEBUG("Tree bytes written: %d", (int)written);
   return written;
 error:
   return -1;
