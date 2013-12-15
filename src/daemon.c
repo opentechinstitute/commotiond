@@ -57,8 +57,8 @@
 #include "tree.h"
 #include "core.h"
 
-#define REQUEST_MAX 1024
-#define RESPONSE_MAX 1024
+#define REQUEST_MAX 4096
+#define RESPONSE_MAX 4096
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -99,9 +99,12 @@ SCHEMA(global)
 static co_obj_t *
 _cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
 {
-  co_tree_insert((co_obj_t *)context, "command", sizeof("command"), ((co_cmd_t *)current)->name);
-  co_tree_insert((co_obj_t *)context, "usage", sizeof("usage"), ((co_cmd_t *)current)->usage);
-  co_tree_insert((co_obj_t *)context, "description", sizeof("description"), ((co_cmd_t *)current)->desc);
+  char *cmd_name = NULL;
+  size_t cmd_len = 0;
+  CHECK((cmd_len = co_obj_data(&cmd_name, ((co_cmd_t *)current)->name)) > 0, "Failed to read command name.");
+  co_tree_insert((co_obj_t *)context, cmd_name, cmd_len, ((co_cmd_t *)current)->usage);
+  return NULL;
+error:
   return NULL;
 }
 
@@ -157,6 +160,11 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   }
   else
   {
+    if(ret == NULL)
+    {
+      ret = co_tree16_create();
+      co_tree_insert(ret, "error", sizeof("error"), co_str8_create("Incorrect command.", sizeof("Incorrect command."), 0));
+    }
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, ret, nil);
     sock->send((co_obj_t*)sock, respbuf, resplen);
   }
