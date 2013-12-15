@@ -314,8 +314,8 @@ static int serval_verify(const char *sid_str,
   char keyring_dir[keyring_len + 1];
   memset(keyring_dir,0,keyring_len + 1);
   
-  CHECK_ERR(sid_len == 2*SID_SIZE,"Invalid SID length");
-  CHECK_ERR(sig_len == 2*SIGNATURE_BYTES,"Invalid signature length");
+  CHECK_ERR(sid_len == 2*SID_SIZE + 1,"Invalid SID length");
+  CHECK_ERR(sig_len == 2*SIGNATURE_BYTES + 1,"Invalid signature length");
   
   unsigned char bin_sig[SIGNATURE_BYTES];
   // convert signature from hex to binary
