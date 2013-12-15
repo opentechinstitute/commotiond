@@ -494,6 +494,31 @@ error:
   return 0;
 }
 
+CMD(new)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen == 1, "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof != NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile already exists.", sizeof("Profile already exists."), 0));
+    return 0;
+  }
+
+  char *kstr = NULL;
+  size_t klen = co_obj_data(&kstr, co_list_element(params, 0));
+  CHECK(klen > 0, "Invalid key.");
+  CHECK(co_profile_add(kstr, klen), "Failed to add profile.");
+
+  co_tree_insert(*output, kstr, klen, co_str8_create("Created.", sizeof("Created."), 0));
+  return 1;
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Error creating profile.", sizeof("Error creating profile."), 0));
+  return 0;
+}
+
 int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 
 /**
@@ -802,6 +827,7 @@ int main(int argc, char *argv[]) {
   CMD_REGISTER(get, "get <profile> <key>", "Get value from profile.");
   CMD_REGISTER(set, "set <profile> <key> <value>", "Set value to profile.");
   CMD_REGISTER(save, "save <profile> [<filename>]", "Save profile to file.");
+  CMD_REGISTER(new, "new <profile>", "Create a new profile.");
   
   /* Set up sockets */
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);

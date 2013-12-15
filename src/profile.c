@@ -136,6 +136,19 @@ error:
   return NULL;
 }
 
+int
+co_profile_add(const char *name, const size_t nlen)
+{
+  co_obj_t *new_profile = _co_profile_create(name, nlen);
+  CHECK(_co_schemas_load(new_profile, _schemas), "Failed to initialize profile with schema.");
+  CHECK(co_list_append(_profiles, new_profile), "Failed to add profile to list.");
+
+  return 1;
+error:
+  co_obj_free(new_profile);
+  return 0;
+}
+
 int 
 co_profiles_init(const size_t index_size) 
 {
@@ -593,8 +606,7 @@ error:
 void
 co_profile_delete_global(void) 
 {
-  free(_profile_global);
-  //co_obj_free(_profile_global);
+  co_obj_free(_profile_global);
   return;
 }
 
