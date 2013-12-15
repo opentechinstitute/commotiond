@@ -166,7 +166,7 @@ static co_obj_t *_serialize_params_i(co_obj_t *list, co_obj_t *param, void *args
   if(!IS_STR(param)) return NULL;
   struct arguments *these_args = (struct arguments*)args;
   CHECK(these_args->i < these_args->argc,"Out of bounds");
-  CHECK(co_obj_data(&these_args->argv[these_args->i], param) == sizeof(co_str8_t),"Error fetching param");
+  co_obj_data(&these_args->argv[these_args->i], param);
   these_args->i++;
 error:
   return NULL;
