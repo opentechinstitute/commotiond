@@ -295,6 +295,12 @@ int unix_socket_connect(co_obj_t *self, const char *endpoint) {
   //Set some default socket options.
 	const int optval = 1;
 	setsockopt(this->_(fd), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+  //Set default timeout
+  struct timeval timeout;
+  timeout.tv_sec = 5;
+  timeout.tv_usec = 0;
+	setsockopt(this->_(fd), SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+	setsockopt(this->_(fd), SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
   //int flags = fcntl(this->_(fd), F_GETFL, 0);
   //fcntl(this->_(fd), F_SETFL, flags | O_NONBLOCK); //Set non-blocking.
 

@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
   size_t reqlen = 0;
   char response[RESPONSE_MAX];
   memset(response, '\0', sizeof(response));
-  size_t resplen = 0;
+  int resplen = 0;
   if(optind < argc) 
   {
     reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
