@@ -153,6 +153,7 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
+  co_obj_t *rlist = NULL, *rtree = NULL;
 
   static const char *opt_string = "b:h";
 
@@ -187,7 +188,6 @@ int main(int argc, char *argv[]) {
   char response[RESPONSE_MAX];
   memset(response, '\0', sizeof(response));
   size_t resplen = 0;
-  co_obj_t *rlist = NULL, *rtree = NULL;
   if(optind < argc) 
   {
     reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
