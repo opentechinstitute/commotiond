@@ -339,22 +339,12 @@ int serval_crypto_register(void) {
    */
   
   const char name[] = "serval-crypto",
-  usage[] = "serval-crypto (Serval Crypto) 3.0\n"
-  "Usage: serval-crypto sign|verify [<SID>] [<SIGNATURE>] <MESSAGE> [--keyring=<KEYRING_PATH>]\n\n"
-  "Commands:\n\n"
-  "        sign                    Sign a message with a Serval key\n"
-  "        verify                  Verify a signed message with a Serval key\n\n"
-  "Options:\n\n"
-  "  [<SID>]                       Serval ID (SID) used to sign or verify. If a SID is not provided\n"
-  "                                     when signing a message, a new SID is created.\n"
-  "  [<SIGNATURE>]                 Signature of message to verify\n"
-  "  <MESSAGE>                     Message to sign or verify (not including signature)\n"
-  "  --keyring=[<KEYRING_PATH>]    Path to Serval keyring to use\n\n",
+  usage[] = "serval-crypto sign|verify [<SID>] [<SIGNATURE>] <MESSAGE> [--keyring=<KEYRING_PATH>]\n",
   desc[] =   "Serval-crypto utilizes Serval's crypto API to:\n"
   "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
   "             a new key will be created on the default Serval keyring.\n"
   "      * Verify any arbitrary text, a signature, and a Serval key ID (SID), and will\n"
-  "             determine if the signature is valid.\n\n";
+  "             determine if the signature is valid.\n\n\0";
   
   CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
   
@@ -400,7 +390,7 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   CHECK_ERR(IS_LIST(params) && list_len >= 2,"Invalid params");
   
-  if (!strncmp("--keyring=",co_obj_data_ptr(_LIST_LAST(params)),10)) {
+  if (!strncmp("--keyring=",co_obj_data_ptr(co_list_get_last(params)),10)) {
     keypath = 1;
     --list_len;
   }
