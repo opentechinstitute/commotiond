@@ -607,14 +607,16 @@ co_profile_global(void)
 static inline void
 _co_profile_export_file_r(co_obj_t *tree, _treenode_t *current, int *count, FILE *config_file)
 {
+  if(current == NULL) return;
   CHECK(IS_TREE(tree), "Recursion target is not a tree.");
   char *key = NULL;
   char *value = NULL;
   if(co_node_value(current) != NULL)
   {
-    CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
-    co_obj_raw(&key, co_node_key(current));
-    co_obj_raw(&value, co_node_value(current));
+    (*count)++;
+    co_obj_data(&key, co_node_key(current));
+    co_obj_data(&value, co_node_value(current));
+    //CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
     if(*count < co_tree_length(tree))
     {
       fprintf(config_file, "  \"%s\": \"%s\",\n", key, value);
@@ -637,7 +639,7 @@ co_profile_export_file(co_obj_t *profile, const char *path)
 {
   CHECK(IS_PROFILE(profile),"Not a profile.");
   int count = 0;
-  FILE *config_file = fopen(path, "a");
+  FILE *config_file = fopen(path, "wb");
   CHECK(config_file != NULL, "Config file %s could not be opened", path);
 
   fprintf(config_file, "{\n");

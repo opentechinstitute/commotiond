@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <limits.h>
 #include "config.h"
 #include "debug.h"
 #include "cmd.h"
@@ -56,13 +57,20 @@
 #include "obj.h"
 #include "list.h"
 #include "tree.h"
-#include "core.h"
 
 #define REQUEST_MAX 4096
 #define RESPONSE_MAX 4096
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
+
+/* Global daemon variables. */
+static char *_config = COMMOTION_CONFIGFILE;
+static char *_pid = NULL;
+static char *_state = NULL;
+static char *_bind = NULL;
+static char *_plugins = NULL;
+static char *_profiles = NULL;
 
 SCHEMA(default)
 {
@@ -389,6 +397,103 @@ error:
   return 0;
 }
 
+CMD(set)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen == 3, "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof == NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+    return 0;
+  }
+
+  char *kstr = NULL;
+  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  CHECK(klen > 0, "Invalid key.");
+
+  char *vstr = NULL;
+  size_t vlen = co_obj_data(&vstr, co_list_element(params, 2));
+  CHECK(vlen > 0, "Invalid value.");
+
+  CHECK(co_profile_set_str(prof, kstr, klen, vstr, vlen), "Failed to set key %s to value %s.", kstr, vstr);
+  co_tree_insert(*output, kstr, klen, co_list_element(params, 2));
+  return 1;
+
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect profile set parameters.", sizeof("Incorrect profile set parameters."), 0));
+  return 0;
+}
+
+CMD(get)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(((plen == 2) || (plen == 1)), "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof == NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+    return 0;
+  }
+
+  char *kstr = NULL;
+  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  CHECK(klen > 0, "Invalid key.");
+  co_obj_t *kobj = co_str8_create(kstr, klen, 0);
+
+  co_obj_t *value = co_profile_get(prof, kobj);
+  CHECK(value != NULL, "Invalid value.");
+  co_tree_insert(*output, kstr, klen, value);
+  return 1;
+
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect profile get parameters.", sizeof("Incorrect profile get parameters."), 0));
+  return 0;
+}
+
+CMD(save)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen <= 2, "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof == NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+    return 0;
+  }
+
+  char *pstr = NULL;
+  size_t proflen = 0;
+  if(plen == 2)
+  {
+    proflen = co_obj_data(&pstr, co_list_element(params, 1));
+  }
+  else
+  {
+    proflen = co_obj_data(&pstr, ((co_profile_t *)prof)->name);
+  }
+  CHECK(proflen > 0, "Failed to get profile name.");
+
+  char path_tmp[PATH_MAX] = {};
+  strlcpy(path_tmp, _profiles, PATH_MAX);
+  strlcat(path_tmp, "/", PATH_MAX);
+  strlcat(path_tmp, pstr, PATH_MAX);
+  CHECK(co_profile_export_file(prof, path_tmp), "Failed to export file.");
+
+  co_tree_insert(*output, pstr, proflen, co_str8_create("Saved.", sizeof("Saved."), 0));
+  return 1;
+
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Error attempting to save profile.", sizeof("Error attempting to save profile."), 0));
+  return 0;
+}
+
 int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 
 /**
@@ -567,12 +672,6 @@ int main(int argc, char *argv[]) {
   int opt_index = 0;
   int daemonize = 1;
   uint32_t newid = 0;
-  char *config = COMMOTION_CONFIGFILE;
-  char *pid = NULL;
-  char *state = NULL;
-  char *bind = NULL;
-  char *plugins = NULL;
-  char *profiles = NULL;
 
   static const char *opt_string = "c:b:d:f:i:np:s:h";
 
@@ -595,16 +694,16 @@ int main(int argc, char *argv[]) {
   while(opt != -1) {
     switch(opt) {
       case 'c':
-        config = optarg;
+        _config = optarg;
         break;
       case 'b':
-        bind = optarg;
+        _bind = optarg;
         break;
       case 'd':
-        plugins = optarg;
+        _plugins = optarg;
         break;
       case 'f':
-        profiles = optarg;
+        _profiles = optarg;
         break;
       case 'i':
         newid = strtoul(optarg,NULL,10);
@@ -613,10 +712,10 @@ int main(int argc, char *argv[]) {
         daemonize = 0;
         break;
       case 'p':
-        pid = optarg;
+        _pid = optarg;
         break;
       case 's':
-        state = optarg;
+        _state = optarg;
         break;
       case 'h':
       default:
@@ -633,63 +732,63 @@ int main(int argc, char *argv[]) {
 
   co_profiles_init(16); /* Set up profiles */
   SCHEMA_GLOBAL(global);
-  if(!co_profile_import_global(config)) WARN("Failed to load global configuration file %s!", config);
+  if(!co_profile_import_global(_config)) WARN("Failed to load global configuration file %s!", _config);
   co_obj_t *settings = co_profile_global();
   
-  if(pid == NULL)
+  if(_pid == NULL)
   {
     if(settings != NULL)
-      co_profile_get_str(settings, &pid, "pid", sizeof("pid"));
+      co_profile_get_str(settings, &_pid, "pid", sizeof("pid"));
     else
-      pid = COMMOTION_PIDFILE;
+      _pid = COMMOTION_PIDFILE;
   }
-  DEBUG("PID file: %s", pid);
+  DEBUG("PID file: %s", _pid);
 
-  if(bind == NULL)
+  if(_bind == NULL)
   {
     if(settings != NULL)
-      co_profile_get_str(settings, &bind, "bind", sizeof("bind"));
+      co_profile_get_str(settings, &_bind, "bind", sizeof("bind"));
     else
-      bind = COMMOTION_MANAGESOCK;
+      _bind = COMMOTION_MANAGESOCK;
   }
-  DEBUG("Client socket: %s", bind);
+  DEBUG("Client socket: %s", _bind);
   
-  if(state == NULL)
+  if(_state == NULL)
   {
     if(settings != NULL)
-      co_profile_get_str(settings, &state, "state", sizeof("state"));
+      co_profile_get_str(settings, &_state, "state", sizeof("state"));
     else
-      state = COMMOTION_STATEDIR;
+      _state = COMMOTION_STATEDIR;
   }
-  DEBUG("State directory: %s", state);
+  DEBUG("State directory: %s", _state);
   
-  if(plugins == NULL)
+  if(_plugins == NULL)
   {
     if(settings != NULL)
-      co_profile_get_str(settings, &plugins, "plugins", sizeof("plugins"));
+      co_profile_get_str(settings, &_plugins, "plugins", sizeof("plugins"));
     else
-      plugins = COMMOTION_PLUGINDIR;
+      _plugins = COMMOTION_PLUGINDIR;
   }
-  DEBUG("Plugins directory: %s", plugins);
+  DEBUG("Plugins directory: %s", _plugins);
 
-  if(profiles == NULL)
+  if(_profiles == NULL)
   {
     if(settings != NULL)
-      co_profile_get_str(settings, &profiles, "profiles", sizeof("profiles"));
+      co_profile_get_str(settings, &_profiles, "profiles", sizeof("profiles"));
     else
-      profiles = COMMOTION_PROFILEDIR;
+      _profiles = COMMOTION_PROFILEDIR;
   }
-  DEBUG("Profiles directory: %s", profiles);
+  DEBUG("Profiles directory: %s", _profiles);
 
   //co_profile_delete_global();
   co_plugins_init(16);
   co_cmds_init(16);
   co_loop_create(); /* Start event loop */
   co_ifaces_create(); /* Configure interfaces */
-  co_plugins_load(plugins); /* Load plugins and register plugin profile schemas */
-  co_profile_import_global(config);
+  co_plugins_load(_plugins); /* Load plugins and register plugin profile schemas */
+  co_profile_import_global(_config);
   SCHEMA_REGISTER(default); /* Register default schema */
-  co_profile_import_files(profiles); /* Import profiles from profiles directory */
+  co_profile_import_files(_profiles); /* Import profiles from profiles directory */
 
   /* Register commands */
   CMD_REGISTER(help, "help <none>", "Print list of commands and usage information.");
@@ -700,16 +799,19 @@ int main(int argc, char *argv[]) {
   CMD_REGISTER(state, "state <interface> <property>", "Show configured property for interface.");
   CMD_REGISTER(nodeid, "nodeid [<nodeid>] [mac <mac address>]", "Get or set node ID number.");
   CMD_REGISTER(genip, "genip <subnet> <netmask> [gw]", "Generate IP address.");
+  CMD_REGISTER(get, "get <profile> <key>", "Get value from profile.");
+  CMD_REGISTER(set, "set <profile> <key> <value>", "Set value to profile.");
+  CMD_REGISTER(save, "save <profile> [<filename>]", "Save profile to file.");
   
   /* Set up sockets */
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
   socket->poll_cb = dispatcher_cb;
   socket->register_cb = co_loop_add_socket;
-  socket->bind((co_obj_t*)socket, bind);
+  socket->bind((co_obj_t*)socket, _bind);
   co_plugins_start();
 
   /* If the daemon is needed, start the daemon */
-  if(daemonize) daemon_start((char *)state, (char *)pid); /* Input state directory and lockfile with process id */
+  if(daemonize) daemon_start((char *)_state, (char *)_pid); /* Input state directory and lockfile with process id */
 
   co_loop_start();
   co_loop_destroy();
