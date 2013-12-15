@@ -56,7 +56,6 @@
 #include "obj.h"
 #include "list.h"
 #include "tree.h"
-#include "core.h"
 
 #define REQUEST_MAX 4096
 #define RESPONSE_MAX 4096
@@ -389,6 +388,64 @@ error:
   return 0;
 }
 
+CMD(set)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen == 3, "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof == NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+    return 0;
+  }
+
+  char *kstr = NULL;
+  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  CHECK(klen > 0, "Invalid key.");
+
+  char *vstr = NULL;
+  size_t vlen = co_obj_data(&vstr, co_list_element(params, 2));
+  CHECK(vlen > 0, "Invalid value.");
+
+  CHECK(co_profile_set_str(prof, kstr, klen, vstr, vlen), "Failed to set key %s to value %s.", kstr, vstr);
+  co_tree_insert(*output, kstr, klen, co_list_element(params, 2));
+  return 1;
+
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect profile set parameters.", sizeof("Incorrect profile set parameters."), 0));
+  return 0;
+}
+
+CMD(get)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(((plen == 2) || (plen == 1)), "Incorrect parameters.");
+
+  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(prof == NULL)
+  {
+    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+    return 0;
+  }
+
+  char *kstr = NULL;
+  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  CHECK(klen > 0, "Invalid key.");
+  co_obj_t *kobj = co_str8_create(kstr, klen, 0);
+
+  co_obj_t *value = co_profile_get(prof, kobj);
+  CHECK(value != NULL, "Invalid value.");
+  co_tree_insert(*output, kstr, klen, value);
+  return 1;
+
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect profile get parameters.", sizeof("Incorrect profile get parameters."), 0));
+  return 0;
+}
+
 int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 
 /**
@@ -700,6 +757,8 @@ int main(int argc, char *argv[]) {
   CMD_REGISTER(state, "state <interface> <property>", "Show configured property for interface.");
   CMD_REGISTER(nodeid, "nodeid [<nodeid>] [mac <mac address>]", "Get or set node ID number.");
   CMD_REGISTER(genip, "genip <subnet> <netmask> [gw]", "Generate IP address.");
+  CMD_REGISTER(get, "get <profile> <key>", "Get value from profile.");
+  CMD_REGISTER(set, "set <profile> <key> <value>", "Set value to profile.");
   
   /* Set up sockets */
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
