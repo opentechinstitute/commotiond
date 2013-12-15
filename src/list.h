@@ -49,6 +49,10 @@ _DECLARE_LIST(32);
 
 size_t co_list_length(co_obj_t *list);
 
+co_obj_t * co_list_get_first(const co_obj_t *list);
+
+co_obj_t * co_list_get_last(const co_obj_t *list);
+
 co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
 
 int co_list_contains(co_obj_t *list, co_obj_t *item);

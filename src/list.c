@@ -94,7 +94,7 @@ _listnode_create(co_obj_t *value)
 }
 
 static _listnode_t * /* Done */
-_co_list_get_first(const co_obj_t *list)
+_co_list_get_first_node(const co_obj_t *list)
 {
   CHECK_MEM(list);
   _listnode_t *n = NULL;
@@ -111,6 +111,12 @@ _co_list_get_first(const co_obj_t *list)
   return n;
 error:
   return NULL;
+}
+
+co_obj_t * /* Done */
+co_list_get_first(const co_obj_t *list)
+{
+  return (_co_list_get_first_node(list))->value;
 }
 
 static int /* Done */
@@ -133,7 +139,7 @@ error:
 }
 
 static _listnode_t * /* Done */
-_co_list_get_last(const co_obj_t *list)
+_co_list_get_last_node(const co_obj_t *list)
 {
   CHECK_MEM(list);
   _listnode_t *n = NULL;
@@ -150,6 +156,12 @@ _co_list_get_last(const co_obj_t *list)
   return n;
 error:
   return NULL;
+}
+
+co_obj_t * /* Done */
+co_list_get_last(const co_obj_t *list)
+{
+  return (_co_list_get_last_node(list))->value;
 }
 
 static int /* Done */
@@ -208,7 +220,7 @@ static _listnode_t * /* Done */
 _co_list_parse_node(co_obj_t *root, _listiter_t iter, void *context)
 {
   _listnode_t *result = NULL;
-  _listnode_t *next = _co_list_get_first(root);
+  _listnode_t *next = _co_list_get_first_node(root);
   while(next != NULL && result == NULL)
   {
     result = iter(root, next, context);
@@ -221,9 +233,10 @@ co_obj_t * /* Done */
 co_list_parse(co_obj_t *list, co_iter_t iter, void *context)
 {
   co_obj_t *result = NULL;
+  CHECK_MEM(list);
   CHECK(IS_LIST(list), "Not a list object.");
   //co_obj_t *next = _LIST_NEXT(list);
-  _listnode_t *next = _co_list_get_first(list);
+  _listnode_t *next = _co_list_get_first_node(list);
   while(next != NULL && result == NULL)
   {
     result = iter(list, next->value, context);
@@ -329,7 +342,7 @@ co_list_prepend(co_obj_t *list, co_obj_t *new_obj)
     _co_list_increment(list);
     return 1;
   }
-  return co_list_insert_before(list, new_obj, (_co_list_get_first(list))->value);
+  return co_list_insert_before(list, new_obj, (_co_list_get_first_node(list))->value);
 }
 
 int /* Done */
@@ -345,7 +358,7 @@ co_list_append(co_obj_t *list, co_obj_t *new_obj)
     _co_list_increment(list);
     return 1;
   }
-  return co_list_insert_after(list, new_obj, (_co_list_get_last(list))->value);
+  return co_list_insert_after(list, new_obj, (_co_list_get_last_node(list))->value);
 }
 
 co_obj_t * /* Done */
@@ -366,6 +379,7 @@ co_list_delete(co_obj_t *list, co_obj_t *item)
       _co_list_set_last(list, _LIST_PREV(current));
 
     ret = current->value;
+    hattach(current->value, NULL);
     h_free(current);
     _co_list_decrement(list);
     return ret;
@@ -377,7 +391,7 @@ co_obj_t * /* Done. */
 co_list_element(co_obj_t *list, const unsigned int index)
 {
   CHECK(IS_LIST(list), "Not a list object.");
-  _listnode_t *next = _co_list_get_first(list);
+  _listnode_t *next = _co_list_get_first_node(list);
   unsigned int i = 0;
   if(next != NULL)
   {
@@ -419,7 +433,7 @@ co_list_raw(char *output, const size_t olen, const co_obj_t *list)
       SENTINEL("Not a list object.");
       break;
   }
-  _listnode_t *next = _co_list_get_first(list);
+  _listnode_t *next = _co_list_get_first_node(list);
   while(next != NULL && next->value != NULL && written <= olen)
   {
     if((CO_TYPE(next->value) == _list16) || (CO_TYPE(next->value) == _list32))
