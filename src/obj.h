@@ -288,9 +288,9 @@ int co_str_cat(co_obj_t *dst, const co_obj_t *src, const size_t size);
 
 int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
 
-#define co_str_cmp_str(J,S) ({ co_obj_t *s = co_str8_create(S,strlen(S),0); \
+#define co_str_cmp_str(J,S) ({ co_obj_t *s = co_str8_create(S,sizeof(S),0); \
   int i = co_str_cmp(J,s); co_obj_free(s); i; })
 
-#define co_str_len(J) ({ char **v = NULL; co_obj_data(v,J); })
+#define co_str_len(J) ({ char *v = NULL; co_obj_data(&v,J); })
 
 #endif
