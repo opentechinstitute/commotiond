@@ -111,6 +111,21 @@ error:
 CMD(help)
 {
   *output = co_tree16_create();
+  if(params != NULL && co_list_length(params) > 0)
+  {
+    co_obj_t *cmd = co_list_element(params, 0);
+    if(cmd != NULL && IS_STR(cmd))
+    {
+      char *cstr = NULL;
+      size_t clen = co_obj_data(&cstr, cmd);
+      if(clen > 0)
+      {
+        co_tree_insert(*output, cstr, clen, co_cmd_desc(cmd));
+        return 1;
+      }
+    }
+    else return 0;
+  }
   return co_cmd_process(_cmd_help_i, (void *)*output);
 }
 
