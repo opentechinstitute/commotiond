@@ -179,8 +179,10 @@ static void _co_loop_poll_sockets(int deadline) {
     } else if(events[i].events & EPOLLHUP) {
       DEBUG("Hanging up socket.");
       sock->hangup((co_obj_t*)sock, events[i].data.ptr);
+      sock->events = 0;
     } else {
       sock->poll_cb((co_obj_t*)sock, events[i].data.ptr);
+      sock->events = 0;
     }
   }
 

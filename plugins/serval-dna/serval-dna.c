@@ -95,6 +95,8 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
     alarm->poll.revents = sock->events;
     
     alarm->function(alarm); // Serval callback function associated with alarm/socket
+    alarm->poll.revents = 0;
+    
     return 1;
   }
   
@@ -115,7 +117,7 @@ int serval_timer_cb(co_obj_t *self, co_obj_t **output, co_obj_t *context) {
   co_obj_free(alarm_node);
   
   co_obj_free(timer);
-    
+  
   alarm->function(alarm); // Serval callback function associated with alarm/socket
 
   return 0;
