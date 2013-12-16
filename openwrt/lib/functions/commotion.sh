@@ -2,6 +2,7 @@
 
 . /lib/functions.sh
 . /lib/config/uci.sh
+. /usr/share/libubox/jshn.sh
 
 #DEBUG=echo
 CLIENT="/usr/bin/commotion"
@@ -58,9 +59,12 @@ commotion_get_ip() {
 
   data="$($CLIENT -b $SOCKET state $iface ip 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+
+  json_load "$data"
+  json_select "$iface"
+  json_get_var ipaddr ip  
+  echo "$iface: $ipaddr"
+  return $?
 }
 
 commotion_get_netmask() {
@@ -70,8 +74,11 @@ commotion_get_netmask() {
   data="$($CLIENT -b $SOCKET state $iface netmask 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var nm netmask  
+  echo "$iface netmask: $netmask"
+  return $?
 }
 
 commotion_get_ssid() {
@@ -81,8 +88,11 @@ commotion_get_ssid() {
   data="$($CLIENT -b $SOCKET state $iface ssid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var id ssid  
+  echo "$iface ssid: $id"
+  return $?
 }
 
 commotion_get_bssid() {
@@ -92,8 +102,11 @@ commotion_get_bssid() {
   data="$($CLIENT -b $SOCKET state $iface bssid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var id bssid  
+  echo "$iface bssid: $id"
+  return $?
 }
 
 commotion_get_channel() {
@@ -103,8 +116,11 @@ commotion_get_channel() {
   data="$($CLIENT -b $SOCKET state $iface channel 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var chan channel  
+  echo "$iface channel: $chan"
+  return $?
 }
 
 commotion_get_dns() {
@@ -114,8 +130,11 @@ commotion_get_dns() {
   data="$($CLIENT -b $SOCKET state $iface dns 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var namesrv dns  
+  echo "$iface dns: $namesrv"
+  return $?
 }
 
 commotion_get_domain() {
@@ -125,8 +144,11 @@ commotion_get_domain() {
   data="$($CLIENT -b $SOCKET state $iface domain 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var dom domain  
+  echo "$iface domain: $dom"
+  return $?
 }
 
 commotion_get_wpa() {
@@ -136,8 +158,11 @@ commotion_get_wpa() {
   data="$($CLIENT -b $SOCKET state $iface wpa 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var w wpa  
+  echo "$iface wpa: $w"
+  return $?
 }
 
 commotion_get_wpakey() {
@@ -147,8 +172,11 @@ commotion_get_wpakey() {
   data="$($CLIENT -b $SOCKET state $iface wpakey 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var key wpakey
+  echo "$iface wpakey: $key"
+  return $?
 }
 
 commotion_get_servald() {
@@ -158,8 +186,11 @@ commotion_get_servald() {
   data="$($CLIENT -b $SOCKET state $iface servald 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var sd servald
+  echo "$iface servald: $sd"
+  return $?
 }
 
 commotion_get_mode() {
@@ -169,8 +200,11 @@ commotion_get_mode() {
   data="$($CLIENT -b $SOCKET state $iface mode 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var md mode
+  echo "$iface mode: $md"
+  return $?
 }
 
 commotion_get_type() {
@@ -180,8 +214,11 @@ commotion_get_type() {
   data="$($CLIENT -b $SOCKET state $iface type 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var tp type
+  echo "$iface type: $tp"
+  return $?
 }
 
 commotion_get_nodeid() {
@@ -191,8 +228,11 @@ commotion_get_nodeid() {
   data="$($CLIENT -b $SOCKET nodeid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var id nodeid
+  echo "$iface nodeid: $id"
+  return $?
 }
 
 commotion_get_profile() {
@@ -202,8 +242,11 @@ commotion_get_profile() {
   data="$($CLIENT -b $SOCKET status $iface 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var st status
+  echo "$iface status: $st"
+  return $?
 }
 
 commotion_get_announce() {
@@ -213,8 +256,11 @@ commotion_get_announce() {
   data="$($CLIENT -b $SOCKET state $iface announce 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  json_get_var ance announce
+  echo "$iface announce: $ance"
+  return $?
 }
 
 commotion_set_nodeid_from_mac() {
@@ -224,8 +270,11 @@ commotion_set_nodeid_from_mac() {
   data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select ..
+  json_get_var $id nodeid
+  echo "$iface nodeid: $id"
+  return $?
 }
 
 commotion_up() {
@@ -236,8 +285,10 @@ commotion_up() {
   data="$($CLIENT -b $SOCKET up $iface $profile 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_select "$iface"
+  # what does this return
+  return $?
 }
 
 commotion_down() {
@@ -246,7 +297,10 @@ commotion_down() {
 
   data="$($CLIENT -b $SOCKET up $iface 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+
+  json_load "$data"
+  json_select ..
+  json_get_var ifc "$iface"
+  echo "$iface: $ifc"
+  return $?
 }
