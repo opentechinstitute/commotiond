@@ -61,6 +61,7 @@ proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
 	local have_ip=0
+	local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
 	
 	logger -s -t commotion.proto "Running protocol handler."
 	local profile type ip netmask dns domain announce lease_zone nolease_zone
@@ -71,10 +72,10 @@ proto_commotion_setup() {
 	type=${type:-$(commotion_get_type $iface)}
 	logger -t "commotion.proto" -s "Type: $type"
 
-	if [ "$type" = "plug" ]; then 
+	if [ "$type" == "plug" ]; then 
 		local dhcp_status
 		local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
-		local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
+		
 		unset_bridge "$client_bridge" "$iface"
 		logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
 		export DHCP_INTERFACE="$config"
@@ -134,6 +135,11 @@ proto_commotion_setup() {
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
     		uci_commit wireless
     		wifi up "$config"
+    		
+    		if [ "$type" == "ap" ]; then
+			set_bridge "$client_bridge" "$iface"
+			logger -t "commotion.proto" -s "Adding $iface to bridge: $client_bridge"
+    		fi
 	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
