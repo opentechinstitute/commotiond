@@ -379,7 +379,7 @@ int serval_crypto_register(void) {
   desc[] =   "Serval-crypto utilizes Serval's crypto API to:\n"
   "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
   "             a new key will be created on the default Serval keyring.\n"
-  "      * Verify any arbitrary text, a signature, and a Serval key ID (SID), and will\n"
+  "      * Verify any arbitrary text, a signature, and a Serval signing key (SAS), and will\n"
   "             determine if the signature is valid.\n\n\0";
   
   CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
