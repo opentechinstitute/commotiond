@@ -21,19 +21,62 @@
 #include "debug.h"
 #include "mdp_client.h"
 
-int keyring_send_sas_request_client(struct subscriber *subscriber){
+static const char __hexdigit[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
+static char *__tohex(char *dstHex, const unsigned char *srcBinary, size_t bytes)
+{
+  char *p;
+  for (p = dstHex; bytes--; ++srcBinary) {
+    *p++ = __hexdigit[*srcBinary >> 4];
+    *p++ = __hexdigit[*srcBinary & 0xf];
+  }
+  *p = '\0';
+  return dstHex;
+}
+
+__STR_INLINE static int __hexvalue(char c)
+{
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
+
+static size_t __fromhex(unsigned char *dstBinary, const char *srcHex, size_t nbinary)
+{
+  size_t count = 0;
+  while (count != nbinary) {
+    unsigned char high = __hexvalue(*srcHex++);
+    if (high & 0xf0) return -1;
+    unsigned char low = __hexvalue(*srcHex++);
+    if (low & 0xf0) return -1;
+    dstBinary[count++] = (high << 4) + low;
+  }
+  return count;
+}
+
+static int __fromhexstr(unsigned char *dstBinary, const char *srcHex, size_t nbinary)
+{
+  return (__fromhex(dstBinary, srcHex, nbinary) == nbinary && srcHex[nbinary * 2] == '\0') ? 0 : -1;
+}
+
+int keyring_send_sas_request_client(const char *sid_str, 
+				     const size_t sid_len,
+				     char *sas_buf,
+				     const size_t sas_buf_len){
   int sent, client_port, found = 0, ret = 0;
   int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
   unsigned char *srcsid[SID_SIZE] = {0};
+  unsigned char dstsid[SID_SIZE] = {0};
   unsigned char signature[siglen];
   time_ms_t now = __gettime_ms();
   
+  CHECK_MEM(sas_buf);
+  CHECK(sas_buf_len >= 2*SAS_SIZE + 1,"Insufficient SAS buffer");
+  
+  CHECK(sid_len == 2*SID_SIZE && __fromhexstr(dstsid,sid_str,SID_SIZE) == 0,"Invalid SID");
+  
   CHECK(__overlay_mdp_getmyaddr(0,(sid_t *)srcsid) == 0,"Could not get local address");
-  
-  if (subscriber->sas_valid)
-    return 1;
-  
-  CHECK(now >= subscriber->sas_last_request + 100,"Too soon to ask for SAS mapping again");
   
   CHECK(__overlay_mdp_bind((sid_t *)srcsid,(client_port=32768+(random()&32767))) == 0,"Failed to bind to client socket");
   
@@ -43,7 +86,7 @@ int keyring_send_sas_request_client(struct subscriber *subscriber){
   
   mdp.packetTypeAndFlags=MDP_TX;
   mdp.out.queue=OQ_MESH_MANAGEMENT;
-  memmove(mdp.out.dst.sid,subscriber->sid,SID_SIZE);
+  memmove(mdp.out.dst.sid,dstsid,SID_SIZE);
   mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
   mdp.out.src.port=client_port;
   memmove(mdp.out.src.sid,srcsid,SID_SIZE);
@@ -99,9 +142,9 @@ int keyring_send_sas_request_client(struct subscriber *subscriber){
   memmove(&signature[0],&compactsignature[0],64);
   memmove(&signature[64],&mdp.out.src.sid[0],SID_SIZE);
   
-  memmove(subscriber->sas_public, sas_public, SAS_SIZE);
-  subscriber->sas_valid=1;
-  subscriber->sas_last_request=now;
+  CHECK(__tohex(sas_buf,sas_public,SAS_SIZE),"Failed to convert signing key");
+  sas_buf[2*SAS_SIZE] = '\0';
+  
   ret = 1;
   
 error:
