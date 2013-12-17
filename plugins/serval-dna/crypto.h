@@ -1,6 +1,8 @@
 #ifndef __CO_SERVAL_CRYPTO_H
 #define __CO_SERVAL_CRYPTO_H
 
+#include <serval.h>
+
 #include "obj.h"
 
 #define KEYRING_PIN NULL
@@ -17,6 +19,10 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
 int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+
+int serval_open_keyring(const char *keyring_path,
+			const size_t keyring_len,
+			keyring_file **_keyring);
 
 int serval_init_keyring(unsigned char *sid,
 		 const size_t sid_len,

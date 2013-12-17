@@ -400,7 +400,7 @@ int co_loop_add_timer(co_obj_t *new_timer, co_obj_t *context) {
     CHECK(co_list_append(timers,(co_obj_t*)timer),"Failed to insert timer.");
   }
   
-  DEBUG("Successfully added timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
+//   DEBUG("Successfully added timer %ld.%06ld %p",timer->deadline.tv_sec,timer->deadline.tv_usec,timer->ptr);
   
   timer->pending = true;
   return 1;
@@ -430,7 +430,6 @@ error:
 
 co_obj_t *co_loop_get_timer(void *ptr, co_obj_t *context) {
   co_obj_t *timer = NULL;
-  DEBUG("timer length: %ld",co_list_length(timers));
   CHECK((timer = co_list_parse(timers, _co_loop_match_timer_i, ptr)), "Failed to find timer: %p",ptr);
   return timer;
 error:

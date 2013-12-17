@@ -302,7 +302,6 @@ int main(int argc, char *argv[]) {
         // Do not run the command if the configuration does not load ok.
         if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
 	  if (cli_invoke(&parsed, NULL) == 0) {
-	    DEBUG("DONE");
 	    ret = 0;
 	  }
         }
