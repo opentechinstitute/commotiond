@@ -76,15 +76,18 @@ set_fwzone() {
 }
 
 commotion_get_ip() {
-  local iface="$1"
-  local data=
-
-  data="$($CLIENT -b $SOCKET state $iface ip 2>/dev/null)"
+  local iface="$1"  
+        data=     
+             
+  data="$("$CLIENT" -b "$SOCKET" state "$iface" ip 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?                                                                        
+        
+  json_load "$data"
+       get_var ipaddr ip
+  echo "$ipaddr"        
+  return "$ret" 
+} 
 
 commotion_get_netmask() {
   local iface="$1"
@@ -92,9 +95,12 @@ commotion_get_netmask() {
 
   data="$($CLIENT -b $SOCKET state $iface netmask 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_get_var nm netmask  
+  echo "$nm"
+  return "$ret"
 }
 
 commotion_get_ssid() {
@@ -103,9 +109,12 @@ commotion_get_ssid() {
 
   data="$($CLIENT -b $SOCKET state $iface ssid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
   
-  echo "$data"
-  return 0
+  json_load "$data"
+  json_get_var id ssid  
+  echo "$id"
+  return "$ret"
 }
 
 commotion_get_bssid() {
@@ -114,9 +123,12 @@ commotion_get_bssid() {
 
   data="$($CLIENT -b $SOCKET state $iface bssid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var id bssid
+  echo "$id"       
+  return "$ret"    
 }
 
 commotion_get_channel() {
@@ -125,10 +137,13 @@ commotion_get_channel() {
 
   data="$($CLIENT -b $SOCKET state $iface channel 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var chan channel
+  echo "$chan"     
+  return "$ret"    
+}  
 
 commotion_get_dns() {
   local iface="$1"
@@ -136,10 +151,13 @@ commotion_get_dns() {
 
   data="$($CLIENT -b $SOCKET state $iface dns 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var namesrv dns
+  echo "$namesrv"  
+  return "$ret"    
+}   
 
 commotion_get_domain() {
   local iface="$1"
@@ -147,21 +165,27 @@ commotion_get_domain() {
 
   data="$($CLIENT -b $SOCKET state $iface domain 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var dom domain
+  echo "$dom"      
+  return "$ret"    
+}                            
   
-  echo "$data"
-  return 0
-}
-
 commotion_get_wpa() {
   local iface="$1"
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface wpa 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var w wpa
+  echo "$w"            
+  return "$ret"    
+} 
 
 commotion_get_wpakey() {
   local iface="$1"
@@ -169,10 +193,13 @@ commotion_get_wpakey() {
 
   data="$($CLIENT -b $SOCKET state $iface wpakey 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var key wpakey
+  echo "$key"      
+  return "$ret"    
+} 
 
 commotion_get_servald() {
   local iface="$1"
@@ -180,9 +207,12 @@ commotion_get_servald() {
 
   data="$($CLIENT -b $SOCKET state $iface servald 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var sd servald
+  echo "$sd"       
+  return "$ret"    
 }
 
 commotion_get_mode() {
@@ -191,9 +221,12 @@ commotion_get_mode() {
 
   data="$($CLIENT -b $SOCKET state $iface mode 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var md mode
+  echo "$md"       
+  return "$ret"    
 }
 
 commotion_get_type() {
@@ -202,10 +235,13 @@ commotion_get_type() {
 
   data="$($CLIENT -b $SOCKET state $iface type 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var tp type
+  echo "$tp"       
+  return "$ret"    
+} 
 
 commotion_get_nodeid() {
   local iface="$1"
@@ -213,10 +249,13 @@ commotion_get_nodeid() {
 
   data="$($CLIENT -b $SOCKET nodeid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var nodeid id
+  echo "$nodeid"   
+  return "$ret"    
+} 
 
 commotion_get_profile() {
   local iface="$1"
@@ -224,10 +263,13 @@ commotion_get_profile() {
 
   data="$($CLIENT -b $SOCKET status $iface 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var st status
+  echo "$st"       
+  return "$ret"    
+} 
 
 commotion_get_announce() {
   local iface="$1"
@@ -235,41 +277,53 @@ commotion_get_announce() {
 
   data="$($CLIENT -b $SOCKET state $iface announce 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var ance announce
+  echo "$ance"     
+  return "$ret"    
+} 
 
 commotion_set_nodeid_from_mac() {
   local mac="$1"
   local data=
-
-  data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"
+                                                               
+  data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"                        
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?
+                   
+  json_load "$data"      
+  json_get_var $id nodeid
+  echo "$id"       
+  return "$ret"    
+}  
 
-commotion_up() {
+commotion_up() {            
   local iface="$1"
   local profile="$2"
-  local data=
-
+  local data=              
+                                 
   data="$($CLIENT -b $SOCKET up $iface $profile 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
-}
+  ret=$?                      
 
-commotion_down() {
+  json_load "$data"
+  json_get_var ifc "$iface"
+  echo "$ifc"      
+  return "$ret"
+}          
+                                
+commotion_down() {                                                            
   local iface="$1"
   local data=
-
-  data="$($CLIENT -b $SOCKET up $iface 2>/dev/null)"
+ 
+  data="$($CLIENT -b $SOCKET down $iface 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
-  
-  echo "$data"
-  return 0
+  ret=$?           
+                   
+  json_load "$data"
+  json_get_var ifc "$iface"
+  echo "$ifc"                   
+  return "$ret"                                                            
 }
