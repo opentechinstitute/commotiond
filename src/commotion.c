@@ -37,7 +37,7 @@
 #include "socket.h"
 #include "util.h"
 #include "msg.h"
-#include "connect.h"
+#include "commotion.h"
 
 #define REQUEST_MAX 4096
 #define RESPONSE_MAX 4096

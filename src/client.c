@@ -33,10 +33,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
+#include <string.h>
 #include "config.h"
 #include "debug.h"
 #include "util.h"
-#include "connect.h"
+#include "commotion.h"
 
 #define INPUT_MAX 255
 
@@ -49,11 +50,10 @@
 static co_obj_t * 
 cli_parse_argv(char *argv[], const int argc)
 {
-  CHECK(((argv != NULL) && (argc > 0)), "No input.");
   co_obj_t *request = co_request_create();
-  if(argc > 1) 
+  if(argc > 0) 
   {
-    for(int i = 1; i < argc; i++)
+    for(int i = 0; i < argc; i++)
     {
       CHECK(co_request_append_str(request, argv[i], strlen(argv[i]) + 1), "Failed to add to argument list.");
     }
@@ -138,14 +138,15 @@ int main(int argc, char *argv[]) {
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
 
+  DEBUG("optind: %d, argc: %d", optind, argc);
   co_init();
   co_obj_t *conn = co_connect(socket_uri, strlen(socket_uri) + 1);
   CHECK(conn != NULL, "Failed to connect to commotiond at %s\n", socket_uri);
 
   if(optind < argc) 
   {
-    method = argv[0];
-    mlen = strlen(argv[0]) + 1;
+    method = argv[optind];
+    mlen = strlen(argv[optind]) + 1;
     request = cli_parse_argv(argv + optind + 1, argc - optind - 1);
     retval = co_call(conn, &response, method, mlen, request);
     CHECK(response != NULL, "Invalid response");
