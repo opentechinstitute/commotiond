@@ -33,26 +33,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
-#include <unistd.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "config.h"
-#include "msg.h"
 #include "debug.h"
 #include "util.h"
-#include "socket.h"
-#include "obj.h"
-#include "list.h"
-#include "tree.h"
+#include "connect.h"
 
-#define REQUEST_MAX 4096
-#define RESPONSE_MAX 4096
 #define INPUT_MAX 255
-
-extern co_socket_t unix_socket_proto;
 
 /**
  * @brief parses command line inputs and packages into a commotion message
@@ -60,76 +46,47 @@ extern co_socket_t unix_socket_proto;
  * @param argc number of commands and flags input
  */
 
-static size_t 
-cli_parse_argv(char *output, const size_t olen, char *argv[], const int argc)
+static co_obj_t * 
+cli_parse_argv(char *argv[], const int argc)
 {
   CHECK(((argv != NULL) && (argc > 0)), "No input.");
-  co_obj_t *params = co_list16_create();
+  co_obj_t *request = co_request_create();
   if(argc > 1) 
   {
     for(int i = 1; i < argc; i++)
     {
-      CHECK(co_list_append(params, co_str8_create(argv[i], strlen(argv[i]) + 1, 0)), "Failed to add to argument list.");
+      CHECK(co_request_append_str(request, argv[i], strlen(argv[i]) + 1), "Failed to add to argument list.");
     }
-    DEBUG("Parameter list size: %d", (int)co_list_length(params));
   }
-  co_obj_t *method = co_str8_create(argv[0], strlen(argv[0]) + 1, 0);
-  size_t retval = co_request_alloc(output, olen, method, params);
-  DEBUG("Request: %s", output);
-  co_obj_free(params);
-  co_obj_free(method);
-  return retval;
+  return request;
 error:
-  co_obj_free(params);
-  return -1; 
+  co_free(request);
+  return NULL; 
 }
 
 /**
  * @brief checks user input for valid commands
  * @param input user input submitted at the command prompt
  */
-static size_t
-cli_parse_string(char *output, const size_t olen, const char *input, const size_t ilen) 
+static co_obj_t *
+cli_parse_string(char *input, const size_t ilen) 
 {
   CHECK(((input != NULL) && (ilen > 0)), "No input.");
 	char *saveptr = NULL;
-  char *buf = NULL;
-  size_t blen = ilen; 
-  co_obj_t *method = NULL;
-  co_obj_t *params = NULL;
-  if(ilen > 2) /* Make sure it's not just, say, a null byte and a newline. */
+  co_obj_t *request = co_request_create();
+	char *token = strtok_r(input, " ", &saveptr);
+  DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
+  while(token != NULL)
   {
-    params = co_list16_create();
-    buf = h_calloc(1, ilen);
-    strstrip(input, buf, blen);
-    if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
-	  char *token = strtok_r(buf, " ", &saveptr);
+    CHECK(co_request_append_str(request, token, strlen(token) + 1), "Failed to add to argument list.");
     DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
-    if(strlen(token) < 2) token = "help";
-    method = co_str8_create(token, strlen(token) + 1, 0);
     token = strtok_r(NULL, " ", &saveptr);
-    while(token != NULL)
-    {
-      CHECK(co_list_append(params, co_str8_create(token, strlen(token) + 1, 0)), "Failed to add to argument list.");
-      DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
-      token = strtok_r(NULL, " ", &saveptr);
-    }
-  } 
-  else 
-  {
-    SENTINEL("Message too short.");
   }
-  size_t retval = co_request_alloc(output, olen, method, params);
-  co_obj_free(method);
-  co_obj_free(params);
-  if(buf != NULL) h_free(buf);
-  return retval;
+  return request;
 
 error:
-  co_obj_free(method);
-  co_obj_free(params);
-  if(buf != NULL) h_free(buf);
-  return -1;
+  co_free(request);
+  return NULL;
 }
 
 /**
@@ -154,7 +111,9 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
-  co_obj_t *rlist = NULL, *rtree = NULL;
+  char *method = NULL, *params = NULL;
+  size_t mlen = 0;
+  co_obj_t *request = NULL, *response = NULL;
 
   static const char *opt_string = "b:h";
 
@@ -179,74 +138,44 @@ int main(int argc, char *argv[]) {
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
 
-  co_obj_t *socket = NEW(co_socket, unix_socket);
+  co_init();
+  co_obj_t *conn = co_connect(socket_uri, strlen(socket_uri) + 1);
+  CHECK(conn != NULL, "Failed to connect to commotiond at %s\n", socket_uri);
 
-  CHECK((((co_socket_t*)socket)->connect(socket, socket_uri)), "Failed to connect to commotiond at %s\n", socket_uri);
-  DEBUG("opt_index: %d argc: %d", optind, argc);
-  char request[REQUEST_MAX];
-  memset(request, '\0', sizeof(request));
-  size_t reqlen = 0;
-  char response[RESPONSE_MAX];
-  memset(response, '\0', sizeof(response));
-  int resplen = 0;
   if(optind < argc) 
   {
-    reqlen = cli_parse_argv(request, REQUEST_MAX, argv + optind, argc - optind);
-    CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
-    if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
-    {
-      CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
-      rtree = co_list_element(rlist, 3);
-      if(!IS_NIL(rtree))
-      {
-        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
-        retval = 0;
-      }
-      else
-      {
-        rtree = co_list_element(rlist, 2);
-        if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
-        retval = 1;
-      }
-    }
+    method = argv[0];
+    mlen = strlen(argv[0]) + 1;
+    request = cli_parse_argv(argv + optind + 1, argc - optind - 1);
+    retval = co_call(conn, &response, method, mlen, request);
+    CHECK(response != NULL, "Invalid response");
+    co_response_print(response);
   } 
   else 
   {
     printf("Connected to commotiond at %s\n", socket_uri);
     char input[INPUT_MAX];
+    char buf[INPUT_MAX];
     memset(input, '\0', sizeof(input));
+    int blen = 0;
     while(printf("Co$ "), fgets(input, 100, stdin), !feof(stdin)) 
     {
-      reqlen = cli_parse_string(request, REQUEST_MAX, input, strlen(input));
-      CHECK(((co_socket_t*)socket)->send(socket, request, reqlen) != -1, "Send error!");
-      if((resplen = ((co_socket_t*)socket)->receive(socket, response, sizeof(response))) > 0) 
-      {
-        CHECK(co_list_import(&rlist, response, resplen) > 0, "Failed to parse response.");
-        rtree = co_list_element(rlist, 3);
-        if(!IS_NIL(rtree))
-        {
-          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
-          retval = 0;
-        }
-        else
-        {
-          rtree = co_list_element(rlist, 2);
-          printf("Error: ");
-          if(rtree != NULL && IS_TREE(rtree)) co_tree_print(rtree);
-          retval = 1;
-        }
-      }
+      strstrip(input, buf, INPUT_MAX);
+      blen = strlen(buf);
+      if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
+	    method = strtok_r(buf, " ", &params);
+      DEBUG("Token: %s, Length: %d", params, (int)strlen(params));
+      if(strlen(method) < 2) method = "help";
+      request = cli_parse_string(params, strlen(params) + 1);
+      retval = co_call(conn, &response, method, mlen, request);
+      CHECK(response != NULL, "Invalid response");
+      co_response_print(response);
     }
   }
-
-  co_obj_free(rtree);
-  co_obj_free(rlist);
-  ((co_socket_t*)socket)->destroy(socket);
+  co_shutdown();
   return retval;
 error:
-  co_obj_free(rtree);
-  co_obj_free(rlist);
-  ((co_socket_t*)socket)->destroy(socket);
+  co_shutdown();
   return retval;
 }
 

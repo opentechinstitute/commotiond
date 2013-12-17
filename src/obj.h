@@ -30,6 +30,8 @@
  */
 #ifndef _OBJ_H
 #define _OBJ_H
+
+#define CO_OBJ_INTERNAL
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
