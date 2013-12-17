@@ -17,29 +17,6 @@
 
 #include "serval-dna.h"
 
-#define CHECK_ERR(A, M, ...) if(!(A)) { \
-    ERROR(M, ##__VA_ARGS__); \
-    if (err_msg == NULL) \
-      err_msg = co_list16_create(); \
-    char *msg = NULL; \
-    int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-    msg = calloc(len,sizeof(char)); \
-    sprintf(msg, M, ##__VA_ARGS__); \
-    if (len < UINT8_MAX) { \
-      co_list_append(err_msg, co_str8_create(msg,len,0)); \
-    } else if (len < UINT16_MAX) { \
-      co_list_append(err_msg, co_str8_create(msg,len,0)); \
-    } else if (len < UINT32_MAX) { \
-      co_list_append(err_msg, co_str8_create(msg,len,0)); \
-    } \
-    free(msg); \
-    goto error; \
-  }
-
-#define CLEAR_ERR() if (err_msg) { co_obj_free(err_msg); err_msg = NULL; }
-
-#define INS_ERROR() if (err_msg) { co_tree_insert(*output, "errors", 6, err_msg); }
-
 extern struct subscriber *my_subscriber;
 extern keyring_file *keyring;
 
@@ -48,7 +25,7 @@ char *serval_path = NULL;
 keyring_file *mdp_keyring = NULL;
 unsigned char *mdp_key = NULL;
 int mdp_key_len = 0;
-static co_obj_t *err_msg = NULL;
+co_obj_t *err_msg = NULL;
 
 static int serval_create_signature(unsigned char *key,
 			const unsigned char *msg,
@@ -82,63 +59,80 @@ error:
     return 0;
 }
 
-int serval_init_keyring(unsigned char *sid,
-		       const size_t sid_len,
-		       const char *keyring_path,
-		       const size_t keyring_len,
-		       keyring_file **_keyring,
-		       unsigned char **key,
-		       int *key_len) {
-  keyring_identity *new_ident;
-  char keyringFile[PATH_MAX] = {0};
-  unsigned char *_sid = sid;
+int serval_open_keyring(const char *keyring_path,
+			const size_t keyring_len,
+			keyring_file *_keyring) {
+  
+  char keyring_path_str[PATH_MAX] = {0};
   char *abs_path = NULL;
   int ret = 0;
   
-  if (sid) CHECK(sid_len == SID_SIZE,"Invalid SID");
-  
   if (keyring_path == NULL || keyring_len == 0) { // if no keyring specified, use default keyring
-    strcpy(keyringFile,serval_path);
+    strcpy(keyring_path_str,serval_path);
     if (serval_path[strlen(serval_path) - 1] != '/')
-      strcat(keyringFile,"/");
-    strcat(keyringFile,"serval.keyring");
+      strcat(keyring_path_str,"/");
+    strcat(keyring_path_str,"serval.keyring");
   }
   else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
     CHECK(keyring_len < PATH_MAX,"Keyring length too long");
-    strncpy(keyringFile,keyring_path,keyring_len);
-    keyringFile[keyring_len] = '\0';
-    
-    // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-    CHECK_ERR((abs_path = realpath(keyringFile,NULL)) != NULL,"Error deriving absolute path from given keyring file: %s",keyringFile);
-    *strrchr(abs_path,'/') = '\0';
-    CHECK_ERR(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
+    strncpy(keyring_path_str,keyring_path,keyring_len);
+    keyring_path_str[keyring_len] = '\0';
   }
   
-  CHECK_ERR((*_keyring = keyring_open(keyringFile)),"Failed to open specified keyring file");
-  CHECK_ERR(keyring_enter_pin(*_keyring, KEYRING_PIN) > 0,"No valid Serval keys found with NULL PIN"); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
+  // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
+  CHECK_ERR((abs_path = realpath(keyring_path_str,NULL)),"Error deriving absolute path from given keyring file: %s",keyring_path_str);
+  *strrchr(abs_path,'/') = '\0';
+  CHECK_ERR(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   
-  if (!sid) {
-    //create new sid
-    int c;
-    for(c = 0; c < (*_keyring)->context_count; c++) { // cycle through the keyring contexts until we find one with room for another identity
-      new_ident = keyring_create_identity(*_keyring,(*_keyring)->contexts[c], KEYRING_PIN); // create new Serval identity
-      if (new_ident)
-	break;
-    }
-    CHECK_ERR(new_ident,"failed to create new SID");
-    
-    CHECK_ERR(keyring_commit(*_keyring) == 0,"Failed to save new SID into keyring"); // need to commit keyring or else new identity won't be saved (needs permissions)
-    
-    _sid = new_ident->subscriber->sid;
-  }
+  CHECK_ERR((_keyring = keyring_open(keyring_path_str)),"Failed to open specified keyring file");
+
+  CHECK_ERR(keyring_enter_pin(_keyring, KEYRING_PIN) > 0,"No valid Serval keys found with NULL PIN"); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
   
-  if (key)
-    serval_extract_sas(key,key_len, *_keyring, _sid);
+  /* put initial identity in if we don't have any visible */
+  CHECK_ERR(keyring_seed(_keyring),"Failed to seed keyring");
   
   ret = 1;
 error:
   if (abs_path) free(abs_path);
   return ret;
+}
+
+int serval_init_keyring(unsigned char *sid,
+		       const size_t sid_len,
+		       const char *keyring_path,
+		       const size_t keyring_len,
+		       keyring_file *_keyring,
+		       unsigned char **key,
+		       int *key_len) {
+  keyring_identity *new_ident;
+  
+  unsigned char *_sid = sid;
+  
+  if (sid) CHECK(sid_len == SID_SIZE,"Invalid SID");
+  
+  CHECK_ERR(serval_open_keyring(keyring_path,keyring_len,_keyring),"Failed to open keyring");
+  
+  if (!sid) {
+    //create new sid
+    int c;
+    for(c = 0; c < (_keyring)->context_count; c++) { // cycle through the keyring contexts until we find one with room for another identity
+      new_ident = keyring_create_identity(_keyring,(_keyring)->contexts[c], KEYRING_PIN); // create new Serval identity
+      if (new_ident)
+	break;
+    }
+    CHECK_ERR(new_ident,"failed to create new SID");
+    
+    CHECK_ERR(keyring_commit(_keyring) == 0,"Failed to save new SID into keyring"); // need to commit keyring or else new identity won't be saved (needs permissions)
+    
+    _sid = new_ident->subscriber->sid;
+  }
+  
+  if (key)
+    serval_extract_sas(key,key_len, _keyring, _sid);
+  
+  return 1;
+error:
+  return 0;
 }
 
 int cmd_serval_sign(const char *sid_str, 
@@ -168,7 +162,7 @@ int cmd_serval_sign(const char *sid_str,
                      sid_str ? SID_SIZE : 0,
 		     keyring_path,
 		     keyring_len,
-		     &_keyring,
+		     _keyring,
 		     &key,
 		     NULL), "Failed to initialize Serval keyring");
   } else {
@@ -347,7 +341,7 @@ int serval_verify_client(const char *sid_str,
 			 SID_SIZE,
 			 keyring_path,
 			 strlen(keyring_path),
-			 &keyring,
+			 keyring,
 			 NULL,
 			 NULL), "Failed to initialize Serval keyring");
       
@@ -370,7 +364,7 @@ error:
 
 int serval_crypto_register(void) {
   /** name: serval-crypto
-   * param[1] - param[4]: (co_str?_t)
+   * param[0] - param[3]: (co_str?_t)
    */
   
   const char name[] = "serval-crypto",
@@ -392,8 +386,8 @@ error:
 int olsrd_mdp_register(void) {
   /**
    * name: olsrd-mdp
-   * param[1] <required>: <SID> (co_bin8_t)
-   * param[2]: --keyring=<keyring_path> (co_str8_t)
+   * param[0] <required>: <SID> (co_bin8_t)
+   * param[1]: --keyring=<keyring_path> (co_str8_t)
    */
   const char name[] = "olsrd-mdp";
   
@@ -407,7 +401,7 @@ error:
 int olsrd_mdp_sign_register(void) {
   /**
    * name: mdp-sign
-   * param[1] <required>: data (co_bin?_t)
+   * param[0] <required>: data (co_bin?_t)
    */
   
   const char name[] = "mdp-sign";
@@ -500,7 +494,7 @@ int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     co_str_len(co_list_element(params,1)),
 		     keyring_path,
 		     keyring_len,
-		     &mdp_keyring,
+		     mdp_keyring,
 		     &mdp_key,
 		     &mdp_key_len), "Failed to initialize Serval keyring");
   
