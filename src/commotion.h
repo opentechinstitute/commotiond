@@ -29,6 +29,8 @@
  * =====================================================================================
  */
 
+#include <stdbool.h>
+
 #ifndef _CONNECT_H
 #define _CONNECT_H
 
@@ -63,6 +65,8 @@ size_t co_response_get_str(co_obj_t *response, char **output, const char *key, c
 int co_response_get_uint(co_obj_t *response, unsigned long *output, const char *key, const size_t klen);
 
 int co_response_get_int(co_obj_t *response, signed long *output, const char *key, const size_t klen); 
+
+bool co_response_get_bool(co_obj_t *response, bool *output, const char *key, const size_t klen);
 
 int co_response_print(co_obj_t *response);
 

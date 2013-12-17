@@ -29,6 +29,7 @@
  * =====================================================================================
  */
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include "debug.h"
 #include "obj.h"
@@ -297,6 +298,28 @@ co_response_get_int(co_obj_t *response, signed long *output, const char *key, co
   return 1;
 
 error:
+  return 0;
+}
+
+bool
+co_response_get_bool(co_obj_t *response, bool *output, const char *key, const size_t klen) {
+  co_obj_t *obj = co_response_get(response, key, klen);
+  CHECK(obj != NULL, "Response value %s does not exist.", key);
+  switch(CO_TYPE(obj))
+  {
+    case _false:
+      *output = false;
+      break;
+    case true:
+      *output = true;
+      break;
+    default:
+      SENTINEL("Not a boolean.");
+      break;
+  }
+  return 1;
+  
+  error:
   return 0;
 }
 
