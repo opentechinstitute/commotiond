@@ -57,3 +57,6 @@ if(NOT OPENWRT)
     )
   endif(DOXYGEN_FOUND)
 endif()
+
+INSTALL(FILES files/commotiond.conf DESTINATION etc/commotion)
+INSTALL(DIRECTORY files/profiles.d DESTINATION etc/commotion)
