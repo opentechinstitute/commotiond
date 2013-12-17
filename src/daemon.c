@@ -267,7 +267,7 @@ CMD(state)
   memset(address, '\0', sizeof(address));
   char *ifname = NULL;
   char *propname = NULL;
-  char *ipgen = NULL, *ipgenmask = NULL, *type = NULL, *ip = NULL, *bssidgen = NULL;
+  char *ssid = NULL, *chan = NULL, *ipgen = NULL, *ipgenmask = NULL, *type = NULL, *ip = NULL, *bssidgen = NULL;
   co_obj_t *object = NULL;
   int t = 0;
   co_obj_t *iface = co_list_element(params, 0);
@@ -309,11 +309,24 @@ CMD(state)
   }
   else if(!strcmp(propname, "bssid"))
   {
-    if(co_profile_get_str(prof, &bssidgen, "bssidgen", sizeof("bssid")) > 0)
+    if(co_profile_get_str(prof, &bssidgen, "bssidgen", sizeof("bssidgen")) > 0)
     {
       if(!strcmp(bssidgen, "true"))
       {
-        object = co_profile_get(prof, prop);
+        CHECK(co_profile_get_str(prof, &ssid, "ssid", sizeof("ssid")) > 0, "Attempting to generate BSSID but SSID not set.");
+        CHECK(co_profile_get_str(prof, &chan, "channel", sizeof("channel")) > 0, "Attempting to generate BSSID but channel not set.");
+        unsigned int channel;
+        CHECK(sscanf(chan, "%u", &channel) > 0, "Failed to convert channel.");
+        unsigned int freq = wifi_freq(channel);
+        DEBUG("Channel: %u, Frequency: %u", channel, freq);
+        char bssid[BSSID_SIZE];
+        memset(bssid, '\0', sizeof(bssid));
+        get_bssid(ssid, freq, bssid);
+        char bssidstr[BSSID_STR_SIZE];
+        memset(bssidstr, '\0', sizeof(bssidstr));
+        CHECK(snprintfcat(bssidstr, BSSID_STR_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x", bssid[0] & 0xff, bssid[1] & 0xff, bssid[2] & 0xff, bssid[3] & 0xff, bssid[4] & 0xff, bssid[5] & 0xff) > 0, "Failed to convert BSSID.");
+        DEBUG("BSSID: %s", bssidstr);
+        object = co_str8_create(bssidstr, strlen(bssidstr) + 1, 0);
       }
       else
       {
