@@ -71,11 +71,13 @@ error:
 static co_obj_t *
 cli_parse_string(char *input, const size_t ilen) 
 {
-  CHECK(((input != NULL) && (ilen > 0)), "No input.");
-	char *saveptr = NULL;
+	char *saveptr = NULL, *token = NULL;
   co_obj_t *request = co_request_create();
-	char *token = strtok_r(input, " ", &saveptr);
-  DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
+  if(input != NULL && ilen > 0)
+  {
+	  token = strtok_r(input, " ", &saveptr);
+    DEBUG("Token: %s, Length: %d", token, (int)strlen(token));
+  }
   while(token != NULL)
   {
     CHECK(co_request_append_str(request, token, strlen(token) + 1), "Failed to add to argument list.");
@@ -111,7 +113,7 @@ int main(int argc, char *argv[]) {
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
-  char *method = NULL, *params = NULL;
+  char *method = NULL;
   size_t mlen = 0;
   co_obj_t *request = NULL, *response = NULL;
 
@@ -159,15 +161,22 @@ int main(int argc, char *argv[]) {
     char buf[INPUT_MAX];
     memset(input, '\0', sizeof(input));
     int blen = 0;
-    while(printf("Co$ "), fgets(input, 100, stdin), !feof(stdin)) 
+    while(printf("Co$ "), fgets(input, INPUT_MAX, stdin), !feof(stdin)) 
     {
       strstrip(input, buf, INPUT_MAX);
       blen = strlen(buf);
       if(buf[blen - 1] == '\n') buf[blen - 1] ='\0';
-	    method = strtok_r(buf, " ", &params);
-      DEBUG("Token: %s, Length: %d", params, (int)strlen(params));
-      if(strlen(method) < 2) method = "help";
-      request = cli_parse_string(params, strlen(params) + 1);
+	    method = strtok(buf, " ");
+      mlen = strlen(method) + 1;
+      if(mlen < 2) method = "help";
+      if(blen > mlen)
+      {
+        request = cli_parse_string(buf + mlen, blen - mlen);
+      }
+      else
+      {
+        request = cli_parse_string(NULL, 0);
+      }
       retval = co_call(conn, &response, method, mlen, request);
       CHECK(response != NULL, "Invalid response");
       co_response_print(response);
