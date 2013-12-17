@@ -61,17 +61,17 @@ error:
 
 int serval_open_keyring(const char *keyring_path,
 			const size_t keyring_len,
-			keyring_file *_keyring) {
+			keyring_file **_keyring) {
   
   char keyring_path_str[PATH_MAX] = {0};
-  char *abs_path = NULL;
-  int ret = 0;
   
   if (keyring_path == NULL || keyring_len == 0) { // if no keyring specified, use default keyring
     strcpy(keyring_path_str,serval_path);
     if (serval_path[strlen(serval_path) - 1] != '/')
       strcat(keyring_path_str,"/");
     strcat(keyring_path_str,"serval.keyring");
+    // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
+    CHECK_ERR(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   }
   else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
     CHECK(keyring_len < PATH_MAX,"Keyring length too long");
@@ -79,29 +79,23 @@ int serval_open_keyring(const char *keyring_path,
     keyring_path_str[keyring_len] = '\0';
   }
   
-  // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-  CHECK_ERR((abs_path = realpath(keyring_path_str,NULL)),"Error deriving absolute path from given keyring file: %s",keyring_path_str);
-  *strrchr(abs_path,'/') = '\0';
-  CHECK_ERR(setenv("SERVALINSTANCE_PATH",abs_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
-  
-  CHECK_ERR((_keyring = keyring_open(keyring_path_str)),"Failed to open specified keyring file");
+  CHECK_ERR((*_keyring = keyring_open(keyring_path_str)),"Failed to open specified keyring file");
 
-  CHECK_ERR(keyring_enter_pin(_keyring, KEYRING_PIN) > 0,"No valid Serval keys found with NULL PIN"); // unlocks Serval keyring for using identities (also initializes global default identity my_subscriber)
+  if (keyring_enter_pin(*_keyring, KEYRING_PIN) <= 0) {
+    /* put initial identity in if we don't have any visible */
+    CHECK_ERR(keyring_seed(*_keyring) == 0,"Failed to seed keyring");
+  }
   
-  /* put initial identity in if we don't have any visible */
-  CHECK_ERR(keyring_seed(_keyring),"Failed to seed keyring");
-  
-  ret = 1;
+  return 1;
 error:
-  if (abs_path) free(abs_path);
-  return ret;
+  return 0;
 }
 
 int serval_init_keyring(unsigned char *sid,
 		       const size_t sid_len,
 		       const char *keyring_path,
 		       const size_t keyring_len,
-		       keyring_file *_keyring,
+		       keyring_file **_keyring,
 		       unsigned char **key,
 		       int *key_len) {
   keyring_identity *new_ident;
@@ -115,20 +109,20 @@ int serval_init_keyring(unsigned char *sid,
   if (!sid) {
     //create new sid
     int c;
-    for(c = 0; c < (_keyring)->context_count; c++) { // cycle through the keyring contexts until we find one with room for another identity
-      new_ident = keyring_create_identity(_keyring,(_keyring)->contexts[c], KEYRING_PIN); // create new Serval identity
+    for(c = 0; c < (*_keyring)->context_count; c++) { // cycle through the keyring contexts until we find one with room for another identity
+      new_ident = keyring_create_identity(*_keyring,(*_keyring)->contexts[c], KEYRING_PIN); // create new Serval identity
       if (new_ident)
 	break;
     }
     CHECK_ERR(new_ident,"failed to create new SID");
     
-    CHECK_ERR(keyring_commit(_keyring) == 0,"Failed to save new SID into keyring"); // need to commit keyring or else new identity won't be saved (needs permissions)
+    CHECK_ERR(keyring_commit(*_keyring) == 0,"Failed to save new SID into keyring"); // need to commit keyring or else new identity won't be saved (needs permissions)
     
     _sid = new_ident->subscriber->sid;
   }
   
   if (key)
-    serval_extract_sas(key,key_len, _keyring, _sid);
+    CHECK(serval_extract_sas(key,key_len, *_keyring, _sid),"Failed to fetch SAS key");
   
   return 1;
 error:
@@ -162,7 +156,7 @@ int cmd_serval_sign(const char *sid_str,
                      sid_str ? SID_SIZE : 0,
 		     keyring_path,
 		     keyring_len,
-		     _keyring,
+		     &_keyring,
 		     &key,
 		     NULL), "Failed to initialize Serval keyring");
   } else {
@@ -328,7 +322,6 @@ int serval_verify_client(const char *sid_str,
   int verdict = 0;
   char sas_str[2*SAS_SIZE+1] = {0};
   unsigned char packedSid[SID_SIZE] = {0};
-  char keyring_path[PATH_MAX] = {0};
   
   CHECK(sid_len == 2*SID_SIZE,"Invalid SID length");
   CHECK(sig_len == 2*SIGNATURE_BYTES,"Invalid signature length");
@@ -336,12 +329,11 @@ int serval_verify_client(const char *sid_str,
   CHECK(str_is_subscriber_id(sid_str) != 0,"Invalid SID");
   stowSid(packedSid,0,sid_str);
   
-  FORM_SERVAL_INSTANCE_PATH(keyring_path, "serval.keyring");
   CHECK(serval_init_keyring(packedSid,
 			 SID_SIZE,
-			 keyring_path,
-			 strlen(keyring_path),
-			 keyring,
+			 NULL,
+			 0,
+			 &keyring,
 			 NULL,
 			 NULL), "Failed to initialize Serval keyring");
       
@@ -369,12 +361,12 @@ int serval_crypto_register(void) {
   
   const char name[] = "serval-crypto",
   usage[] = "serval-crypto sign [<SID>] <MESSAGE> [--keyring=<KEYRING_PATH>]\n"
-            "serval-crypto verify <SAS> <SIGNATURE> <MESSAGE>\n",
+            "serval-crypto verify <SAS> <SIGNATURE> <MESSAGE>",
   desc[] =   "Serval-crypto utilizes Serval's crypto API to:\n"
   "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
   "             a new key will be created on the default Serval keyring.\n"
   "      * Verify any arbitrary text, a signature, and a Serval signing key (SAS), and will\n"
-  "             determine if the signature is valid.\n\n\0";
+  "             determine if the signature is valid.";
   
   CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
   
@@ -494,7 +486,7 @@ int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     co_str_len(co_list_element(params,1)),
 		     keyring_path,
 		     keyring_len,
-		     mdp_keyring,
+		     &mdp_keyring,
 		     &mdp_key,
 		     &mdp_key_len), "Failed to initialize Serval keyring");
   
