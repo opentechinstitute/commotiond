@@ -454,8 +454,17 @@ CMD(set)
   *output = co_tree16_create();
   size_t plen = co_list_length(params);
   CHECK(plen == 3, "Incorrect parameters.");
+  co_obj_t *prof = NULL;
 
-  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(!co_str_cmp_str(co_list_element(params, 0), "global"))
+  {
+    prof = co_profile_global();
+  }
+  else
+  {
+    prof = co_profile_find(co_list_element(params, 0));
+  }
+
   if(prof == NULL)
   {
     co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
@@ -484,8 +493,17 @@ CMD(get)
   *output = co_tree16_create();
   size_t plen = co_list_length(params);
   CHECK(((plen == 2) || (plen == 1)), "Incorrect parameters.");
+  co_obj_t *prof = NULL;
 
-  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  if(!co_str_cmp_str(co_list_element(params, 0), "global"))
+  {
+    prof = co_profile_global();
+  }
+  else
+  {
+    prof = co_profile_find(co_list_element(params, 0));
+  }
+
   if(prof == NULL)
   {
     co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
@@ -512,31 +530,58 @@ CMD(save)
   *output = co_tree16_create();
   size_t plen = co_list_length(params);
   CHECK(plen <= 2, "Incorrect parameters.");
-
-  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
-  if(prof == NULL)
-  {
-    co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
-    return 0;
-  }
-
+  co_obj_t *prof = NULL;
   char *pstr = NULL;
   size_t proflen = 0;
-  if(plen == 2)
+  char path_tmp[PATH_MAX] = {};
+
+  if(!co_str_cmp_str(co_list_element(params, 0), "global"))
   {
-    proflen = co_obj_data(&pstr, co_list_element(params, 1));
+    CHECK(plen == 1, "Incorrect parameters.");
+    prof = co_profile_global();
+    if(prof == NULL)
+    {
+      co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+      return 0;
+    }
+
+    if(plen == 2)
+    {
+      proflen = co_obj_data(&pstr, co_list_element(params, 1));
+    }
+    else
+    {
+      proflen = co_obj_data(&pstr, ((co_profile_t *)prof)->name);
+    }
+    CHECK(proflen > 0, "Failed to get profile name.");
+
+    CHECK(co_profile_export_file(prof, _config), "Failed to export file.");
   }
   else
   {
-    proflen = co_obj_data(&pstr, ((co_profile_t *)prof)->name);
-  }
-  CHECK(proflen > 0, "Failed to get profile name.");
+    CHECK(plen <= 2, "Incorrect parameters.");
+    prof = co_profile_find(co_list_element(params, 0));
+    if(prof == NULL)
+    {
+      co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Profile not found.", sizeof("Profile not found."), 0));
+      return 0;
+    }
 
-  char path_tmp[PATH_MAX] = {};
-  strlcpy(path_tmp, _profiles, PATH_MAX);
-  strlcat(path_tmp, "/", PATH_MAX);
-  strlcat(path_tmp, pstr, PATH_MAX);
-  CHECK(co_profile_export_file(prof, path_tmp), "Failed to export file.");
+    if(plen == 2)
+    {
+      proflen = co_obj_data(&pstr, co_list_element(params, 1));
+    }
+    else
+    {
+      proflen = co_obj_data(&pstr, ((co_profile_t *)prof)->name);
+    }
+    CHECK(proflen > 0, "Failed to get profile name.");
+
+    strlcpy(path_tmp, _profiles, PATH_MAX);
+    strlcat(path_tmp, "/", PATH_MAX);
+    strlcat(path_tmp, pstr, PATH_MAX);
+    CHECK(co_profile_export_file(prof, path_tmp), "Failed to export file.");
+  }
 
   co_tree_insert(*output, pstr, proflen, co_str8_create("Saved.", sizeof("Saved."), 0));
   return 1;
