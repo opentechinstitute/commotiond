@@ -836,6 +836,9 @@ int main(int argc, char *argv[]) {
   }
   DEBUG("Profiles directory: %s", _profiles);
 
+  /* If the daemon is needed, start the daemon */
+  if(daemonize) daemon_start((char *)_state, (char *)_pid); /* Input state directory and lockfile with process id */
+
   //co_profile_delete_global();
   co_plugins_init(16);
   co_cmds_init(16);
@@ -867,9 +870,6 @@ int main(int argc, char *argv[]) {
   socket->register_cb = co_loop_add_socket;
   socket->bind((co_obj_t*)socket, _bind);
   co_plugins_start();
-
-  /* If the daemon is needed, start the daemon */
-  if(daemonize) daemon_start((char *)_state, (char *)_pid); /* Input state directory and lockfile with process id */
 
   co_loop_start();
   co_loop_destroy();
