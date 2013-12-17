@@ -109,7 +109,7 @@ static void print_usage() {
 
 
 int main(int argc, char *argv[]) {
-  int retval = 0;
+  int retval = 1;
   int opt = 0;
   int opt_index = 0;
   char *socket_uri = COMMOTION_MANAGESOCK;
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
     method = argv[optind];
     mlen = strlen(argv[optind]) + 1;
     request = cli_parse_argv(argv + optind + 1, argc - optind - 1);
-    retval = co_call(conn, &response, method, mlen, request);
+    if(co_call(conn, &response, method, mlen, request)) retval = 0;
     CHECK(response != NULL, "Invalid response");
     co_response_print(response);
   } 
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
       {
         request = cli_parse_string(NULL, 0);
       }
-      retval = co_call(conn, &response, method, mlen, request);
+      if(co_call(conn, &response, method, mlen, request)) retval = 0;
       CHECK(response != NULL, "Invalid response");
       co_response_print(response);
     }
