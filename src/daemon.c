@@ -158,6 +158,7 @@ CMD(profiles)
 CMD(up)
 {
   *output = co_tree16_create();
+  CHECK(co_list_length(params) == 2, "Incorrect parameters.");
   unsigned char mac[6];
   memset(mac, '\0', sizeof(mac));
   char address[16];
@@ -220,7 +221,7 @@ CMD(up)
   return 1;
 error:
   co_iface_remove(ifname);
-  co_tree_insert(*output, ifname, iflen, co_str8_create("fail", sizeof("fail"), 0));
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Failed to bring up interface.", sizeof("Failed to bring up interface."), 0));
   return 0;
 }
 
@@ -234,7 +235,7 @@ CMD(down)
   co_tree_insert(*output, ifname, iflen, co_str8_create("down", sizeof("down"), 0));
   return 1;
 error:
-  co_tree_insert(*output, ifname, iflen, co_str8_create("fail", sizeof("fail"), 0));
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Failed to bring down interface.", sizeof("Failed to bring down interface."), 0));
   return 0;
 }
 
@@ -246,12 +247,14 @@ CMD(status)
   char *ifname = NULL;
   size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
   CHECK(iflen > 0, "Incorrect parameters.");
-  char *profile_name = NULL; 
-  CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
-  co_tree_insert(*output, "status", sizeof("status"), co_str8_create(profile_name, strlen(profile_name)+1, 0));
+  char *profile_name = profile_name = co_iface_profile(ifname); 
+  if(profile_name == NULL)
+    co_tree_insert(*output, "status", sizeof("status"), co_str8_create("down", sizeof("down"), 0));
+  else
+    co_tree_insert(*output, "status", sizeof("status"), co_str8_create(profile_name, strlen(profile_name)+1, 0));
   return 1;
 error:
-  co_tree_insert(*output, "status", sizeof("status"), co_str8_create("down", sizeof("down"), 0));
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Failed to get status.", sizeof("Failed to get status."), 0));
   return 0;
 }
 
