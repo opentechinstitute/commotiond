@@ -62,7 +62,7 @@ co_socket_t co_socket_proto = {};
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
 bool serval_registered = false;
-bool daemon_started = true;
+bool daemon_started = false;
 extern co_obj_t *err_msg;
 
 // Private functions
@@ -342,6 +342,7 @@ error:
 }
 
 SCHEMA(serval) {
+  SCHEMA_ADD("servald","enabled");
   SCHEMA_ADD("serval_path",DEFAULT_SERVAL_PATH);
   SCHEMA_ADD("mdp_sid",DEFAULT_SID);
   SCHEMA_ADD("mdp_keyring",DEFAULT_MDP_PATH);
@@ -369,14 +370,17 @@ static int olsrd_mdp_load_config(void) {
   DEBUG("mdp_path: %s",mdp_path);
   DEBUG("mdp_path_len: %d",mdp_path_len);
   
-  stowSid(packedSid,0,mdp_sid);
-  CHECK(serval_init_keyring(packedSid,
+  if (strcmp(mdp_sid,DEFAULT_SID) != 0) {
+    stowSid(packedSid,0,mdp_sid);
+    CHECK(serval_init_keyring(packedSid,
 			 SID_SIZE,
 			 mdp_path,
 			 mdp_path_len,
 			 &mdp_keyring,
 			 &mdp_key,
 			 &mdp_key_len), "Failed to initialize olsrd-mdp Serval keyring");
+  } else
+    DEBUG("Not initializing olsrd-mdp keyring");
   
   return 1;
 error:
@@ -393,6 +397,10 @@ error:
 }
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  char *enabled = NULL;
+  co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
+  if (strcmp(enabled,"disabled") == 0) return 1;
+
   DEBUG("Initializing Serval plugin");
   
   srandomdev();
@@ -442,6 +450,8 @@ static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context
 }
 
 int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  if (daemon_started == false) return 1;
+
   DEBUG("Serval shutdown");
   
   if (mdp_keyring) keyring_free(mdp_keyring);
@@ -450,10 +460,10 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   dna_helper_shutdown();
   
-  co_list_parse(sock_alarms,destroy_alarms,NULL);
+//   co_list_parse(sock_alarms,destroy_alarms,NULL);
   co_obj_free(sock_alarms);  // halloc will free list items
   
-  co_list_parse(timer_alarms,destroy_alarms,NULL);
+//   co_list_parse(timer_alarms,destroy_alarms,NULL);
   co_obj_free(timer_alarms); // halloc will free list items
   
   keyring_free(keyring);
