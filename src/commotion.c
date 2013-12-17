@@ -301,7 +301,7 @@ error:
   return 0;
 }
 
-bool
+int
 co_response_get_bool(co_obj_t *response, bool *output, const char *key, const size_t klen) {
   co_obj_t *obj = co_response_get(response, key, klen);
   CHECK(obj != NULL, "Response value %s does not exist.", key);
