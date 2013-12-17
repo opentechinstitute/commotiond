@@ -8,8 +8,30 @@
 CLIENT="/usr/bin/commotion"
 SOCKET="/var/run/commotiond.sock"
 
-DEFAULT_LEASE_ZONE="wan"
-DEFAULT_NOLEASE_ZONE="lan"
+DEFAULT_WAN_ZONE="wan"
+DEFAULT_CLIENT_BRIDGE="client"
+
+unset_bridge() {
+  local bridge="$1"
+  local ifname="$2"
+  
+  json_init
+  json_add_string name "$ifname"
+  ubus call network.interface.$bridge remove_device "$(json_dump)" 2>/dev/null
+  
+  return $?
+}
+  
+set_bridge() {
+  local bridge="$1"
+  local ifname="$2"
+  
+  json_init
+  json_add_string name "$ifname"
+  ubus call network.interface.$bridge add_device "$(json_dump)" 2>/dev/null
+  
+  return $?
+}
 
 unset_fwzone() {
   local config="$1"

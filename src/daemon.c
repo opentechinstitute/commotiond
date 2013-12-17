@@ -58,8 +58,8 @@
 #include "list.h"
 #include "tree.h"
 
-#define REQUEST_MAX 4096
-#define RESPONSE_MAX 4096
+#define REQUEST_MAX 1024
+#define RESPONSE_MAX 1024
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -157,7 +157,7 @@ CMD(profiles)
 
 CMD(up)
 {
-  *output = co_list16_create();
+  *output = co_tree16_create();
   unsigned char mac[6];
   memset(mac, '\0', sizeof(mac));
   char address[16];
@@ -175,7 +175,7 @@ CMD(up)
     co_id_set_from_mac(mac, sizeof(mac));
   }
   /* Load profile */
-  co_obj_t *prof = co_profile_find(co_list_element(params, 0));
+  co_obj_t *prof = co_profile_find(co_list_element(params, 1));
   CHECK(prof != NULL, "Failed to load profile.");
 #ifndef _OPENWRT
   co_profile_dump(prof);
@@ -212,7 +212,9 @@ CMD(up)
   co_set_dns(dns, domain, "/tmp/resolv.commotion");
   co_iface_set_ip(iface, address, netmask);
 #endif
-  ((co_iface_t *)iface)->profile = strdup(ifname);
+  char *profname = NULL;
+  co_obj_data(&profname, ((co_profile_t *)prof)->name);
+  ((co_iface_t *)iface)->profile = strdup(profname);
 
   co_tree_insert(*output, ifname, iflen, co_str8_create("up", sizeof("up"), 0));
   return 1;
@@ -240,12 +242,12 @@ CMD(status)
 {
 
   *output = co_tree16_create();
+  CHECK(co_list_length(params) == 1, "Incorrect parameters.");
   char *ifname = NULL;
   size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
   CHECK(iflen > 0, "Incorrect parameters.");
   char *profile_name = NULL; 
   CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
-  *output = co_str8_create(profile_name, strlen(profile_name)+1, 0);
   co_tree_insert(*output, "status", sizeof("status"), co_str8_create(profile_name, strlen(profile_name)+1, 0));
   return 1;
 error:
@@ -262,6 +264,9 @@ CMD(state)
   memset(address, '\0', sizeof(address));
   char *ifname = NULL;
   char *propname = NULL;
+  char *ipgen = NULL, *ipgenmask = NULL, *type = NULL, *ip = NULL, *bssidgen = NULL;
+  co_obj_t *object = NULL;
+  int t = 0;
   co_obj_t *iface = co_list_element(params, 0);
   CHECK(IS_STR(iface), "Incorrect parameters.");
   co_obj_t *prop = co_list_element(params, 1);
@@ -274,7 +279,54 @@ CMD(state)
   co_obj_t *p = co_str8_create(profile_name, strlen(profile_name)+1, 0);
   co_obj_t *prof = NULL;
   CHECK((prof = co_profile_find(p)), "Could not load profile."); 
-  co_obj_t *object = co_profile_get(prof, prop);
+  if(!strcmp(propname, "ip"))
+  {
+    if(co_profile_get_str(prof, &ipgen, "ipgen", sizeof("ipgen")) > 0)
+    {
+      if(!strcmp(ipgen, "true"))
+      {
+        if(co_profile_get_str(prof, &type, "type", sizeof("type")) > 0)
+        {
+          if(!strcmp(type, "ap") || !strcmp(type, "plug")) t = 1;
+        }
+        CHECK(co_profile_get_str(prof, &ipgenmask, "ipgenmask", sizeof("ipgenmask")) > 0, "Attempting to generate IP but ipgenmask not set.");
+        CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")) > 0, "Attempting to generate IP but ip not set.");
+        CHECK(co_generate_ip(ip, ipgenmask, co_id_get(), address, t), "Failed to generate IP.");
+        object = co_str8_create(address, sizeof(address), 0);
+      }
+      else
+      {
+        object = co_profile_get(prof, prop);
+      }
+    }
+    else
+    {
+      object = co_profile_get(prof, prop);
+    }
+  }
+  else if(!strcmp(propname, "bssid"))
+  {
+    if(co_profile_get_str(prof, &bssidgen, "bssidgen", sizeof("bssid")) > 0)
+    {
+      if(!strcmp(bssidgen, "true"))
+      {
+        object = co_profile_get(prof, prop);
+      }
+      else
+      {
+        object = co_profile_get(prof, prop);
+      }
+    }
+    else
+    {
+      object = co_profile_get(prof, prop);
+    }
+  }
+  else
+  {
+    object = co_profile_get(prof, prop);
+  }
+
   CHECK(object != NULL, "Failed to get property.");
   co_tree_insert(*output, propname, proplen, object);
   co_obj_free(p);
@@ -836,6 +888,9 @@ int main(int argc, char *argv[]) {
   }
   DEBUG("Profiles directory: %s", _profiles);
 
+  /* If the daemon is needed, start the daemon */
+  if(daemonize) daemon_start((char *)_state, (char *)_pid); /* Input state directory and lockfile with process id */
+
   //co_profile_delete_global();
   co_plugins_init(16);
   co_cmds_init(16);
@@ -867,9 +922,6 @@ int main(int argc, char *argv[]) {
   socket->register_cb = co_loop_add_socket;
   socket->bind((co_obj_t*)socket, _bind);
   co_plugins_start();
-
-  /* If the daemon is needed, start the daemon */
-  if(daemonize) daemon_start((char *)_state, (char *)_pid); /* Input state directory and lockfile with process id */
 
   co_loop_start();
   co_loop_destroy();

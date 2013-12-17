@@ -30,6 +30,8 @@
  */
 #ifndef _OBJ_H
 #define _OBJ_H
+
+#define CO_OBJ_INTERNAL
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -94,7 +96,9 @@
 /* Type checking */
 #define IS_NIL(J) (CO_TYPE(J) == _nil)
 #define IS_FIXINT(J) (CO_TYPE(J) < 128)
-#define IS_BOOL(J) ((CO_TYPE(J) == _false) || (CO_TYPE(J) == _true))
+#define IS_BOOL(J) (IS_FALSE(J) || IS_TRUE(J))
+#define IS_TRUE(J) (CO_TYPE(J) == _true)
+#define IS_FALSE(J) (CO_TYPE(J) == _false)
 #define IS_BIN(J) ((CO_TYPE(J) == _bin8) || (CO_TYPE(J) == _bin16) || (CO_TYPE(J) == _bin32))
 #define IS_EXT(J) ((CO_TYPE(J) == _ext8) || (CO_TYPE(J) == _ext16) || (CO_TYPE(J) == _ext32))
 #define IS_FIXEXT(J) ((CO_TYPE(J) == _fixext1) || (CO_TYPE(J) == _fixext2) || (CO_TYPE(J) == _fixext4) || (CO_TYPE(J) == _fixext8) || (CO_TYPE(J) == _fixext16))

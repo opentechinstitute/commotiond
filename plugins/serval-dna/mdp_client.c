@@ -43,7 +43,7 @@
 #define WHYF(F,...) (ERROR(F, ##__VA_ARGS__), -1)
 
 #undef DEBUGF
-#define DEBUGF(F,...) (DEBUG(F, ##__VA_ARGS__), -1)
+#define DEBUGF(F,...) DEBUG(F, ##__VA_ARGS__)
 
 #undef WARNF
 #define WARNF(F,...) (WARN(F, ##__VA_ARGS__), -1)
