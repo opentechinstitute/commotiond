@@ -44,18 +44,33 @@ start() {
       	  local value="$2"
         
           case "$name" in
-            "bind")
+            "config")
+	      append args "-b $value"
+	      ;;
+	      "bind")
               append args "-b $value"
               ;;
+            "plugins")
+	      append args "-d $value"
+	      ;;    
             "profiles")
               append args "-f $value"
               ;;
+            "id")
+	      append args "-i $value"
+	      ;;
+	    "nodaemonize")
+	      append args "-n $value"
+	      ;;
             "pid")
               append args "-p $value"
               ;;
             "statedir")
               append args "-s $value"
               ;;
+            "help")
+	      append args "-h"
+	      ;;
           esac
         }
         ;;
