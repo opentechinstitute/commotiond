@@ -188,7 +188,8 @@ int _unschedule(struct __sourceloc __whence, struct sched_ent *alarm) {
 //   DEBUG("###### UNSCHEDULE ######");
   co_obj_t *alarm_node = NULL, *timer = NULL;
   
-  CHECK((alarm_node = co_list_parse(timer_alarms, _alarm_ptr_match_i, alarm)),"Attempting to unschedule timer that is not scheduled");
+//   CHECK((alarm_node = co_list_parse(timer_alarms, _alarm_ptr_match_i, alarm)),"Attempting to unschedule timer that is not scheduled");
+  if (!(alarm_node = co_list_parse(timer_alarms, _alarm_ptr_match_i, alarm))) goto error;
   co_list_delete(timer_alarms,alarm_node);
   co_obj_free(alarm_node);
   
