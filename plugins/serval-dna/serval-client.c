@@ -1,18 +1,66 @@
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  client.c
+ *      @brief  commotion - a client to the embedded C daemon
+ *
+ *     @author  Josh King (jheretic), jking@chambana.net
+ *
+ *   @internal
+ *     Created  03/07/2013
+ *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
+ *
+ * This file is part of Commotion, Copyright (c) 2013, Josh King 
+ * 
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published 
+ * by the Free Software Foundation, either version 3 of the License, 
+ * or (at your option) any later version.
+ * 
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * =====================================================================================
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <getopt.h>
+#include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#include "serval.h"
-#include "serval/conf.h"
-#include "serval/mdp_client.h"
-#include "serval/rhizome.h"
-#include "serval/crypto.h"
+#include <serval.h>
+#include <serval/conf.h>
+#include <serval/mdp_client.h>
+#include <serval/rhizome.h>
+#include <serval/crypto.h>
 
-#include "client.h"
-#include "obj.h"
-#include "list.h"
-#include "cmd.h"
-#include "tree.h"
 #include "debug.h"
+#include "util.h"
+#include "socket.h"
+#include "obj.h"
+#include "crypto.h"
+
+#include "serval-dna.h"
+
+#define SERVAL_MDPSOCK "/var/serval-node/mdp.socket"
+
+typedef enum {
+  SERVAL_SIGN = 0,
+  SERVAL_VERIFY = 1,
+  SERVAL_CRYPTO = 2
+} serval_cmd;
 
 #define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
 _DECLARE_SERVAL(commandline_usage);
@@ -50,7 +98,6 @@ _DECLARE_SERVAL(app_monitor_cli);
 _DECLARE_SERVAL(app_crypt_test);
 _DECLARE_SERVAL(app_nonce_test);
 #undef _DECLARE_SERVAL
-
 
 #define KEYRING_PIN_OPTIONS ,"[--keyring-pin=<pin>]","[--entry-pin=<pin>]..."
 static struct cli_schema command_line_options[]={
@@ -153,118 +200,130 @@ static struct cli_schema command_line_options[]={
 //   {app_pa_phone,{"phone",NULL}, 0,
 //    "Run phone test application"},
 // #endif
+  {commandline_usage,{"sign","[<SID>]","<message>","[--keyring=<keyring_path>]",NULL},0,
+   "Sign any arbitrary text using a Serval ID (if none is given, an identity is created)"},
+  {commandline_usage,{"verify","<SID>","<signature>","<message>",NULL},0,
+   "Verify a signed message using the given Serval ID"},
   {NULL,{NULL}}
 };
 
-struct arguments {
-  int argc;
-  int i;
-  char **argv;
-};
-
-static co_obj_t *_serialize_params_i(co_obj_t *list, co_obj_t *param, void *args) {
-  if(!IS_STR(param)) return NULL;
-  struct arguments *these_args = (struct arguments*)args;
-  CHECK(these_args->i < these_args->argc,"Out of bounds");
-  co_obj_data(&these_args->argv[these_args->i], param);
-  these_args->i++;
-error:
-  return NULL;
+static int print_usage(serval_cmd cmd) {
+  printf("Serval client\n");
+  printf("Usage:\n");
+  if (cmd == SERVAL_SIGN || cmd == SERVAL_CRYPTO) {
+    printf(" sign [<SID>] <message> [--keyring=<keyring_path>]\n");
+    printf("   Sign any arbitrary text using a Serval ID (if none is given, an identity is created)\n");
+  } 
+  if (cmd == SERVAL_VERIFY || cmd == SERVAL_CRYPTO) {
+    printf(" verify <SID> <signature> <message>\n");
+    printf("   Verify a signed message using the given Serval ID\n");
+  }
+  return 1;
 }
 
-int serval_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  struct cli_parsed parsed;
-  char *retbuf = NULL;
-  unsigned long len = 0;
-  int ret = 0;
-  
-  // parse params into args, argc
-  if (!IS_LIST(params)) {
-    ERROR("Invalid params");
-    return 0;
-  }
-  int argc = co_list_length(params);
-  char *argv[argc];
-  struct arguments args = {
-    .argc = argc,
-    .i = 0,
-    .argv = argv
+int main(int argc, char *argv[]) {
+  int ret = 1, opt = 0, opt_index = 0, keypath = 0;
+
+  static const char *opt_string = "h";
+
+  static struct option long_opts[] = {
+    {"help", no_argument, NULL, 'h'}
   };
-  co_list_parse(params, _serialize_params_i, &args);
-  
-  // Capture stdout to send back to client
-  int stdout_pipe[2], old_stdout = dup(1);
-  fflush(stdout);
-  pipe(stdout_pipe);
-  fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK);
-  dup2(stdout_pipe[1], STDOUT_FILENO);   /* redirect stdout to the pipe */
-  close(stdout_pipe[1]);
-    
+
+  opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
+
+  while(opt != -1) {
+    switch(opt) {
+      case 'h':
+      default:
+        print_usage(SERVAL_CRYPTO);
+        return 0;
+        break;
+    }
+    opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
+  }
+
   // Run the Serval command
+  
+  if (!strcmp(argv[optind],"sign")) {
+    if (argc - optind <= 2 || argc - optind >= 4) {
+      print_usage(SERVAL_SIGN);
+      goto error;
+    }
+    char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
+    if (!strncmp("--keyring=",argv[argc-1],10)) {
+      keypath = 1;
+      argc--;
+    }
+    char keyring_path[PATH_MAX] = {0};
+    FORM_SERVAL_INSTANCE_PATH(keyring_path, "serval.keyring");
+    if (argc - optind == 3) {
+      CHECK(cmd_serval_sign(argv[optind+1],
+			  strlen(argv[optind+1]),
+			  (unsigned char*)argv[optind+2],
+			  strlen(argv[optind+2]),
+			  sig_buf,
+			  2*SIGNATURE_BYTES + 1,
+			  keypath ? argv[optind+3] + 10 : keyring_path, // strlen("--length=") == 10
+			  keypath ? strlen(argv[optind+3] + 10) : strlen(keyring_path)),"Failed to create signature");
+    } else if (argc - optind == 2) {
+      CHECK(cmd_serval_sign(NULL,
+			0,
+			(unsigned char*)argv[optind+1],
+			strlen(argv[optind+1]),
+			sig_buf,
+			2*SIGNATURE_BYTES + 1,
+			keypath ? argv[optind+2] + 10 : keyring_path, // strlen("--length=") == 10
+			keypath ? strlen(argv[optind+2] + 10) : strlen(keyring_path)),"Failed to create signature");
+    }
+    printf("%s\n",sig_buf);
     
-  int result = cli_parse(args.argc, (const char*const*)args.argv, command_line_options, &parsed);
-  switch (result) {
-    case 0:
-      // Do not run the command if the configuration does not load ok.
-      if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
-        if (cli_invoke(&parsed, NULL) == 0)
-	  ret = 1;
-      } else
-        ret = -1;
-      break;
-    case 1:
-    case 2:
-      // Load configuration so that log messages can get out.
-      cf_reload_permissive();
-//       NOWHENCE(HINTF("Run \"%s help\" for more information.", argv0 ? argv0 : "servald"));
-      break;
-    default:
-      // Load configuration so that log error messages can get out.
-      cf_reload_permissive();
-      break;
+  } else if (!strcmp(argv[optind],"verify"))  {
+    if (argc - optind != 4) {
+      print_usage(SERVAL_VERIFY);
+      goto error;
+    }
+    int verdict = serval_verify_client(argv[optind+1],
+				strlen(argv[optind+1]),
+				(unsigned char*)argv[optind+3],
+				strlen(argv[optind+3]),
+				argv[optind+2],
+				strlen(argv[optind+2]));
+    if (verdict == 1)
+      printf("Message verified!\n");
+    else
+      printf("Message NOT verified!\n");
+    
+  } else {  // Serval built-in commands
+    struct cli_parsed parsed;
+    int result = cli_parse(argc - optind, (const char*const*)(argv + optind), command_line_options, &parsed);
+    switch (result) {
+      case 0:
+        // Do not run the command if the configuration does not load ok.
+        if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
+	  if (cli_invoke(&parsed, NULL) == 0) {
+	    DEBUG("DONE");
+	    ret = 0;
+	  }
+        }
+        break;
+      case 1:
+      case 2:
+        // Load configuration so that log messages can get out.
+        cf_reload_permissive();
+        //       NOWHENCE(HINTF("Run \"%s help\" for more information.", argv0 ? argv0 : "servald"));
+        break;
+      default:
+        // Load configuration so that log error messages can get out.
+        cf_reload_permissive();
+        break;
+    }
   }
   
   /* clean up after ourselves */
   overlay_mdp_client_done();
   rhizome_close_db();
-
-  // Capture and send response back to client
-  fflush(stdout);
-  char readbuf[BUF_SIZE] = {0};
-  int n = 0;
-  while ((n = read(stdout_pipe[0], readbuf, BUF_SIZE-1)) > 0) {
-    retbuf = realloc(retbuf,len + n + 1);
-    strncpy(retbuf + len,readbuf,n);
-    len += n;
-    retbuf[len] = '\0';
-  }
-    
-  dup2(old_stdout, STDOUT_FILENO);  /* reconnect stdout for testing */
-
-  if (len < UINT8_MAX) {
-    CMD_OUTPUT("result",co_str8_create(retbuf,len+1,0));
-  } else if (len < UINT16_MAX) {
-    CMD_OUTPUT("result",co_str16_create(retbuf,len+1,0));
-  } else if (len < UINT32_MAX) {
-    CMD_OUTPUT("result",co_str32_create(retbuf,len+1,0));
-  }
   
-  if (ret == -1) 
-    ret = 0;
-  else
-    ret = 1;
 error:
-  if (retbuf) free(retbuf);
   return ret;
-}
-
-int serval_register(void) {
-  const char name[] = "serval",
-               usage[] = "run \"help\" for usage information",
-	       desc[] = "Serval DNA";
-  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_handler),"Failed to register commands");
-  
-  return 1;
-error:
-  return 0;
 }

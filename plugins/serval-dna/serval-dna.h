@@ -1,5 +1,5 @@
-#ifndef SERVALD_H
-#define SERVALD_H
+#ifndef __CO_SERVAL_DNA_H
+#define __CO_SERVAL_DNA_H
 
 #define PATH_MAX 4096
 
