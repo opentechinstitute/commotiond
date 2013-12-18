@@ -1,16 +1,15 @@
-/* vim: set ts=2 expandtab: */
 /**
- *       @file  client.c
- *      @brief  commotion - a client to the embedded C daemon
+ *       @file  serval-client.c
+ *      @brief  client for running serval-dna's built-in commands and
+ *                signing and verification using Serval keys
  *
- *     @author  Josh King (jheretic), jking@chambana.net
+ *     @author  Dan Staples (dismantl), danstaples@opentechinstitute.org
  *
  *   @internal
- *     Created  03/07/2013
- *    Revision  $Id: doxygen.commotion.templates,v 0.1 2013/01/01 09:00:00 jheretic Exp $
+ *     Created  12/18/2013
  *    Compiler  gcc/g++
  *     Company  The Open Technology Institute
- *   Copyright  Copyright (c) 2013, Josh King
+ *   Copyright  Copyright (c) 2013, Dan Staples
  *
  * This file is part of Commotion, Copyright (c) 2013, Josh King 
  * 
