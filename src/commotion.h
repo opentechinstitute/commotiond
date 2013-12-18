@@ -62,6 +62,8 @@ co_obj_t *co_response_get(co_obj_t *response, const char *key, const size_t klen
 
 size_t co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen); 
 
+size_t co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen); 
+
 int co_response_get_uint(co_obj_t *response, unsigned long *output, const char *key, const size_t klen);
 
 int co_response_get_int(co_obj_t *response, signed long *output, const char *key, const size_t klen); 

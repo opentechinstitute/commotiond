@@ -243,6 +243,17 @@ error:
   return -1;
 }
 
+size_t
+co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen) 
+{
+  co_obj_t *obj = co_response_get(response, key, klen);
+  CHECK(obj != NULL, "Response value %s does not exist.", key);
+  CHECK(IS_BIN(obj), "Value %s is not a binary.", key);
+  return co_obj_data(output, obj);
+  error:
+  return -1;
+}
+
 int
 co_response_get_uint(co_obj_t *response, unsigned long *output, const char *key, const size_t klen) 
 {
