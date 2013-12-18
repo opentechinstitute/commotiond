@@ -141,6 +141,20 @@ error:
 }
 
 int
+co_request_append_bin(co_obj_t *request, const char *s, const size_t slen)
+{
+  CHECK_MEM(request);
+  CHECK_MEM(s);
+  CHECK(IS_LIST(request), "Not a valid request.");
+  CHECK(slen < UINT32_MAX, "Binary is too large.");
+  if(slen > UINT16_MAX) return co_list_append(request, co_bin32_create(s, slen, 0));
+  if(slen > UINT8_MAX) return co_list_append(request, co_bin16_create(s, slen, 0));
+  return co_list_append(request, co_bin8_create(s, slen, 0));
+  error:
+  return 0;
+}
+
+int
 co_request_append_int(co_obj_t *request, const int i)
 {
   CHECK_MEM(request);

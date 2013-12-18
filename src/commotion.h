@@ -52,6 +52,8 @@ int co_request_append(co_obj_t *request, co_obj_t *object);
 
 int co_request_append_str(co_obj_t *request, const char *s, const size_t slen);
 
+int co_request_append_bin(co_obj_t *request, const char *s, const size_t slen);
+
 int co_request_append_int(co_obj_t *request, const int i);
 
 int co_request_append_uint(co_obj_t *request, const unsigned int i);
