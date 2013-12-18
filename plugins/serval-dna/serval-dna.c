@@ -425,7 +425,7 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   servalShutdown = 1;
   
-  dna_helper_shutdown();
+  serverCleanUp();
   
 //   co_list_parse(sock_alarms,destroy_alarms,NULL);
   co_obj_free(sock_alarms);  // halloc will free list items
