@@ -41,6 +41,7 @@
 #include <string.h>
 #include "debug.h"
 #include "util.h"
+#include "extern/md5.h"
 
 
 
@@ -309,6 +310,45 @@ int wifi_chan(const int frequency) {
 
 }
 
+void get_bssid(const char *essid, const unsigned int freq, char *bssid) {
+  DEBUG("ESSID: %s, Frequency: %d", essid, freq);
+  unsigned char hash[BSSID_SIZE];
+  char msg[ESSID_SIZE + FREQ_SIZE];
+  MD5_CTX ctx;
+  MD5_Init(&ctx);
+
+  snprintfcat(msg, strlen(essid) + FREQ_SIZE, "%s%d", essid, freq);
+
+  MD5_Update(&ctx, msg, strlen(essid) + FREQ_SIZE);
+  MD5_Final(hash, &ctx);
+  DEBUG("Hash: %s", (char *)hash);
+
+  for(int i=0; i < BSSID_SIZE; i++)
+    bssid[i] = hash[i];
+
+  DEBUG("BSSID buffer: %s", (char *)bssid);
+
+  return;
+}
+/*
+void get_bssid(const char *essid, const unsigned int freq, unsigned char bssid[BSSID_SIZE]) {
+  DEBUG("ESSID: %s, Frequency: %d", essid, freq);
+  unsigned char hash[crypto_hash_BYTES];
+  char msg[ESSID_SIZE + FREQ_SIZE];
+
+  snprintfcat(msg, ESSID_SIZE + FREQ_SIZE, "%s%d", essid, freq);
+
+  crypto_hash(hash, msg, ESSID_SIZE + FREQ_SIZE);
+  DEBUG("Hash: %s", (char *)hash);
+
+  for(int i=0; i < BSSID_SIZE; i++)
+    bssid[i] = hash[i];
+
+  DEBUG("BSSID buffer: %s", (char *)bssid);
+
+  return;
+}
+*/
 
 /** from http://grapsus.net/blog/post/Hexadecimal-dump-in-C */
 #define HEXDUMP_COLS 8
