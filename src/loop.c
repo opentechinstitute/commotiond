@@ -465,7 +465,7 @@ co_obj_t *co_timer_create(struct timeval deadline, co_cb_t timer_cb, void *ptr) 
   new_timer->_exttype = _co_timer;
   new_timer->_len = sizeof(co_timer_t);
   new_timer->pending = false;
-  if (deadline.tv_sec > 0 && deadline.tv_usec > 0) {
+  if (deadline.tv_sec > 0 || deadline.tv_usec > 0) {
     new_timer->deadline.tv_sec = deadline.tv_sec;
     new_timer->deadline.tv_usec = deadline.tv_usec;
   } else
