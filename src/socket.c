@@ -97,8 +97,8 @@ int co_socket_init(co_obj_t* self) {
 int co_socket_destroy(co_obj_t* self) {
   if(self && IS_SOCK(self)) {
     co_socket_t *this = (co_socket_t*)self;
-    close(this->fd);
-    close(this->rfd);
+    if (this->fd) close(this->fd);
+    if (this->rfd) close(this->rfd);
     co_obj_free(self);
     return 1;
   } else return 0;
