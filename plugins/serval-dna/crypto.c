@@ -312,9 +312,9 @@ int serval_verify_client(const char *sid_str,
 	   const unsigned char *msg,
 	   const size_t msg_len,
 	   const char *sig,
-	   const size_t sig_len
- 	   /*const char *keyring_path,
- 	   const size_t keyring_len*/) {
+	   const size_t sig_len,
+ 	   const char *keyring_path,
+ 	   const size_t keyring_len) {
   
   int verdict = 0;
   char sas_str[2*SAS_SIZE+1] = {0};
@@ -328,8 +328,8 @@ int serval_verify_client(const char *sid_str,
   
   CHECK(serval_init_keyring(packedSid,
 			 SID_SIZE,
-			 NULL,
-			 0,
+			 keyring_path,
+			 keyring_len,
 			 &keyring,
 			 NULL,
 			 NULL), "Failed to initialize Serval keyring");

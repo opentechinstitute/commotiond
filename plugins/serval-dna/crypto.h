@@ -53,8 +53,8 @@ int serval_verify_client(const char *sid_str,
 		  const unsigned char *msg,
 		  const size_t msg_len,
 		  const char *sig,
-		  const size_t sig_len);
-
-
+		  const size_t sig_len,
+		  const char *keyring_path,
+		  const size_t keyring_len);
 
 #endif

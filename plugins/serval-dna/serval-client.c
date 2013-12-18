@@ -54,8 +54,6 @@
 
 #include "serval-dna.h"
 
-#define SERVAL_MDPSOCK "/var/serval-node/mdp.socket"
-
 typedef enum {
   SERVAL_SIGN = 0,
   SERVAL_VERIFY = 1,
@@ -215,7 +213,7 @@ static int print_usage(serval_cmd cmd) {
     printf("   Sign any arbitrary text using a Serval ID (if none is given, an identity is created)\n");
   } 
   if (cmd == SERVAL_VERIFY || cmd == SERVAL_CRYPTO) {
-    printf(" verify <SID> <signature> <message>\n");
+    printf(" verify <SID> <signature> <message> [-k <keyring_path>]\n");
     printf("   Verify a signed message using the given Serval ID\n");
   }
   return 1;
@@ -223,10 +221,12 @@ static int print_usage(serval_cmd cmd) {
 
 int main(int argc, char *argv[]) {
   int ret = 1, opt = 0, opt_index = 0, keypath = 0;
-
-  static const char *opt_string = "h";
+  char keyring_path[PATH_MAX] = {0};
+  char *keyring_opt = NULL;
+  static const char *opt_string = "k:h";
 
   static struct option long_opts[] = {
+    {"keyring", required_argument, NULL, 'k'},
     {"help", no_argument, NULL, 'h'}
   };
 
@@ -234,6 +234,9 @@ int main(int argc, char *argv[]) {
 
   while(opt != -1) {
     switch(opt) {
+      case 'k':
+	keyring_opt = optarg;
+	break;
       case 'h':
       default:
         print_usage(SERVAL_CRYPTO);
@@ -242,7 +245,13 @@ int main(int argc, char *argv[]) {
     }
     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
   }
-
+  
+  if (keyring_opt) {
+    CHECK(strlen(keyring_opt) < PATH_MAX,"keyring path too long");
+    strcpy(keyring_path,keyring_opt);
+  } else
+    FORM_SERVAL_INSTANCE_PATH(keyring_path,"serval.keyring");
+  
   // Run the Serval command
   
   if (!strcmp(argv[optind],"sign")) {
@@ -288,7 +297,9 @@ int main(int argc, char *argv[]) {
 				(unsigned char*)argv[optind+3],
 				strlen(argv[optind+3]),
 				argv[optind+2],
-				strlen(argv[optind+2]));
+				strlen(argv[optind+2]),
+				keyring_path,
+				strlen(keyring_path));
     if (verdict == 1)
       printf("Message verified!\n");
     else

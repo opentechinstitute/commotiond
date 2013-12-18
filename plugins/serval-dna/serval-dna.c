@@ -19,10 +19,6 @@
 #include "serval-dna.h"
 #include "crypto.h"
 
-#define DEFAULT_SID "0000000000000000000000000000000000000000000000000000000000000000"
-#define DEFAULT_MDP_PATH "/etc/commotion/keys.d/mdp.keyring/serval.keyring"
-#define DEFAULT_SERVAL_PATH "/var/serval-node"
-
 // Types & constructors
 
 /* Extension type */

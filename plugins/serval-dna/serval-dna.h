@@ -1,6 +1,10 @@
 #ifndef __CO_SERVAL_DNA_H
 #define __CO_SERVAL_DNA_H
 
+#define DEFAULT_SID "0000000000000000000000000000000000000000000000000000000000000000"
+#define DEFAULT_MDP_PATH "/etc/commotion/keys.d/mdp.keyring/serval.keyring"
+#define DEFAULT_SERVAL_PATH "/var/serval-node"
+
 #define PATH_MAX 4096
 
 #define CHECK_ERR(A, M, ...) if(!(A)) { \
