@@ -141,7 +141,7 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   if (alarm->deadline < alarm->alarm)
     alarm->deadline = alarm->alarm;
   
-  CHECK(now - alarm->deadline <= 1000,"Alarm tried to schedule a deadline %lldms ago, from %s() %s:%d",
+  CHECK(now - alarm->alarm <= 1000,"Alarm tried to schedule a deadline %lldms ago, from %s() %s:%d",
 	 (now - alarm->deadline),
 	 __whence.function,__whence.file,__whence.line);
   
@@ -162,13 +162,15 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
     deadline_time = alarm->alarm;
 //   else
 //     deadline_time = alarm->deadline;
+
   deadline.tv_sec = deadline_time / 1000;
   deadline.tv_usec = (deadline_time % 1000) * 1000;
   if (deadline.tv_usec > 1000000) {
     deadline.tv_sec++;
     deadline.tv_usec %= 1000000;
   }
-  timer = co_timer_create(deadline, serval_timer_cb, alarm);
+
+  CHECK_MEM((timer = co_timer_create(deadline, serval_timer_cb, alarm)));
   CHECK(co_loop_add_timer(timer,NULL),"Failed to add timer %ld.%06ld %p",deadline.tv_sec,deadline.tv_usec,alarm);
   CHECK(co_list_append(timer_alarms,co_alarm_create(alarm)),"Failed to add to timer_alarms");
   
