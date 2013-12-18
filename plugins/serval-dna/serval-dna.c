@@ -51,10 +51,6 @@ error:
 
 // Globals
 
-extern keyring_file *mdp_keyring;
-extern unsigned char *mdp_key;
-extern int mdp_key_len;
-
 extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
 co_socket_t co_socket_proto = {};
@@ -344,6 +340,10 @@ error:
 SCHEMA(serval) {
   SCHEMA_ADD("servald","enabled");
   SCHEMA_ADD("serval_path",DEFAULT_SERVAL_PATH);
+  return 1;
+}
+
+SCHEMA(mdp) {
   SCHEMA_ADD("mdp_sid",DEFAULT_SID);
   SCHEMA_ADD("mdp_keyring",DEFAULT_MDP_PATH);
   return 1;
@@ -352,39 +352,8 @@ SCHEMA(serval) {
 int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("Loading serval schema.");
   SCHEMA_GLOBAL(serval);
+  SCHEMA_REGISTER(mdp);
   return 1;
-}
-
-static int olsrd_mdp_load_config(void) {
-  char *mdp_sid = NULL, *mdp_path = NULL;
-  int mdp_sid_len, mdp_path_len;
-  unsigned char packedSid[SID_SIZE] = {0};
-  
-  mdp_sid_len = co_profile_get_str(co_profile_global() ,&mdp_sid,"mdp_sid",sizeof("mdp_sid")) - 1; // compensate for NULL byte
-  CHECK(mdp_sid_len == 2*SID_SIZE && str_is_subscriber_id(mdp_sid) == 1,"Invalid mdp_sid config parameter: %s %d",mdp_sid,mdp_sid_len);
-  
-  mdp_path_len = co_profile_get_str(co_profile_global() ,&mdp_path,"mdp_keyring",sizeof("mdp_keyring")) - 1; // compensate for NULL byte
-  CHECK(mdp_path_len < PATH_MAX,"mdp_keyring config parameter too long");
-  
-  DEBUG("mdp_sid: %s",mdp_sid);
-  DEBUG("mdp_path: %s",mdp_path);
-  DEBUG("mdp_path_len: %d",mdp_path_len);
-  
-  if (strcmp(mdp_sid,DEFAULT_SID) != 0) {
-    stowSid(packedSid,0,mdp_sid);
-    CHECK(serval_init_keyring(packedSid,
-			 SID_SIZE,
-			 mdp_path,
-			 mdp_path_len,
-			 &mdp_keyring,
-			 &mdp_key,
-			 &mdp_key_len), "Failed to initialize olsrd-mdp Serval keyring");
-  } else
-    DEBUG("Not initializing olsrd-mdp keyring");
-  
-  return 1;
-error:
-  return 0;
 }
 
 static int serval_load_config(void) {
@@ -407,13 +376,13 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   CHECK(serval_load_config(),"Failed to load Serval config parameters");
   CHECK(serval_open_keyring(NULL,0,&keyring),"Failed to open keyring");
-  CHECK(olsrd_mdp_load_config(),"Failed to load olsrd-mdp config parameters");
   
   if (!serval_registered) {
 //     CHECK(serval_register(),"Failed to register Serval commands");
     CHECK(serval_daemon_register(),"Failed to register Serval daemon commands");
     CHECK(serval_crypto_register(),"Failed to register Serval-crypto commands");
     CHECK(olsrd_mdp_register(),"Failed to register OLSRd-mdp commands");
+    CHECK(olsrd_mdp_sign_register(),"Failed to register OLSRd-mdp commands");
   }
   
   CHECK(cf_init() == 0, "Failed to initialize config");
@@ -453,8 +422,6 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   if (daemon_started == false) return 1;
 
   DEBUG("Serval shutdown");
-  
-  if (mdp_keyring) keyring_free(mdp_keyring);
   
   servalShutdown = 1;
   
@@ -505,9 +472,7 @@ int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     CHECK_ERR(co_plugin_shutdown(NULL,NULL,NULL),"Failed to stop daemon");
   } else*/ if (co_str_cmp_str(co_list_element(params,0),"reload") == 0) {
     keyring_free(keyring);
-    if (mdp_keyring) keyring_free(mdp_keyring);
     CHECK_ERR(serval_open_keyring(NULL,0,&keyring),"Failed to open keyring");
-    CHECK_ERR(olsrd_mdp_load_config(),"Failed to load olsrd-mdp keyring");
   }
   
   CMD_OUTPUT("result",co_str8_create("success",sizeof("success"),0));

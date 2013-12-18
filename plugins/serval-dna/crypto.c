@@ -22,9 +22,6 @@ extern keyring_file *keyring;
 
 char *serval_path = NULL;
 
-keyring_file *mdp_keyring = NULL;
-unsigned char *mdp_key = NULL;
-int mdp_key_len = 0;
 co_obj_t *err_msg = NULL;
 
 static int serval_create_signature(unsigned char *key,
@@ -377,11 +374,11 @@ error:
 
 int olsrd_mdp_register(void) {
   /**
-   * name: olsrd-mdp
-   * param[0] <required>: <SID> (co_bin8_t)
-   * param[1]: --keyring=<keyring_path> (co_str8_t)
+   * name: mdp-init
+   * param[0] <required>: <SID> (co_str8_t)
+   * param[1] <required>: <keyring_path> (co_str16_t)
    */
-  const char name[] = "olsrd-mdp";
+  const char name[] = "mdp-init";
   
   CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_init),"Failed to register command");
   
@@ -393,7 +390,8 @@ error:
 int olsrd_mdp_sign_register(void) {
   /**
    * name: mdp-sign
-   * param[0] <required>: data (co_bin?_t)
+   * param[0] <required>: key (co_bin8_t)
+   * param[1] <required>: data (co_bin?_t)
    */
   
   const char name[] = "mdp-sign";
@@ -469,52 +467,47 @@ error:
 }
 
 int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  CLEAR_ERR();
+  keyring_file *mdp_keyring = NULL;
+  unsigned char *mdp_key = NULL;
+  int mdp_key_len = 0;
+  unsigned char packedSid[SID_SIZE] = {0};
   
-  int list_len = co_list_length(params);
-  char *keyring_path = NULL;
-  int keyring_len = 0;
+  CHECK(IS_LIST(params) && co_list_length(params) == 2,"Invalid params");
   
-  CHECK_ERR(IS_LIST(params) && list_len >= 2,"Invalid params");
+  size_t sid_len = co_str_len(co_list_element(params,0));
+  char *sid_str = _LIST_ELEMENT(params,0);
   
-  if (list_len == 3) {
-    CHECK_ERR(!strncmp("--keyring=",co_obj_data_ptr(co_list_element(params,2)),10),"Invalid keyring");
-    keyring_len = co_obj_data(&keyring_path,co_list_element(params,2));
-  }
+  CHECK(sid_len == 2*SID_SIZE + 1 && str_is_subscriber_id(sid_str) == 1,"Invalid SID");
+  stowSid(packedSid,0,sid_str);
   
-  CHECK_ERR(serval_init_keyring((unsigned char*)_LIST_ELEMENT(params,1),
-		     co_str_len(co_list_element(params,1)),
-		     keyring_path,
-		     keyring_len,
+  CHECK(serval_init_keyring(packedSid,
+		     SID_SIZE,
+		     _LIST_ELEMENT(params,1),
+		     co_str_len(co_list_element(params,2)),
 		     &mdp_keyring,
 		     &mdp_key,
 		     &mdp_key_len), "Failed to initialize Serval keyring");
   
-  CMD_OUTPUT("success",co_bool_create(true,0));
+  CMD_OUTPUT("key",co_bin8_create((char*)mdp_key,mdp_key_len,0));
   
   return 1;
 error:
-  INS_ERROR();
   return 0;
 }
 
 int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  CLEAR_ERR();
-  
-  /** this is not meant to be used by mere humans, so skipping some error checking */
-  
-//   int list_len = co_list_length(params);
   int msg_len = 0, ret = 0, sig_buf_len;
   unsigned char *msg = NULL, *sig_buf = NULL;
   
-  CHECK(mdp_keyring && mdp_key && mdp_key_len,"Haven't run olsrd_mdp_init");
-//   CHECK(IS_LIST(params) && list_len == 2,"Invalid params");
+  /** skipping some error checking for performance reasons */
+  
+//   CHECK(IS_LIST(params) && co_list_length(params) == 2,"Invalid params");
   
   msg_len = co_obj_data((char**)&msg,co_list_element(params,1));
   sig_buf_len = SIGNATURE_BYTES + msg_len + 1;
   sig_buf = calloc(sig_buf_len,sizeof(unsigned char));
   
-  CHECK(serval_create_signature(mdp_key,
+  CHECK(serval_create_signature((unsigned char*)_LIST_ELEMENT(params,0),
                      msg,
 		     msg_len,
 		     sig_buf,
