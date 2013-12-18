@@ -92,6 +92,8 @@ start() {
 
   $DEBUG service_start /usr/sbin/commotiond $args
   
+  sleep 1 #allow commotiond to settle
+  
   [ -z "$(uci_get commotiond @node[0] id)" ] && {
     echo "Nodeid generation!"
     commotion_set_nodeid_from_mac "$(cat /sys/class/ieee80211/phy0/macaddress)"

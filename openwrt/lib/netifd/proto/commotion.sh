@@ -8,6 +8,9 @@
 init_proto "$@"
 
 
+DEFAULT_CLIENT_SUBNET="10.0.0.0"
+DEFAULT_CLIENT_NETMASK="255.255.255.0"
+DEFAULT_CLIENT_IPGENMASK="255.0.0.0"
 WIFI_DEVICE=
 TYPE=
 
@@ -51,6 +54,7 @@ configure_wifi_device() {
 proto_commotion_init_config() {
 	proto_config_add_string "profile"
 	proto_config_add_string "type"
+	proto_config_add_string "class"
 	proto_config_add_string "ip"
 	proto_config_add_string "netmask"
 	proto_config_add_string "dns"
@@ -65,14 +69,14 @@ proto_commotion_setup() {
 	
 	logger -s -t commotion.proto "Running protocol handler."
 	local profile type ip netmask dns domain announce lease_zone nolease_zone
-	json_get_vars profile type ip netmask dns domain announce lease_zone nolease_zone
+	json_get_vars profile type class ip netmask dns domain announce lease_zone nolease_zone
 
 	commotion_up "$iface" $(uci_get network $config profile)
 	logger -t "commotion.proto" -s "Upped"
-	type=${type:-$(commotion_get_type $iface)}
-	logger -t "commotion.proto" -s "Type: $type"
+	#class=${class:-$(commotion_get_class $iface)}
+	logger -t "commotion.proto" -s "Class: $class"
 
-	if [ "$type" == "plug" ]; then 
+	if [ "$class" == "wired" ]; then 
 		local dhcp_status
 		local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
 		
@@ -111,16 +115,24 @@ proto_commotion_setup() {
 	proto_init_update "*" 1
 
 	if [ $have_ip -eq 0 ]; then
-		local ip=${ip:-$(commotion_get_ip $iface)} 
-		local netmask=${netmask:-$(commotion_get_netmask $iface)}
-		proto_add_ipv4_address $ip $netmask
-		uci_set_state network "$config" ipaddr "$ip"
-		uci_set_state network "$config" netmask "$netmask"
-		logger -t "commotion.proto" -s "proto_add_ipv4_address: ${ip:-$(commotion_get_ip $iface)} ${netmask:-$(commotion_get_netmask $iface)}"
-		proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"
-		logger -t "commotion.proto" -s "proto_add_dns_server: ${dns:-$(commotion_get_dns $iface)}"
-		proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}
-		logger -t "commotion.proto" -s "proto_add_dns_search: ${domain:-$(commotion_get_domain $iface)}"
+    if [ "$class" != "mesh" ]; then
+		  local ip=${ip:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
+		  local netmask=${netmask:-$DEFAULT_CLIENT_NETMASK}
+		  proto_add_ipv4_address $ip $netmask
+		  uci_set_state network "$config" ipaddr "$ip"
+		  uci_set_state network "$config" netmask "$netmask"
+    else
+      local ip=${ip:-$(commotion_get_ip $iface)}
+      local netmask=${netmask:-$(commotion_get_netmask $iface)}
+      proto_add_ipv4_address $ip $netmask
+      uci_set_state network "$config" ipaddr "$ip"
+      uci_set_state network "$config" netmask "$netmask"           
+      logger -t "commotion.proto" -s "proto_add_ipv4_address: $ip $netmask"
+      proto_add_dns_server "${dns:-$(commotion_get_dns $iface)}"   
+      logger -t "commotion.proto" -s "proto_add_dns_server: $dns"
+      proto_add_dns_search ${domain:-$(commotion_get_domain $iface)}          
+      logger -t "commotion.proto" -s "proto_add_dns_search: $domain"
+    fi
 	fi
 	
 	proto_export "INTERFACE=$config"
@@ -128,7 +140,7 @@ proto_commotion_setup() {
 	proto_export "MODE=${mode:-$(commotion_get_mode $iface)}"
 	proto_export "ANNOUNCE=${announce:-$(commotion_get_announce $iface)}"
 
-	if [ "$type" != "plug" ]; then
+	if [ "$class" != "wired" ]; then
 		config_load wireless
 		config_foreach configure_wifi_iface wifi-iface $config
 		local channel=$(uci_get wireless "$WIFI_DEVICE" channel)
@@ -136,10 +148,10 @@ proto_commotion_setup() {
     		uci_commit wireless
     		wifi up "$config"
     		
-    		if [ "$type" == "ap" ]; then
-			set_bridge "$client_bridge" "$iface"
-			logger -t "commotion.proto" -s "Adding $iface to bridge: $client_bridge"
-    		fi
+    		#if [ "$class" == "ap" ]; then
+			#set_bridge "$client_bridge" "$iface"
+			#logger -t "commotion.proto" -s "Adding $iface to bridge: $client_bridge"
+    		#fi
 	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
@@ -151,9 +163,9 @@ proto_commotion_teardown() {
 		
 	logger -t "commotion.proto" -s "Initiating teardown."
 	
-	local type = "$(commotion_get_type "$ifname")"
+	local class = "$(uci_get network "$config" class)"
 	
-	if [ "$type" != "mesh" ]; then
+	if [ "$class" == "wired" ]; then
 	    local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
 	    unset_bridge "$client_bridge" "$ifname"
 	    logger -t "commotion.proto" -s "Removing $ifname from bridge $client_bridge"

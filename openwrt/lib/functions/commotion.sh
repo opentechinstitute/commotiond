@@ -75,9 +75,23 @@ set_fwzone() {
   return 0
 }
 
+commotion_gen_ip() {
+  local subnet="$1"  
+  local netmask="$2"     
+             
+  data="$("$CLIENT" -b "$SOCKET" genip "$subnet" "$netmask"  2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?                                                                        
+        
+  json_load "$data"
+  json_get_var ipaddr address
+  echo "$ipaddr"        
+  return "$ret" 
+} 
+
 commotion_get_ip() {
   local iface="$1"  
-        data=     
+  local data=     
              
   data="$("$CLIENT" -b "$SOCKET" state "$iface" ip 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
@@ -201,11 +215,41 @@ commotion_get_wpakey() {
   return "$ret"    
 } 
 
+commotion_get_keyring() {
+  local iface="$1"
+  local data=
+
+  #data="$($CLIENT -b $SOCKET state $iface mdp_keyring 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET get global mdp_keyring 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var keyring mdp_keyring
+  echo "$keyring"       
+  return "$ret"    
+}
+
+commotion_get_sid() {
+  local iface="$1"
+  local data=
+
+  #data="$($CLIENT -b $SOCKET state $iface mdp_sid 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET get global mdp_sid 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var sid mdp_sid
+   echo "$sid"       
+  return "$ret"    
+}
+
 commotion_get_servald() {
   local iface="$1"
   local data=
 
-  data="$($CLIENT -b $SOCKET state $iface servald 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET get global servald 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
@@ -229,7 +273,7 @@ commotion_get_mode() {
   return "$ret"    
 }
 
-commotion_get_type() {
+commotion_get_class() {
   local iface="$1"
   local data=
 
