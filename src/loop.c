@@ -165,8 +165,8 @@ static co_obj_t *_co_loop_destroy_process_i(co_obj_t *list, co_obj_t *proc, void
 
 static void _co_loop_poll_sockets(int deadline) {
   co_socket_t *sock = NULL;
-  if (deadline < 0) deadline = 0;
-  int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, deadline < LOOP_TIMEOUT ? deadline : LOOP_TIMEOUT);
+  int timeout = deadline > 0 && deadline < LOOP_TIMEOUT ? deadline : LOOP_TIMEOUT;
+  int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, timeout);
   
   for(int i = 0; i < n; i++) {
     sock = (co_socket_t*)events[i].data.ptr;
