@@ -345,11 +345,11 @@ CMD(state)
 
   CHECK(object != NULL, "Failed to get property.");
   co_tree_insert(*output, propname, proplen, object);
-  co_obj_free(p);
+  //co_obj_free(p);
   return 1;
 error:
   co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Failed to get property.", sizeof("Failed to get property."), 0));
-  co_obj_free(p);
+  //co_obj_free(p);
   return 0;
 }
 
