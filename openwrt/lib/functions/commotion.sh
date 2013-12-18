@@ -84,7 +84,7 @@ commotion_get_ip() {
   ret=$?                                                                        
         
   json_load "$data"
-       get_var ipaddr ip
+  json_get_var ipaddr ip
   echo "$ipaddr"        
   return "$ret" 
 } 
@@ -289,7 +289,7 @@ commotion_set_nodeid_from_mac() {
   local mac="$1"
   local data=
                                                                
-  data="$($CLIENT -b $SOCKET nodeidset $mac 2>/dev/null)"                        
+  data="$($CLIENT -b $SOCKET nodeid mac $mac 2>/dev/null)"                        
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
                    
