@@ -31,11 +31,10 @@ configure_wifi_iface() {
 		if [ -n "$encryption" -a "$encryption" != "none" ]; then 
 			uci_set wireless "$config" encryption "$encryption"
 			uci_set wireless "$config" key "$key" "$(commotion_get_key $iface)"
-    else
+		else
 			uci_set wireless "$config" encryption "none"
 		fi
 		config_get WIFI_DEVICE "$config" device
-		}
 	}
 }
 
@@ -63,33 +62,33 @@ proto_commotion_setup() {
 	local config="$1"
 	local iface="$2"
 	local have_ip=0
-  local dhcp=
+	local dhcp=
 	local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
 	
 	local profile type ip netmask dns domain announce lease_zone nolease_zone
 	json_get_vars profile type class ip netmask dns domain announce lease_zone nolease_zone
 
 	logger -s -t commotion.proto "Running protocol handler."
-  [ "$class" == "mesh" ] && commotion_up "$iface" $(uci_get network $config profile)
-  case "$class" in
-    "mesh")
-	    logger -t "commotion.proto" -s "Class: $class"
-      commotion_up "$iface" $(uci_get network $config profile)
-	    logger -t "commotion.proto" -s "Upped $iface"
-      uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 1)"
-      uci_set_state network "$config" announced "$(uci_get network "$config" announced 0)"
-      ;;
-    "client")
-	    logger -t "commotion.proto" -s "Class: $class"
-      uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 0)"
-      uci_set_state network "$config" announced "$(uci_get network "$config" announced 1)"
-      ;;
-    "wired")
-	    logger -t "commotion.proto" -s "Class: $class"
-      uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 0)"
-      uci_set_state network "$config" announced "$(uci_get network "$config" announced 0)"
-      dhcp="$(uci_get network "$config" dhcp "auto")"
-      uci_set_state network "$config" dhcp "$dhcp"
+	[ "$class" == "mesh" ] && commotion_up "$iface" $(uci_get network $config profile)
+	case "$class" in
+ 	"mesh")
+		logger -t "commotion.proto" -s "Class: $class"
+		commotion_up "$iface" $(uci_get network $config profile)
+		logger -t "commotion.proto" -s "Upped $iface"
+		uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 1)"
+		uci_set_state network "$config" announced "$(uci_get network "$config" announced 0)"
+      	;;
+	"client")
+		logger -t "commotion.proto" -s "Class: $class"
+		uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 0)"
+		uci_set_state network "$config" announced "$(uci_get network "$config" announced 1)"
+      	;;
+	"wired")
+		logger -t "commotion.proto" -s "Class: $class"
+		uci_set_state network "$config" meshed "$(uci_get network "$config" meshed 0)"
+		uci_set_state network "$config" announced "$(uci_get network "$config" announced 0)"
+		dhcp="$(uci_get network "$config" dhcp "auto")"
+      		uci_set_state network "$config" dhcp "$dhcp"
       
       case "$dhcp" in
         "auto")
@@ -119,14 +118,21 @@ proto_commotion_setup() {
 	      		logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
 	      		
 	      		logger -t "commotion.proto" -s "Restarting $client_bridge interface"
-	      		ubus call network.interface.client down
-	      		ubus call network.interface.client up
-	      		local bridge_ip="$(uci_get_state $client_bridge ipaddr $(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw))"
-	      		local bridge_netmask="$(uci_get_state $client_bridge netmask $DEFAULT_CLIENT_SUBNET)"
+	      		ubus call network.interface."$client_bridge" down
+	      		ubus call network.interface."$client_bridge" up
+	      		local bridge_ip="$(uci_get_state "network" "$client_bridge" "ipaddr" "$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)")"
+	      		logger -t "commotion.proto" -s "Bridge IP state: "$(uci_get_state $client_bridge ipaddr)"
+	      		logger -t "commotion.proto" -s "Bridge generated IP: "$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)"
+	      		local bridge_netmask="$(uci_get_state "network" "$client_bridge" "netmask" "$DEFAULT_CLIENT_SUBNET")"
+	      		logger -t "commotion.proto" -s "Bridge Netmask state: "$(uci_get_state $client_bridge netmask)"
+	      		logger -t "commotion.proto" -s "Bridge Default netmask: "$DEFAULT_CLIENT_SUBNET"
 	      		logger -t "commotion.proto" -s "Bridge: $client_bridge, IP: $bridge_ip, Netmask: $bridge_netmask"
 	      		uci_set network "$client_bridge" ipaddr "$bridge_ip"
+	      		uci_set_state network "$client_bridge" ipaddr "$bridge_ip"
 	      		uci_set network "$client_bridge" netmask "$bridge_netmask"
+	      		uci_set_state network "$client_bridge" netmask "$bridge_netmask"
 	      		logger -t "commotion.proto" -s "Restarting dnsmasq"
+	      		sleep 1
 	      		/etc/init.d/dnsmasq restart
 	      					
 	      		return
@@ -140,8 +146,8 @@ proto_commotion_setup() {
 	      	logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
 	      	
 	      	logger -t "commotion.proto" -s "Restarting $client_bridge interface"
-	      	ubus call network.interface.client down
-	      	ubus call network.interface.client up
+	      	ubus call network.interface."$client_bridge" down
+	      	ubus call network.interface."$client_bridge" up
 	      	local bridge_ip="$(uci_get_state $client_bridge ipaddr $(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw))"
 	      	local bridge_netmask="$(uci_get_state $client_bridge netmask $DEFAULT_CLIENT_SUBNET)"
 	      	logger -t "commotion.proto" -s "Bridge: $client_bridge, IP: $bridge_ip, Netmask: $bridge_netmask"
@@ -172,6 +178,7 @@ proto_commotion_setup() {
 			local ip=${ip:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
 			local netmask=${netmask:-$DEFAULT_CLIENT_NETMASK}
 			proto_add_ipv4_address $ip $netmask
+			logger -t "commotion.proto" -s "proto_add_ipv4_address: $ip $netmask"
 			uci_set_state network "$config" ipaddr "$ip"
 			uci_set_state network "$config" netmask "$netmask"
 		else
