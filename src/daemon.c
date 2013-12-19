@@ -260,6 +260,7 @@ error:
 CMD(state)
 {
   *output = co_tree16_create();
+  CHECK(co_list_length(params) == 2, "Incorrect parameters.");
   char mac[6];
   memset(mac, '\0', sizeof(mac));
   char address[16];
