@@ -86,10 +86,9 @@ SCHEMA(default)
   SCHEMA_ADD("ip", "100.64.0.0"); 
   SCHEMA_ADD("netmask", "255.192.0.0"); 
   SCHEMA_ADD("ipgenmask", "255.192.0.0"); 
-  SCHEMA_ADD("wpa", "true"); 
-  SCHEMA_ADD("wpakey", "c0MM0t10n!r0cks"); 
-  SCHEMA_ADD("servald", "false"); 
-  SCHEMA_ADD("servalsid", ""); 
+  SCHEMA_ADD("encryption", "psk2"); 
+  SCHEMA_ADD("key", "c0MM0t10n!r0cks"); 
+  SCHEMA_ADD("serval", "false"); 
   SCHEMA_ADD("announce", "true"); 
   return 1;
 }

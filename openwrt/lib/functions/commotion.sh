@@ -188,30 +188,30 @@ commotion_get_domain() {
   return "$ret"    
 }                            
   
-commotion_get_wpa() {
+commotion_get_encryption() {
   local iface="$1"
   local data=
 
-  data="$($CLIENT -b $SOCKET state $iface wpa 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET state $iface encryption 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
-  json_get_var w wpa
+  json_get_var w encryption
   echo "$w"            
   return "$ret"    
 } 
 
-commotion_get_wpakey() {
+commotion_get_key() {
   local iface="$1"
   local data=
 
-  data="$($CLIENT -b $SOCKET state $iface wpakey 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET state $iface key 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
-  json_get_var key wpakey
+  json_get_var key key
   echo "$key"      
   return "$ret"    
 } 
@@ -220,8 +220,7 @@ commotion_get_keyring() {
   local iface="$1"
   local data=
 
-  #data="$($CLIENT -b $SOCKET state $iface mdp_keyring 2>/dev/null)"
-  data="$($CLIENT -b $SOCKET get global mdp_keyring 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET state $iface mdp_keyring 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
@@ -235,8 +234,7 @@ commotion_get_sid() {
   local iface="$1"
   local data=
 
-  #data="$($CLIENT -b $SOCKET state $iface mdp_sid 2>/dev/null)"
-  data="$($CLIENT -b $SOCKET get global mdp_sid 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET state $iface mdp_sid 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
@@ -246,16 +244,16 @@ commotion_get_sid() {
   return "$ret"    
 }
 
-commotion_get_servald() {
+commotion_get_serval() {
   local iface="$1"
   local data=
 
-  data="$($CLIENT -b $SOCKET get global servald 2>/dev/null)"
+  data="$($CLIENT -b $SOCKET state "$iface" serval 2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
-  json_get_var sd servald
+  json_get_var sd serval
   echo "$sd"       
   return "$ret"    
 }

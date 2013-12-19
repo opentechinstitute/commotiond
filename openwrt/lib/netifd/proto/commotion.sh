@@ -27,12 +27,11 @@ configure_wifi_iface() {
 		uci_set wireless "$config" ssid "$ssid"
 		config_get mode "$config" mode "$(commotion_get_mode $iface)"
 		uci_set wireless "$config" mode "$mode"
-		config_get encryption "$config" encryption "$(commotion_get_wpa $iface)"
-		[[ "$wpa" == "true" ]] && {
-		if [ "$encryption" = "true" ]; then 
-			uci_set wireless "$config" encryption "psk2"
-			uci_set wireless "$config" key "$wpakey" "$(commotion_get_wpakey $iface)"
-		elif [ "$encryption" = "false" ]; then
+		config_get encryption "$config" encryption "$(commotion_get_encryption $iface)"
+		if [ -n "$encryption" -a "$encryption" != "none" ]; then 
+			uci_set wireless "$config" encryption "$encryption"
+			uci_set wireless "$config" key "$key" "$(commotion_get_key $iface)"
+    else
 			uci_set wireless "$config" encryption "none"
 		fi
 		config_get WIFI_DEVICE "$config" device

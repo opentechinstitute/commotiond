@@ -1,5 +1,5 @@
 --- mac80211.sh.orig	2013-12-18 22:23:28.645954870 -0500
-+++ mac80211.sh	2013-12-18 22:23:17.075887186 -0500
++++ mac80211.sh	2013-12-19 08:41:04.515710264 -0500
 @@ -1,6 +1,8 @@
  #!/bin/sh
  append DRIVERS "mac80211"
@@ -25,14 +25,14 @@
 +			config_get mode "$vif" mode "$(commotion_get_mode $ifname)"
 +			config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
 +			config_get channel "$device" channel "$(commotion_get_channel $ifname)"
-+			config_get encryption "$vif" encryption "$(commotion_get_wpa $ifname)"
-+			if [ "$encryption" = "true" ]; then 
-+				config_get key "$vif" key "$(commotion_get_wpakey $ifname)"
-+				config_set "$vif" encryption "psk2"
-+				uci_set wireless "$vif" encryption "psk2"
++			config_get encryption "$vif" encryption "$(commotion_get_encryption $ifname)"
++			if [ -n "$encryption" -a "$encryption" != "none" ]; then 
++				config_get key "$vif" key "$(commotion_get_key $ifname)"
++				config_set "$vif" encryption "$encryption"
++				uci_set wireless "$vif" encryption "$encryption"
 +				config_set "$vif" key "$key"
 +				uci_set wireless "$vif" key "$key"
-+			elif [ "$encryption" = "false" ]; then
++			else
 +				encryption="none"
 +			fi
 +			export channel
@@ -72,11 +72,11 @@
 +				if [ -n "$commotion_profile" -a "$commotion_class" == "mesh" ]; then
 +					config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
 +					config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
-+					config_get encryption "$vif" encryption "$(commotion_get_wpa $ifname)"
-+					if [ "$encryption" = "true" ]; then 
-+						config_get key "$vif" key "$(commotion_get_wpakey $ifname)"
-+						encryption="psk2"
-+					elif [ "$encryption" = "false" ]; then
++					config_get encryption "$vif" encryption "$(commotion_get_encryption $ifname)"
++					if [ -n "$encryption" -a "$encryption" != "none" ]; then 
++						config_get key "$vif" key "$(commotion_get_key $ifname)"
++						encryption="$encryption"
++					else
 +						encryption="none"
 +					fi
 +				else
