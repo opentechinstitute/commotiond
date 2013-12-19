@@ -130,7 +130,7 @@ int co_socket_hangup(co_obj_t *self, co_obj_t *context) {
   CHECK(IS_SOCK(self),"Not a socket.");
   CHECK(IS_FD(context),"Not a FD.");
   co_socket_t *this = (co_socket_t*)self;
-  co_fd_t *fd = (co_fd_t*)fd;
+  co_fd_t *fd = (co_fd_t*)context;
   CHECK(fd->socket == this,"FD does not match socket");
   if (fd == this->fd) {
     CHECK(close(fd->fd) != -1,"Failed to close socket.");
@@ -184,10 +184,11 @@ int co_socket_receive(co_obj_t *self, co_obj_t *fd, char *incoming, size_t lengt
       DEBUG("Accepting connection (fd=%d).", this->fd->fd);
       CHECK((rfd = accept(this->fd->fd, (struct sockaddr *) this->remote, &size)) != -1, "Failed to accept connection.");
       DEBUG("Accepted connection (fd=%d).", rfd);
-      CHECK(co_list_append(this->rfd_lst,co_fd_create((co_obj_t*)this,rfd)),"Failed to append rfd");
+      co_obj_t *new_rfd = co_fd_create((co_obj_t*)this,rfd);
+      CHECK(co_list_append(this->rfd_lst,new_rfd),"Failed to append rfd");
       int flags = fcntl(rfd, F_GETFL, 0);
       fcntl(rfd, F_SETFL, flags | O_NONBLOCK); //Set non-blocking.
-      if(this->register_cb) this->register_cb((co_obj_t*)this, fd);
+      if(this->register_cb) this->register_cb((co_obj_t*)this, new_rfd);
       return 0;
     } else {
       rfd = ((co_fd_t*)fd)->fd;
