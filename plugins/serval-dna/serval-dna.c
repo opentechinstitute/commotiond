@@ -120,7 +120,7 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
   struct sched_ent *alarm = NULL;
   
   // find alarm associated w/ sock, call alarm->function(alarm)
-  if ((node = co_list_parse(sock_alarms, _alarm_fd_match_i, &sock->fd))) {
+  if ((node = co_list_parse(sock_alarms, _alarm_fd_match_i, &sock->fd->fd))) {
     alarm = ((co_alarm_t*)node)->alarm;
     alarm->poll.revents = sock->events;
     
@@ -263,7 +263,7 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     sock->poll_cb = serval_socket_cb;
   
     // register sock
-    CHECK(co_loop_add_socket((co_obj_t*)sock, NULL) == 1,"Failed to add socket %d",sock->fd->fd);
+    CHECK(co_loop_add_socket((co_obj_t*)sock, (co_obj_t*)sock->fd) == 1,"Failed to add socket %d",sock->fd->fd);
     DEBUG("Successfully added socket %d",sock->fd->fd);
   
     sock->fd_registered = true;
