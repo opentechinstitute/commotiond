@@ -42,7 +42,22 @@
 #define MAX_IPPROTO 255
 #define MAX_CONNECTIONS 32
 
+typedef struct co_fd_t co_fd_t;
 typedef struct co_socket_t co_socket_t;
+
+struct co_fd_t {
+  co_obj_t _header;
+  uint8_t _exttype;
+  uint8_t _len;
+  co_socket_t *socket;  // parent socket
+  int fd;
+};
+
+/**
+ * @brief creates a file descriptor object
+ * @param fd file descriptor int
+ */
+co_obj_t *co_fd_create(co_obj_t *parent, int fd);
 
 /**
  * @struct co_socket_t contains file path and state information for socket
@@ -52,10 +67,9 @@ struct co_socket_t {
   uint8_t _exttype;
   uint8_t _len;
   char *uri;
-  int fd; //socket file descriptor
-  int rfd; //accept socket file descriptors
+  co_fd_t *fd; //socket file descriptor
+  co_obj_t *rfd_lst; //list of accept socket file descriptors
   bool fd_registered;
-  bool rfd_registered;
   struct sockaddr* local;
   struct sockaddr* remote;
   bool listen;
@@ -65,7 +79,7 @@ struct co_socket_t {
   int (*bind)(co_obj_t *self, const char *endpoint);
   int (*connect)(co_obj_t *self, const char *endpoint);
   int (*send)(co_obj_t *self, char *outgoing, size_t length);
-  int (*receive)(co_obj_t *self, char *incoming, size_t length);
+  int (*receive)(co_obj_t *self, co_obj_t *fd, char *incoming, size_t length);
   int (*setopt)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
   int (*getopt)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
   int (*poll_cb)(co_obj_t *self, co_obj_t *context);
@@ -114,7 +128,7 @@ int co_socket_send(co_obj_t *self, char *outgoing, size_t length);
  * @param incoming message received
  * @param length length of message
  */
-int co_socket_receive(co_obj_t * self, char *incoming, size_t length);
+int co_socket_receive(co_obj_t * self, co_obj_t *fd, char *incoming, size_t length);
 
 /**
  * @brief sets custom socket options, if specified by user

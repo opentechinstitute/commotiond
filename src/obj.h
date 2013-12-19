@@ -78,10 +78,11 @@
 #define _plug 3
 #define _profile 4
 #define _cbptr 4
-#define _sock 5
-#define _co_timer 6
-#define _process 7
-#define _iface 8
+#define _fd 5
+#define _sock 6
+#define _co_timer 7
+#define _process 8
+#define _iface 9
 
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
@@ -118,6 +119,7 @@
 #define IS_PLUG(J) (IS_EXT(J) && ((co_plugin_t *)J)->_exttype == _plug)
 #define IS_PROFILE(J) (IS_EXT(J) && ((co_profile_t *)J)->_exttype == _profile)
 #define IS_CBPTR(J) (IS_EXT(J) && ((co_cbptr_t *)J)->_exttype == _cbptr)
+#define IS_FD(J) (IS_EXT(J) && ((co_fd_t *)J)->_exttype == _fd)
 #define IS_SOCK(J) (IS_EXT(J) && ((co_socket_t *)J)->_exttype == _sock)
 #define IS_TIMER(J) (IS_EXT(J) && ((co_timer_t *)J)->_exttype == _co_timer)
 #define IS_PROCESS(J) (IS_EXT(J) && ((co_process_t *)J)->_exttype == _process)

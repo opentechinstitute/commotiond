@@ -249,23 +249,22 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
   } else {
     sock = (co_socket_t*)NEW(co_socket, co_socket);
     
-    sock->fd = alarm->poll.fd;
-    sock->rfd = 0;
+    sock->fd = (co_fd_t*)co_fd_create((co_obj_t*)sock,alarm->poll.fd);
+    sock->rfd_lst = co_list16_create();
     sock->listen = true;
     // NOTE: Aren't able to get the Serval socket uris, so instead use string representation of fd
     sock->uri = h_calloc(1,6);
     hattach(sock->uri,sock);
-    sprintf(sock->uri,"%d",sock->fd);
+    sprintf(sock->uri,"%d",sock->fd->fd);
     sock->fd_registered = false;
-    sock->rfd_registered = false;
     sock->local = NULL;
     sock->remote = NULL;
   
     sock->poll_cb = serval_socket_cb;
   
     // register sock
-    CHECK(co_loop_add_socket((co_obj_t*)sock, NULL) == 1,"Failed to add socket %d",sock->fd);
-    DEBUG("Successfully added socket %d",sock->fd);
+    CHECK(co_loop_add_socket((co_obj_t*)sock, NULL) == 1,"Failed to add socket %d",sock->fd->fd);
+    DEBUG("Successfully added socket %d",sock->fd->fd);
   
     sock->fd_registered = true;
     // NOTE: it would be better to get the actual poll index from the event loop instead of this:
