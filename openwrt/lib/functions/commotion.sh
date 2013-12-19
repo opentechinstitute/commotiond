@@ -78,8 +78,9 @@ set_fwzone() {
 commotion_gen_ip() {
   local subnet="$1"  
   local netmask="$2"     
+  local gw="$3"     
              
-  data="$("$CLIENT" -b "$SOCKET" genip "$subnet" "$netmask"  2>/dev/null)"
+  data="$("$CLIENT" -b "$SOCKET" genip "$subnet" "$netmask" "$gw"  2>/dev/null)"
   [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?                                                                        
         
