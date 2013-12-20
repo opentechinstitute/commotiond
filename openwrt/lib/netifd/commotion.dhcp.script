@@ -6,6 +6,8 @@
 . /lib/config/uci.sh
 . /lib/functions/commotion.sh
 
+DEFAULT_LEASE_ZONE="wan"
+
 set_classless_routes() {
 	local max=128
 	local type
