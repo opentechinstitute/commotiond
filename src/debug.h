@@ -90,11 +90,11 @@
 #define LOG_DEBUG "LOG_DEBUG"
 #endif
 
-#if defined(NDEBUG) && !defined(OPENWRT)
-#define DEBUG(M, ...)
-#else
+// #if defined(NDEBUG) && !defined(OPENWRT)
+// #define DEBUG(M, ...)
+// #else
 #define DEBUG(M, ...) LOG(LOG_DEBUG, "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
-#endif
+// #endif
 
 #define CLEAN_ERRNO() (errno == 0 ? "None" : strerror(errno))
 
