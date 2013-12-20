@@ -99,6 +99,15 @@ static void _co_loop_setup_signals(void) {
   sigaction(SIGINT, &new_sigaction, NULL); //catch interrupt signal
 }
 
+// static co_obj_t *_co_loop_match_fd_i(co_obj_t *list, co_obj_t *sock, void *efd) {
+//   co_socket_t *this_sock = (co_socket_t*)sock;
+//   int *this_efd = efd;
+//   
+//   if((this_sock->fd == *this_efd) || (this_sock->rfd == *this_efd))
+//     return sock;
+//   return NULL;
+// }
+
 static co_obj_t *_co_loop_match_socket_i(co_obj_t *list, co_obj_t *sock, void *uri) {
   if(!IS_SOCK(sock)) return NULL;
   const co_socket_t *this_sock = (co_socket_t*)sock;
@@ -169,12 +178,12 @@ static void _co_loop_poll_sockets(int deadline) {
   int n = epoll_wait(poll_fd, events, LOOP_MAXEVENT, timeout);
   
   for(int i = 0; i < n; i++) {
-    sock = (co_socket_t*)events[i].data.ptr;
+    sock = ((co_fd_t*)events[i].data.ptr)->socket;
     sock->events = events[i].events;
     if((events[i].events & EPOLLERR) || 
       (!(events[i].events & EPOLLIN))) {
         WARN("EPOLL Error!");
-        close (sock->fd);
+	close (((co_fd_t*)events[i].data.ptr)->fd);
         continue;
     } else if(events[i].events & EPOLLHUP) {
       DEBUG("Hanging up socket.");
@@ -322,6 +331,8 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
   DEBUG("Adding socket to event loop.");
   CHECK(IS_SOCK(new_sock),"Not a socket.");
   co_socket_t *sock = (co_socket_t*)new_sock;
+  co_fd_t *fd = (co_fd_t*)context;
+  CHECK(fd->socket == sock,"FD does not match socket");
   co_obj_t *node = NULL;
   struct epoll_event event;
 
@@ -330,18 +341,19 @@ int co_loop_add_socket(co_obj_t *new_sock, co_obj_t *context) {
 
   if((node = co_list_parse(sockets, _co_loop_match_socket_i, sock->uri))) {
     CHECK((node == (co_obj_t*)sock), "Different socket with URI %s already registered.", sock->uri);
-    if((sock->listen) && (sock->rfd > 0) && (!sock->rfd_registered)) {
-      DEBUG("Adding RFD %d to epoll.", sock->rfd);
-      event.data.ptr = (co_obj_t*)sock;
-      CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->rfd, &event)) != -1, "Failed to add receive FD epoll event.");
-      sock->rfd_registered = true; 
+    if ((sock->listen) && (sock->fd->fd > 0) && sock->fd_registered) {
+      CHECK(co_list_contains(sock->rfd_lst,(co_obj_t*)fd),"Socket does not contain FD");
+      DEBUG("Adding RFD %d to epoll.", fd->fd);
+      event.data.ptr = (co_obj_t*)fd;
+      CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, fd->fd, &event)) != -1, "Failed to add receive FD epoll event.");
     } else {
       SENTINEL("Socket %s already registered.", sock->uri);
     }
-  } else if((sock->listen) && (sock->fd > 0) && !sock->fd_registered) {
-      DEBUG("Adding FD %d to epoll.", sock->fd);
-      event.data.ptr = (co_obj_t*)sock;
-      CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->fd, &event)) != -1, "Failed to add listen FD epoll event.");
+  } else if((sock->listen) && (sock->fd->fd > 0) && !sock->fd_registered) {
+      CHECK(fd = sock->fd,"Invalid listening socket");
+      DEBUG("Adding FD %d to epoll.", sock->fd->fd);
+      event.data.ptr = (co_obj_t*)fd;
+      CHECK((epoll_ctl(poll_fd, EPOLL_CTL_ADD, sock->fd->fd, &event)) != -1, "Failed to add listen FD epoll event.");
       sock->fd_registered = true; 
       co_list_append(sockets, (co_obj_t*)sock);
       return 1;
@@ -354,15 +366,20 @@ error:
   return 0;
 }
 
+static co_obj_t *_co_loop_remove_fd_i(co_obj_t *list, co_obj_t *fd, void *context) {
+  if (IS_FD(fd))
+    epoll_ctl(poll_fd, EPOLL_CTL_DEL, ((co_fd_t*)fd)->fd, NULL);
+  return NULL;
+}
+
 int co_loop_remove_socket(co_obj_t *old_sock, co_obj_t *context) {
   co_socket_t *sock = (co_socket_t*)old_sock;
   co_obj_t *node = NULL;
   CHECK((node = co_list_parse(sockets, _co_loop_match_socket_i, sock->uri)), "Failed to delete socket %s!", sock->uri);
   co_list_delete(sockets, node);
   sock->fd_registered = false; 
-  sock->rfd_registered = false; 
-  epoll_ctl(poll_fd, EPOLL_CTL_DEL, sock->fd, NULL);
-  epoll_ctl(poll_fd, EPOLL_CTL_DEL, sock->rfd, NULL);
+  epoll_ctl(poll_fd, EPOLL_CTL_DEL, sock->fd->fd, NULL);
+  CHECK(co_list_parse(sock->rfd_lst,_co_loop_remove_fd_i,NULL),"Failed to delete rfd_lst");
   return 1;
 
 error:

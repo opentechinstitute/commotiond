@@ -668,9 +668,9 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context);
 /**
  * @brief sends/receives socket messages
  * @param self pointer to dispatcher socket struct
- * @param context void context pointer required for event loop callback (currently unused)
+ * @param fd file descriptor object of connected socket
  */
-int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
+int dispatcher_cb(co_obj_t *self, co_obj_t *fd) {
   CHECK(IS_SOCK(self),"Not a socket.");
   co_socket_t *sock = (co_socket_t*)self;
   char reqbuf[REQUEST_MAX];
@@ -685,7 +685,7 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   co_obj_t *nil = co_nil_create(0);
 
   /* Incoming message on socket */
-  reqlen = sock->receive((co_obj_t*)sock, reqbuf, sizeof(reqbuf));
+  reqlen = sock->receive((co_obj_t*)sock, fd, reqbuf, sizeof(reqbuf));
   DEBUG("Received %d bytes.", (int)reqlen);
   if(reqlen == 0) {
     INFO("Received connection.");
@@ -693,7 +693,7 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   }
   if (reqlen < 0) {
     INFO("Connection recvd() -1");
-    sock->hangup((co_obj_t*)sock, context);
+    sock->hangup((co_obj_t*)sock, fd);
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
@@ -705,7 +705,7 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
   if(co_cmd_exec(co_list_element(request, 2), &ret, co_list_element(request, 3)))
   {
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
-    sock->send((co_obj_t*)sock, respbuf, resplen);
+    sock->send(fd, respbuf, resplen);
   }
   else
   {
@@ -715,7 +715,7 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *context) {
       co_tree_insert(ret, "error", sizeof("error"), co_str8_create("Incorrect command.", sizeof("Incorrect command."), 0));
     }
     resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, ret, nil);
-    sock->send((co_obj_t*)sock, respbuf, resplen);
+    sock->send(fd, respbuf, resplen);
   }
 
   co_obj_free(nil);

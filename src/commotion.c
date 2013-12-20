@@ -203,8 +203,8 @@ co_call(co_obj_t *connection, co_obj_t **response, const char *method, const siz
   }
   co_obj_t *m = co_str8_create(method, mlen, 0);
   reqlen = co_request_alloc(req, sizeof(req), m, params);
-  CHECK(((co_socket_t*)connection)->send(connection, req, reqlen) != -1, "Send error!");
-  if((resplen = ((co_socket_t*)connection)->receive(connection, resp, sizeof(resp))) > 0) 
+  CHECK(((co_socket_t*)connection)->send((co_obj_t*)((co_socket_t*)connection)->fd, req, reqlen) != -1, "Send error!");
+  if((resplen = ((co_socket_t*)connection)->receive(connection, (co_obj_t*)((co_socket_t*)connection)->fd, resp, sizeof(resp))) > 0) 
   {
     CHECK(co_list_import(&rlist, resp, resplen) > 0, "Failed to parse response.");
     rtree = co_list_element(rlist, 3);
