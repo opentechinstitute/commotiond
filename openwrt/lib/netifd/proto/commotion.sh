@@ -30,7 +30,8 @@ configure_wifi_iface() {
 		config_get encryption "$config" encryption "$(commotion_get_encryption $iface)"
 		if [ -n "$encryption" -a "$encryption" != "none" ]; then 
 			uci_set wireless "$config" encryption "$encryption"
-			uci_set wireless "$config" key "$key" "$(commotion_get_key $iface)"
+			config_get key "$config" key "$(commotion_get_key $iface)"
+			uci_set wireless "$config" key "$key"
 		else
 			uci_set wireless "$config" encryption "none"
 		fi
@@ -200,13 +201,13 @@ proto_commotion_setup() {
 	proto_export "MODE=${mode:-$(commotion_get_mode $iface)}"
 	proto_export "ANNOUNCE=${announce:-$(commotion_get_announce $iface)}"
 
-	if [ "$class" != "wired" ]; then
+	if [ "$class" == "mesh" ]; then
 		config_load wireless
 		config_foreach configure_wifi_iface wifi-iface $config
 		local channel=$(uci_get wireless "$WIFI_DEVICE" channel)
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
-    uci_commit wireless
-    wifi up "$config"
+    		uci_commit wireless
+    		wifi up "$config"
 	fi
 	logger -t "commotion.proto" -s "Sending update for $config"
 	proto_send_update "$config"
