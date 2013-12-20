@@ -480,12 +480,14 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 				  (unsigned char*)_LIST_ELEMENT(params,3),
 				  co_str_len(co_list_element(params,3)) - 1,
 				  _LIST_ELEMENT(params,2),
-				  co_str_len(co_list_element(params,2)));
+				  co_str_len(co_list_element(params,2)) - 1);
 // 				  keypath ? _LIST_ELEMENT(params,4) + 10 : NULL, // strlen("--length=") == 10
 // 				  keypath ? co_str_len(co_list_element(params,4)) - 10 : 0);
     if (verdict == 1) {
+      DEBUG("signature verified");
       CMD_OUTPUT("result",co_bool_create(true,0));  // successfully verified
     } else if (verdict == 0) {
+      DEBUG("signature NOT verified");
       CMD_OUTPUT("result",co_bool_create(false,0));
     }
     
