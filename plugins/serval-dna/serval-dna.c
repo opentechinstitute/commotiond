@@ -230,8 +230,9 @@ error:
 }
 
 /** Overridden Serval function to register sockets with event loop */
-int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
-//   DEBUG("OVERRIDDEN WATCH FUNCTION!");
+extern int __real__watch(struct __sourceloc __whence, struct sched_ent *alarm);
+int __wrap__watch(struct __sourceloc __whence, struct sched_ent *alarm) {
+  DEBUG("OVERRIDDEN WATCH FUNCTION!");
   co_socket_t *sock = NULL;
   
   /** need to set:
