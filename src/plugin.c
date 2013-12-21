@@ -116,7 +116,7 @@ static int _co_plugins_load_i(const char *path, const char *filename) {
   strlcat(path_tmp, "/", PATH_MAX);
   strlcat(path_tmp, filename, PATH_MAX);
   dlerror(); //Clear existing error codes.
-  void *handle = dlopen(path_tmp, RTLD_NOW);
+  void *handle = dlopen(path_tmp, RTLD_GLOBAL|RTLD_NOW);
   CHECK(handle != NULL, "Failed to load plugin %s: %s", path_tmp, dlerror());
   co_cb_t co_plugin_name = dlsym(handle, "co_plugin_name");
   CHECK(co_plugin_name != NULL, "Failed to name plugin %s: %s", path_tmp, dlerror());
