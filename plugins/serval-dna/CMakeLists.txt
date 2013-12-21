@@ -1,7 +1,7 @@
 SET(PLUGIN_NAME serval-dna)
 SET(PLUGINSRC serval-dna.c crypto.c)
 SET(CLIENT_NAME serval-client)
-SET(CLIENTSRC serval-client.c crypto.c)
+SET(CLIENTSRC serval-client.c crypto.c serval-dna.c)
 SET(SAS_NAME serval-sas)
 SET(SASSRC sas_request.c mdp_client.c net.c)
 ADD_DEFINITIONS(-DHAVE_BCOPY -DHAVE_BZERO -DHAVE_BCMP -DHAVE_ARPA_INET_H -DHAVE_POLL_H)
