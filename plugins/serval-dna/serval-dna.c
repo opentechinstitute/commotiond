@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <poll.h>
+#include <dlfcn.h>
 
 #include <serval.h>
 #include <serval/conf.h>
@@ -394,6 +395,8 @@ error:
 }
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+  CHECK(dlopen("libservald.so",RTLD_NOW) != NULL,"Failed to load serval library");
+  
   char *enabled = NULL;
   co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
   if (strcmp(enabled,"disabled") == 0) return 1;
