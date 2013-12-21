@@ -529,71 +529,71 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       break;
     case _false:
     case _true:
-      *output = co_bool_create((bool)(*(input + 1)), flags);
+      *output = co_bool_create((bool)(*(bool *)(input + 1)), flags);
       read += sizeof(bool) + 1;
     case _float32:
-      *output = co_float32_create((float)(*(input + 1)), flags);
+      *output = co_float32_create((float)(*(float *)(input + 1)), flags);
       read += sizeof(float) + 1;
       break;
     case _float64:
-      *output = co_float64_create((double)(*(input + 1)), flags);
+      *output = co_float64_create((double)(*(double *)(input + 1)), flags);
       read += sizeof(double) + 1;
       break;
     case _uint8:
-      *output = co_uint8_create((uint8_t)(*(input + 1)), flags);
+      *output = co_uint8_create((uint8_t)(*(uint8_t *)(input + 1)), flags);
       read += sizeof(uint8_t) + 1;
       break;
     case _uint16:
-      *output = co_uint16_create((uint16_t)(*(input + 1)), flags);
+      *output = co_uint16_create((uint16_t)(*(uint16_t *)(input + 1)), flags);
       read += sizeof(uint16_t) + 1;
       break;
     case _uint32:
-      *output = co_uint32_create((uint32_t)(*(input + 1)), flags);
+      *output = co_uint32_create((uint32_t)(*(uint32_t *)(input + 1)), flags);
       read += sizeof(uint32_t) + 1;
       break;
     case _uint64:
-      *output = co_uint64_create((uint64_t)(*(input + 1)), flags);
+      *output = co_uint64_create((uint64_t)(*(uint64_t *)(input + 1)), flags);
       read += sizeof(uint64_t) + 1;
       break;
     case _int8:
-      *output = co_int8_create((int8_t)(*(input + 1)), flags);
+      *output = co_int8_create((int8_t)(*(int8_t *)(input + 1)), flags);
       read += sizeof(int8_t) + 1;
       break;
     case _int16:
-      *output = co_int16_create((int16_t)(*(input + 1)), flags);
+      *output = co_int16_create((int16_t)(*(int16_t *)(input + 1)), flags);
       read += sizeof(int16_t) + 1;
       break;
     case _int32:
-      *output = co_int32_create((int32_t)(*(input + 1)), flags);
+      *output = co_int32_create((int32_t)(*(int32_t *)(input + 1)), flags);
       read += sizeof(int32_t) + 1;
       break;
     case _int64:
-      *output = co_int64_create((int64_t)(*(input + 1)), flags);
+      *output = co_int64_create((int64_t)(*(int64_t *)(input + 1)), flags);
       read += sizeof(int64_t) + 1;
       break;
     case _str8:
-      *output = co_str8_create(input + sizeof(uint8_t) + 1, (uint8_t)(*(input + 1)), flags);
-      read += sizeof(uint8_t) + 1 + (uint8_t)(*(input + 1));
+      *output = co_str8_create(input + sizeof(uint8_t) + 1, (uint8_t)(*(uint8_t *)(input + 1)), flags);
+      read += sizeof(uint8_t) + 1 + (uint8_t)(*(uint8_t*)(input + 1));
       break;
     case _str16:
-      *output = co_str16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(input + 1)), flags);
-      read += sizeof(uint16_t) + 1 + (uint16_t)(*(input + 1));
+      *output = co_str16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(uint16_t *)(input + 1)), flags);
+      read += sizeof(uint16_t) + 1 + (uint16_t)(*(uint16_t*)(input + 1));
       break;
     case _str32:
-      *output = co_str32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(input + 1)), flags);
-      read += sizeof(uint32_t) + 1 + (uint32_t)(*(input + 1));
+      *output = co_str32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(uint32_t *)(input + 1)), flags);
+      read += sizeof(uint32_t) + 1 + (uint32_t)(*(uint32_t*)(input + 1));
       break;
     case _bin8:
-      *output = co_bin8_create(input + sizeof(uint8_t) + 1, (uint8_t)(*(input + 1)), flags);
-      read += sizeof(uint8_t) + 1 + (uint8_t)(*(input + 1));
+      *output = co_bin8_create(input + sizeof(uint8_t) + 1, (uint8_t)(*(uint8_t *)(input + 1)), flags);
+      read += sizeof(uint8_t) + 1 + (uint8_t)(*(uint8_t*)(input + 1));
       break;
     case _bin16:
-      *output = co_bin16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(input + 1)), flags);
-      read += sizeof(uint16_t) + 1 + (uint16_t)(*(input + 1));
+      *output = co_bin16_create(input + sizeof(uint16_t) + 1, (uint16_t)(*(uint16_t *)(input + 1)), flags);
+      read += sizeof(uint16_t) + 1 + (uint16_t)(*(uint16_t*)(input + 1));
       break;
     case _bin32:
-      *output = co_bin32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(input + 1)), flags);
-      read += sizeof(uint32_t) + 1 + (uint32_t)(*(input + 1));
+      *output = co_bin32_create(input + sizeof(uint32_t) + 1, (uint32_t)(*(uint32_t *)(input + 1)), flags);
+      read += sizeof(uint32_t) + 1 + (uint32_t)(*(uint32_t*)(input + 1));
       break;
     case _list16:
     case _list32:
