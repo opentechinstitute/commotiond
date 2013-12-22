@@ -507,16 +507,16 @@ int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   CHECK(IS_LIST(params) && co_list_length(params) == 2,"Invalid params");
   
-  size_t sid_len = co_str_len(co_list_element(params,0));
-  char *sid_str = _LIST_ELEMENT(params,0);
+  size_t sid_len = co_str_len(co_list_element(params,1));
+  char *sid_str = _LIST_ELEMENT(params,1);
   
   CHECK(sid_len == 2*SID_SIZE + 1 && str_is_subscriber_id(sid_str) == 1,"Invalid SID");
   stowSid(packedSid,0,sid_str);
   
   CHECK(serval_init_keyring(packedSid,
 		     SID_SIZE,
-		     _LIST_ELEMENT(params,1),
-		     co_str_len(co_list_element(params,2)),
+		     _LIST_ELEMENT(params,0),
+		     co_str_len(co_list_element(params,0)),
 		     &mdp_keyring,
 		     &mdp_key,
 		     &mdp_key_len), "Failed to initialize Serval keyring");
@@ -546,7 +546,7 @@ int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     sig_buf,
 		     sig_buf_len),"Failed to sign OLSRd packet");
   
-  CMD_OUTPUT("sig",co_bin8_create((char*)sig_buf,sig_buf_len,0));
+  CMD_OUTPUT("sig",co_bin8_create((char*)(sig_buf+msg_len),SIGNATURE_BYTES,0));
   
   ret = 1;
 error:
