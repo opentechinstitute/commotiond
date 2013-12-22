@@ -546,7 +546,7 @@ int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 		     sig_buf,
 		     sig_buf_len),"Failed to sign OLSRd packet");
   
-  CMD_OUTPUT("sig",co_bin8_create((char*)sig_buf,sig_buf_len,0));
+  CMD_OUTPUT("sig",co_bin8_create((char*)(sig_buf+msg_len),SIGNATURE_BYTES,0));
   
   ret = 1;
 error:
