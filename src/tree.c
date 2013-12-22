@@ -583,7 +583,7 @@ _co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *
     else
     {
       CHECK((vlen = co_obj_raw(&vbuf, current->value)) > 0, "Failed to read value.");
-      CHECK(klen + vlen < *olen - *written, "Data too large for buffer.");
+      CHECK((klen + vlen) < ((*olen) - (*written)), "Data too large for buffer.");
       DEBUG("Dumping value %s of size %d with key %s of size %d.", vbuf, (int)vlen, kbuf, (int)klen);
       memmove(*output, vbuf, vlen);
     }
@@ -651,7 +651,7 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
       read = sizeof(uint16_t) + 1;
       break;
     case _tree32:
-      length = (uint32_t)(*(input + 1));
+      length = (uint32_t)(*(uint32_t*)(input + 1));
       *tree = co_tree32_create();
       cursor += sizeof(uint32_t) + 1;
       read = sizeof(uint32_t) + 1;
