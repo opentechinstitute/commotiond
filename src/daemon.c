@@ -317,11 +317,10 @@ CMD(state)
         CHECK(co_profile_get_str(prof, &chan, "channel", sizeof("channel")) > 0, "Attempting to generate BSSID but channel not set.");
         unsigned int channel;
         CHECK(sscanf(chan, "%u", &channel) > 0, "Failed to convert channel.");
-        unsigned int freq = wifi_freq(channel);
-        DEBUG("Channel: %u, Frequency: %u", channel, freq);
+        DEBUG("Channel: %u", channel);
         char bssid[BSSID_SIZE];
         memset(bssid, '\0', sizeof(bssid));
-        get_bssid(ssid, freq, bssid);
+        get_bssid(ssid, channel, bssid);
         char bssidstr[BSSID_STR_SIZE];
         memset(bssidstr, '\0', sizeof(bssidstr));
         CHECK(snprintfcat(bssidstr, BSSID_STR_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x", bssid[0] & 0xff, bssid[1] & 0xff, bssid[2] & 0xff, bssid[3] & 0xff, bssid[4] & 0xff, bssid[5] & 0xff) > 0, "Failed to convert BSSID.");
@@ -462,6 +461,39 @@ CMD(genip)
   return 1;
 error:
   co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect genip parameters.", sizeof("Incorrect genip parameters."), 0));
+  return 0;
+}
+
+CMD(genbssid)
+{
+  *output = co_tree16_create();
+  size_t plen = co_list_length(params);
+  CHECK(plen == 2, "Incorrect parameters.");
+
+  char *ssid = NULL;
+  co_obj_data(&ssid, co_list_element(params, 0));
+
+  char *chan = NULL;
+  co_obj_data(&chan, co_list_element(params, 1));
+  unsigned int channel = 0;
+  CHECK(sscanf(chan, "%u", &channel) > 0, "Failed to convert channel.");
+  char bssid[BSSID_SIZE];
+  memset(bssid, '\0', sizeof(bssid));
+  get_bssid(ssid, channel, bssid);
+  DEBUG("ssid: %s, channel: %u, bssid: %s", ssid, channel, bssid);
+  char bssidstr[BSSID_STR_SIZE];
+  memset(bssidstr, '\0', sizeof(bssidstr));
+  CHECK(snprintfcat(bssidstr, BSSID_STR_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x", bssid[0] & 0xff, bssid[1] & 0xff, \
+        bssid[2] & 0xff, bssid[3] & 0xff, bssid[4] & 0xff, bssid[5] & 0xff) > 0, "Failed to convert BSSID.");
+  DEBUG("BSSID: %s", bssidstr);
+  co_obj_t *object = co_str8_create(bssidstr, strlen(bssidstr) + 1, 0);
+
+  // NOTE: whoever calls this function must then free the heap space for "address"
+  co_tree_insert(*output, "bssid", sizeof("bssid"), object);
+  return 1;
+error:
+  co_tree_insert(*output, "error", sizeof("error"), co_str8_create("Incorrect genbssid parameters.", \
+        sizeof("Incorrect genbssid parameters."), 0));
   return 0;
 }
 
@@ -971,6 +1003,7 @@ int main(int argc, char *argv[]) {
   CMD_REGISTER(state, "state <interface> <property>", "Show configured property for interface.");
   CMD_REGISTER(nodeid, "nodeid [<nodeid>] [mac <mac address>]", "Get or set node ID number.");
   CMD_REGISTER(genip, "genip <subnet> <netmask> [gw]", "Generate IP address.");
+  CMD_REGISTER(genbssid, "genbssid <ssid> <channel>", "Generate a BSSID.");
   CMD_REGISTER(get, "get <profile> <key>", "Get value from profile.");
   CMD_REGISTER(set, "set <profile> <key> <value>", "Set value to profile.");
   CMD_REGISTER(save, "save <profile> [<filename>]", "Save profile to a file in the profiles directory.");

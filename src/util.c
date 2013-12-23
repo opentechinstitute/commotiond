@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
@@ -310,21 +311,31 @@ int wifi_chan(const int frequency) {
 
 }
 
-void get_bssid(const char *essid, const unsigned int freq, char *bssid) {
-  DEBUG("ESSID: %s, Frequency: %d", essid, freq);
+void get_bssid(const char *essid, const unsigned int chan, char *bssid) {
+  DEBUG("ESSID: %s, Channel: %d", essid, chan);
   unsigned char hash[BSSID_SIZE];
-  char msg[ESSID_SIZE + FREQ_SIZE];
+  memset(hash, '\0', sizeof(hash));
+  char channel[CHAN_SIZE];
+  memset(channel, '\0', sizeof(channel));
+  int i;
   MD5_CTX ctx;
   MD5_Init(&ctx);
 
-  snprintfcat(msg, strlen(essid) + FREQ_SIZE, "%s%d", essid, freq);
-
-  MD5_Update(&ctx, msg, strlen(essid) + FREQ_SIZE);
+  MD5_Update(&ctx, essid, strlen(essid));
   MD5_Final(hash, &ctx);
   DEBUG("Hash: %s", (char *)hash);
 
-  for(int i=0; i < BSSID_SIZE; i++)
+  for(i = 0; i < BSSID_SIZE - CHAN_SIZE; i++)
     bssid[i] = hash[i];
+
+  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons(chan));
+
+  for(int j = 0; j < CHAN_SIZE; j++)
+  {
+    bssid[i] = channel[j];
+    i++;
+  }
+
 
   DEBUG("BSSID buffer: %s", (char *)bssid);
 

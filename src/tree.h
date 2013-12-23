@@ -61,10 +61,7 @@ co_obj_t *co_node_value(_treenode_t *node);
 
 _treenode_t *co_tree_find_node(_treenode_t *root, const char *key, const size_t klen);
 _treenode_t *co_tree_root(const co_obj_t *tree);
-size_t co_tree_change_length(co_obj_t *tree, const int delta);
 size_t co_tree_length(co_obj_t *tree);
-size_t co_tree_increment(co_obj_t *tree);
-size_t co_tree_decrement(co_obj_t *tree);
 
 co_obj_t *co_tree_find(const co_obj_t *root, const char *key, const size_t klen);
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);

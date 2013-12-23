@@ -88,10 +88,6 @@
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
 
 /* Lists */
-#define _LIST_NEXT(J) (((co_obj_t *)J)->_next)
-#define _LIST_PREV(J) (((co_obj_t *)J)->_prev)
-#define _LIST_FIRST(J) (((co_obj_t*)J)->_next)
-#define _LIST_LAST(J) (((co_obj_t *)J)->_prev)
 #define _LIST_ELEMENT(J,I) co_obj_data_ptr(co_list_element(J,I))
 
 /* Type checking */
@@ -124,11 +120,6 @@
 #define IS_TIMER(J) (IS_EXT(J) && ((co_timer_t *)J)->_exttype == _co_timer)
 #define IS_PROCESS(J) (IS_EXT(J) && ((co_process_t *)J)->_exttype == _process)
 #define IS_IFACE(J) (IS_EXT(J) && ((co_iface_t *)J)->_exttype == _iface)
-
-/* Flags */
-#define _OBJ_SCHEMA ((1 << 0))
-#define _OBJ_EMPTY ((1 << 1))
-#define _OBJ_REQUIRED ((1 << 2))
 
 /*-----------------------------------------------------------------------------
  *  Object Declaration
