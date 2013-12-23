@@ -379,7 +379,7 @@ int co_loop_remove_socket(co_obj_t *old_sock, co_obj_t *context) {
   co_list_delete(sockets, node);
   sock->fd_registered = false; 
   epoll_ctl(poll_fd, EPOLL_CTL_DEL, sock->fd->fd, NULL);
-  CHECK(co_list_parse(sock->rfd_lst,_co_loop_remove_fd_i,NULL),"Failed to delete rfd_lst");
+  CHECK(co_list_parse(sock->rfd_lst,_co_loop_remove_fd_i,NULL) == NULL,"Failed to delete rfd_lst");
   return 1;
 
 error:

@@ -119,6 +119,8 @@ int serval_socket_cb(co_obj_t *self, co_obj_t *context) {
   co_obj_t *node = NULL;
   struct sched_ent *alarm = NULL;
   
+//   DEBUG("SERVAL SOCK %d",sock->fd);
+  
   // find alarm associated w/ sock, call alarm->function(alarm)
   if ((node = co_list_parse(sock_alarms, _alarm_fd_match_i, &sock->fd->fd))) {
     alarm = ((co_alarm_t*)node)->alarm;
@@ -282,9 +284,11 @@ error:
 }
 
 int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
-//   DEBUG("OVERRIDDEN UNWATCH FUNCTION!");
+  DEBUG("OVERRIDDEN UNWATCH FUNCTION!");
   co_obj_t *node = NULL;
   char fd_str[6] = {0};
+  
+  DEBUG("UNWATCHING %d",alarm->poll.fd);
   
   CHECK(alarm->_poll_index == 1 && (node = co_list_parse(sock_alarms, _alarm_ptr_match_i, alarm)),"Attempting to unwatch socket that is not registered");
   co_list_delete(sock_alarms,node);
