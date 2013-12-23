@@ -50,6 +50,8 @@
 #include "serval-dna.h"
 #include "crypto.h"
 
+#define SETUP_ATTEMPTS 5
+
 // Types & constructors
 
 /* Extension type */
@@ -303,37 +305,49 @@ error:
   return -1;
 }
 
-static void setup_sockets(void) {
+#define START_SERVAL_SERVICE(F) { int success = 0; \
+    for (int x = 0; x < SETUP_ATTEMPTS; x++) { \
+      if ((F) == 0) { \
+        success = 1; \
+        break; \
+      } \
+    } \
+    CHECK(success,"Failed to start Serval service"); \
+  }
+
+static int setup_sockets(void) {
+  int attempts = 0;
+  
   /* Setup up MDP & monitor interface unix domain sockets */
   DEBUG("Setup MDP sockets");
-  overlay_mdp_setup_sockets();
+  START_SERVAL_SERVICE(overlay_mdp_setup_sockets());
   
   DEBUG("Setup MONITOR sockets");
-  monitor_setup_sockets();
+  START_SERVAL_SERVICE(monitor_setup_sockets());
   
   DEBUG("Setup OLSR sockets");
-  olsr_init_socket();
+  START_SERVAL_SERVICE(olsr_init_socket());
   
   DEBUG("Setup RHIZOME");
   /* Get rhizome server started BEFORE populating fd list so that
    *  the server's listen so*cket is in the list for poll() */
   if (is_rhizome_enabled())
-    rhizome_opendb();
+    START_SERVAL_SERVICE(rhizome_opendb());
   
   /* Rhizome http server needs to know which callback to attach
    *  t o client sockets, so pro*vide it here, along with the name to
    *  appear in time accounting statistics. */
-  rhizome_http_server_start(rhizome_server_parse_http_request,
+  START_SERVAL_SERVICE(rhizome_http_server_start(rhizome_server_parse_http_request,
 			    "rhizome_server_parse_http_request",
-			    RHIZOME_HTTP_PORT,RHIZOME_HTTP_PORT_MAX);    
+			    RHIZOME_HTTP_PORT,RHIZOME_HTTP_PORT_MAX));
   
   DEBUG("Setup DNA HELPER");
   // start the dna helper if configured
-  dna_helper_start();
+  START_SERVAL_SERVICE(dna_helper_start());
   
   DEBUG("Setup DIRECTORY SERVICE");
   // preload directory service information
-  directory_service_init();
+  START_SERVAL_SERVICE(directory_service_init());
   
 #define SCHEDULE(X, Y, D) { \
 static struct profile_total _stats_##X={.name="" #X "",}; \
@@ -354,7 +368,10 @@ schedule(&_sched_##X); }
   DEBUG("finished setup_sockets");
   
 #undef SCHEDULE
-
+  
+  return 1;
+error:
+  return 0;
 }
 
 int co_plugin_name(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
@@ -426,7 +443,7 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   sock_alarms = co_list16_create();
   timer_alarms = co_list16_create();
   
-  setup_sockets();
+  CHECK(setup_sockets(),"Failed to setup Serval sockets");
   
   serval_registered = true;
   daemon_started = true;
