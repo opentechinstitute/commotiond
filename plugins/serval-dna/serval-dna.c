@@ -288,6 +288,8 @@ int _unwatch(struct __sourceloc __whence, struct sched_ent *alarm) {
   co_obj_t *node = NULL;
   char fd_str[6] = {0};
   
+  if (alarm->poll.fd == 6)
+    exit(1);
   DEBUG("UNWATCHING %d",alarm->poll.fd);
   
   CHECK(alarm->_poll_index == 1 && (node = co_list_parse(sock_alarms, _alarm_ptr_match_i, alarm)),"Attempting to unwatch socket that is not registered");
