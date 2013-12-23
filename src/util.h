@@ -46,6 +46,7 @@
 #define BSSID_STR_SIZE 18
 #define ESSID_SIZE 32
 #define FREQ_SIZE 4
+#define CHAN_SIZE 2
 
 /**
  * @brief concatenates two strings
