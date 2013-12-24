@@ -92,7 +92,7 @@ ssize_t __recvwithttl(int sock,unsigned char *buffer, size_t bufferlen,int *ttl,
   iov[0].iov_len=bufferlen;
   bzero(&msg,sizeof(msg));
   msg.msg_name = recvaddr;
-  msg.msg_namelen = 108;
+  msg.msg_namelen = *recvaddrlen;
   msg.msg_iov = &iov[0];
   msg.msg_iovlen = 1;
   // setting the following makes the data end up in the wrong place

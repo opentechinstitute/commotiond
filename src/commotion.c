@@ -334,14 +334,12 @@ co_response_get_bool(co_obj_t *response, bool *output, const char *key, const si
   {
     case _false:
       *output = false;
-      DEBUG("FALSE");
       break;
     case _true:
       *output = true;
-      DEBUG("TRUE");
       break;
     default:
-      SENTINEL("Not a boolean: %x",CO_TYPE(obj));
+      SENTINEL("Not a boolean.");
       break;
   }
   return 1;
