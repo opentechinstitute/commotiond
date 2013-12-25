@@ -90,6 +90,20 @@ commotion_gen_ip() {
   return "$ret" 
 } 
 
+commotion_gen_bssid() {
+  local ssid="$1"  
+  local channel="$2"     
+             
+  data="$("$CLIENT" -b "$SOCKET" genbssid "$ssid" "$channel" 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?                                                                        
+        
+  json_load "$data"
+  json_get_var bssid bssid
+  echo "$bssid"        
+  return "$ret" 
+} 
+
 commotion_get_ip() {
   local iface="$1"  
   local data=     
@@ -283,6 +297,20 @@ commotion_get_class() {
   json_load "$data"   
   json_get_var tp type
   echo "$tp"       
+  return "$ret"    
+} 
+
+commotion_get_bssidgen() {
+  local iface="$1"
+  local data=
+
+  data="$($CLIENT -b $SOCKET state $iface bssidgen 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
+          
+  json_load "$data"   
+  json_get_var bg bssidgen
+  echo "$bg"       
   return "$ret"    
 } 
 

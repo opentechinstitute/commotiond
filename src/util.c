@@ -328,7 +328,7 @@ void get_bssid(const char *essid, const unsigned int chan, char *bssid) {
   for(i = 0; i < BSSID_SIZE - CHAN_SIZE; i++)
     bssid[i] = hash[i];
 
-  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons(chan));
+  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons((uint16_t)chan));
 
   for(int j = 0; j < CHAN_SIZE; j++)
   {

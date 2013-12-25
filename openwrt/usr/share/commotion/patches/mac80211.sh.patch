@@ -1,5 +1,5 @@
---- mac80211.sh.orig	2013-12-18 22:23:28.645954870 -0500
-+++ mac80211.sh	2013-12-19 08:41:04.515710264 -0500
+--- mac80211.sh.orig	2013-12-18 21:23:28.645954870 -0600
++++ mac80211.sh	2013-12-24 22:19:20.575201046 -0600
 @@ -1,6 +1,8 @@
  #!/bin/sh
  append DRIVERS "mac80211"
@@ -9,7 +9,7 @@
  mac80211_hostapd_setup_base() {
  	local phy="$1"
  	local ifname="$2"
-@@ -353,10 +355,46 @@
+@@ -353,10 +355,53 @@
  		[ -n "$ifname" ] || {
  			[ $i -gt 0 ] && ifname="wlan${phy#phy}-$i" || ifname="wlan${phy#phy}"
  		}
@@ -41,11 +41,18 @@
 +			uci_set wireless "$device" channel "$channel"
 +			config_set "$vif" mode "$mode"
 +			uci_set wireless "$vif" mode "$mode"
-+                       if [ "$mode" = "adhoc" ]; then
-+                               config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
-+                               config_set "$vif" bssid "$bssid"
-+                               uci_set wireless "$vif" bssid "$bssid"
-+                       fi
++                       	if [ "$mode" = "adhoc" ]; then
++                               	config_get bssidgen "$vif" bssidgen "$(commotion_get_bssidgen $ifname)"
++                       		if [ "$bssidgen" = "true" ]; then
++                       			bssid="$(commotion_gen_bssid "$ssid" "$channel")"
++                               		config_set "$vif" bssid "$bssid"
++                               		uci_set wireless "$vif" bssid "$bssid"
++                               	else
++                               		config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
++                               		config_set "$vif" bssid "$bssid"
++                               		uci_set wireless "$vif" bssid "$bssid"
++                               	fi
++                       	fi
 +			config_set "$vif" ssid "$ssid"
 +			uci_set wireless "$vif" ssid "$ssid"
 +		else
@@ -58,7 +65,7 @@
  
  		# It is far easier to delete and create the desired interface
  		case "$mode" in
-@@ -460,12 +498,30 @@
+@@ -460,12 +505,37 @@
  
  		case "$mode" in
  			adhoc)
@@ -70,7 +77,14 @@
 +				commotion_profile=$(uci_get network $network profile)
 +				commotion_class=$(uci_get network $network class)
 +				if [ -n "$commotion_profile" -a "$commotion_class" == "mesh" ]; then
-+					config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
++					config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
++					config_get channel "$vif" channel "$(commotion_get_channel $ifname)"
++                               		config_get bssidgen "$vif" bssidgen "$(commotion_get_bssidgen $ifname)"
++                       			if [ "$bssidgen" = "true" ]; then
++                       				bssid="$(commotion_gen_bssid "$ssid" "$channel")"
++                       			else
++						config_get bssid "$vif" bssid "$(commotion_get_bssid $ifname)"
++					fi
 +					config_get ssid "$vif" ssid "$(commotion_get_ssid $ifname)"
 +					config_get encryption "$vif" encryption "$(commotion_get_encryption $ifname)"
 +					if [ -n "$encryption" -a "$encryption" != "none" ]; then 
