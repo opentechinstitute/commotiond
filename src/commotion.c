@@ -335,7 +335,7 @@ co_response_get_bool(co_obj_t *response, bool *output, const char *key, const si
     case _false:
       *output = false;
       break;
-    case true:
+    case _true:
       *output = true;
       break;
     default:

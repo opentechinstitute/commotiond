@@ -7,4 +7,8 @@
   patch -p0 < /usr/share/commotion/patches/mac80211.sh.patch
 }
 
+uci add ucitrack setup_wizard
+uci set ucitrack.@setup_wizard[0].init='commotiond'
+uci commit ucitrack
+
 exit 0

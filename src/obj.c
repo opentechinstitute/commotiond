@@ -529,8 +529,9 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       break;
     case _false:
     case _true:
-      *output = co_bool_create((bool)(*(bool *)(input + 1)), flags);
+      *output = co_bool_create((bool)((uint8_t)input[0] - _false), flags);
       read += sizeof(bool) + 1;
+      break;
     case _float32:
       *output = co_float32_create((float)(*(float *)(input + 1)), flags);
       read += sizeof(float) + 1;
