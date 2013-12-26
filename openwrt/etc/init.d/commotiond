@@ -27,6 +27,8 @@ boot() {
     ;;
   esac
   mkdir -m 0755 -p /var/run/commotion
+  rm -rf /var/serval-node
+  ln -s /etc/serval/ /var/serval-node
   start
 }
 
