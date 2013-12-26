@@ -248,8 +248,11 @@ int main(int argc, char *argv[]) {
   if (keyring_opt) {
     CHECK(strlen(keyring_opt) < PATH_MAX,"keyring path too long");
     strcpy(keyring_path,keyring_opt);
-  } else
-    FORM_SERVAL_INSTANCE_PATH(keyring_path,"serval.keyring");
+  } else {
+    strcpy(keyring_path,DEFAULT_SERVAL_PATH);
+    strcpy(keyring_path,"/");
+    strcpy(keyring_path,"serval.keyring");
+  }
   
   // Run the Serval command
   
