@@ -53,7 +53,7 @@ proto_commotion_init_config() {
 	proto_config_add_string "profile"
 	proto_config_add_string "type"
 	proto_config_add_string "class"
-	proto_config_add_string "ip"
+	proto_config_add_string "ipaddr"
 	proto_config_add_string "netmask"
 	proto_config_add_string "dns"
 	proto_config_add_string "domain"
@@ -66,8 +66,8 @@ proto_commotion_setup() {
 	local dhcp=
 	local client_bridge="$(uci_get network "$config" client_bridge "$DEFAULT_CLIENT_BRIDGE")"
 	
-	local profile type ip netmask dns domain announce lease_zone nolease_zone
-	json_get_vars profile type class ip netmask dns domain announce lease_zone nolease_zone
+	local profile type ipaddr netmask dns domain announce lease_zone nolease_zone
+	json_get_vars profile type class ipaddr netmask dns domain announce lease_zone nolease_zone
 
 	logger -s -t commotion.proto "Running protocol handler."
 	[ "$class" == "mesh" ] && commotion_up "$iface" $(uci_get network $config profile)
@@ -176,14 +176,14 @@ proto_commotion_setup() {
 	
 	if [ $have_ip -eq 0 ]; then
 		if [ "$class" != "mesh" ]; then
-			local ip=${ip:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
+			local ip=${ipaddr:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
 			local netmask=${netmask:-$DEFAULT_CLIENT_NETMASK}
 			proto_add_ipv4_address $ip $netmask
 			logger -t "commotion.proto" -s "proto_add_ipv4_address: $ip $netmask"
 			uci_set_state network "$config" ipaddr "$ip"
 			uci_set_state network "$config" netmask "$netmask"
 		else
-			local ip=${ip:-$(commotion_get_ip $iface)}
+			local ip=${ipaddr:-$(commotion_get_ip $iface)}
 			local netmask=${netmask:-$(commotion_get_netmask $iface)}
 			proto_add_ipv4_address $ip $netmask
 			uci_set_state network "$config" ipaddr "$ip"
