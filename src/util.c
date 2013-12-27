@@ -334,18 +334,6 @@ void get_bssid(const char *essid, const unsigned int chan, char *bssid) {
 
   bssid[i] = chan / 10;
   bssid[i + 1] = chan % 10;
-/*
-  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons(chan));
-
-  for(int j = 0; j < CHAN_SIZE; j++)
-  {
-    bssid[i] = channel[j];
-    i++;
-    DEBUG("BSSID byte %d as char: %c, as int: %d", i, bssid[i], bssid[i]);
-    DEBUG("Channel byte %d as char: %c, as int: %d", j, channel[j], channel[j]);
-  }
-*/
-
 
   DEBUG("BSSID buffer: %s", (char *)bssid);
 
