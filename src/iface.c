@@ -97,7 +97,6 @@ error:
 }
 
 static int _co_iface_wpa_remove_network(co_obj_t *iface_obj) {
-  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
@@ -109,7 +108,6 @@ error:
 }
 
 static int _co_iface_wpa_disable_network(co_obj_t *iface_obj) {
-  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
@@ -283,15 +281,14 @@ error:
 int co_iface_wpa_connect(co_obj_t *iface_obj) {
   CHECK(IS_IFACE(iface_obj),"Not an iface.");
   co_iface_t *iface = (co_iface_t*)iface_obj;
-  char *filename;
+  char *filename = NULL;
   size_t length;
 
   CHECK(iface->wireless, "Not a wireless interface: %s", iface->ifr.ifr_name);
 
 	length = strlen(wpa_control_dir) + strlen(iface->ifr.ifr_name) + 2;
-	filename = malloc(length);
+	filename = calloc(1, length);
 	CHECK_MEM(filename);
-  memset(filename, '\0', length);
 	snprintf(filename, length, "%s/%s", wpa_control_dir, iface->ifr.ifr_name);
   DEBUG("WPA control file: %s", filename);
 
