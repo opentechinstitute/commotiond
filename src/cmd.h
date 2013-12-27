@@ -73,30 +73,42 @@ int co_cmd_register(const char *name, const size_t nlen, const char *usage, cons
 
 /**
  * @brief executes a command by running the function linked to in the command struct
- * @param name command name
- * @param argv[] arguments passed to command
- * @param arc number of arguments passed
- * @param mask permissions mask
+ * @param key the name of the command
+ * @param output return object of command
  */
 int co_cmd_exec(co_obj_t *key, co_obj_t **output, co_obj_t *param);
 
 /**
- * @brief prints command usage format
- * @param name command name
- * @param mask permissions mask
+ * @brief returns command usage format
+ * @param key command name
  */
 co_obj_t *co_cmd_usage(co_obj_t *key); 
 
 /**
- * @brief prints command description (what the command does)
- * @param name command name
- * @param mask permissions mask
+ * @brief returns command description (what the command does)
+ * @param key the name of the command
  */
 co_obj_t *co_cmd_desc(co_obj_t *key);
 
+/**
+ * @brief hooks callback function into a command
+ * @param key the name of the command
+ * @param cb reference to callback function
+ */
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
 
+/**
+ * @brief hooks callback function into a command
+ * @param key the name of the command
+ * @param klen length of key string
+ * @param cb reference to callback function
+ */
 int co_cmd_hook_str(const char *key, const size_t klen, co_obj_t *cb);
 
+/**
+ * @brief process all registered commands with given iterator
+ * @param iter iterator function reference
+ * @param context other parameters passed to iterator
+ */
 int co_cmd_process(co_iter_t iter, void *context);
 #endif

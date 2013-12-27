@@ -143,7 +143,7 @@ int wifi_chan(const int frequency);
 /**
 * @brief generates a BSSID from hash of ESSID and channel
 * @param essid The ESSID to hash
-* @param channel a 4-digit integer of the channel
+* @param channel an integer of the channel
 * @param bbsid The returned 6-byte BSSID
 */
 void get_bssid(const char *essid, const unsigned int channel, char *bssid);

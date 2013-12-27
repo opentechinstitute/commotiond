@@ -38,6 +38,9 @@
 
 typedef struct _treenode_t _treenode_t;
 
+/**
+ * @struct _treenode_t a data structure that holds one node in search tree
+ */
 struct _treenode_t
 {
     char splitchar; 
@@ -56,26 +59,149 @@ struct _treenode_t
 _DECLARE_TREE(16);
 _DECLARE_TREE(32);
 
+/**
+ * @brief return key object for given node
+ * @param node node to return object for
+ */
 co_obj_t *co_node_key(_treenode_t *node);
+
+/**
+ * @brief return value object for given node
+ * @param node node to return object for
+ */
 co_obj_t *co_node_value(_treenode_t *node);
 
+/**
+ * @brief find node in given tree
+ * @param root tree in which to search
+ * @param key key to search for
+ * @param klen length of key
+ */
 _treenode_t *co_tree_find_node(_treenode_t *root, const char *key, const size_t klen);
+
+/**
+ * @brief return root node of tree object
+ * @param tree tree object that contains root
+ */
 _treenode_t *co_tree_root(const co_obj_t *tree);
+
+/**
+ * @brief return length (number of key-value pairs) of given tree
+ * @param tree tree object
+ */
 size_t co_tree_length(co_obj_t *tree);
 
+/**
+ * @brief return value from given tree that corresponds to key
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ */
 co_obj_t *co_tree_find(const co_obj_t *root, const char *key, const size_t klen);
+
+/**
+ * @brief delete value from given tree that corresponds to key
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ */
 co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
+
+/**
+ * @brief insert object into given tree and associate with key
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value object to insert
+ */
 int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+
+/**
+ * @brief insert object into given tree and associate with key (overwrite if it exists)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value object to insert
+ */
 int co_tree_insert_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+
+/**
+ * @brief set value contained in an object in the tree with a specified key (if a string)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value to insert
+ * @param vlen length of value
+ */
 int co_tree_set_str(co_obj_t *root, const char *key, const size_t klen, const char *value, const size_t vlen);
+
+/**
+ * @brief set value contained in an object in the tree with a specified key (if an int)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value to insert
+ */
 int co_tree_set_int(co_obj_t *root, const char *key, const size_t klen, const signed long value);
+
+/**
+ * @brief set value contained in an object in the tree with a specified key (if an unsigned int)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value to insert
+ */
 int co_tree_set_uint(co_obj_t *root, const char *key, const size_t klen, const unsigned long value);
+
+/**
+ * @brief set value contained in an object in the tree with a specified key (if a float)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value to insert
+ */
 int co_tree_set_float(co_obj_t *root, const char *key, const size_t klen, const double value);
+
+/**
+ * @brief process tree with given iterator function
+ * @param tree tree object to process
+ * @param iter iterator function
+ * @param context additional arguments to iterator
+ */
 int co_tree_process(co_obj_t *tree, const co_iter_t iter, void *context);
+
+/**
+ * @brief free tree structure
+ * @param root tree object to free
+ */
 void co_tree_destroy(co_obj_t *root);
+
+/**
+ * @brief dump raw representation of tree
+ * @param output output buffer
+ * @param olen length of output buffer
+ * @param tree tree to dump
+ */
 size_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
+
+/**
+ * @brief import raw representation of tree
+ * @param tree target pointer of new, imported tree object
+ * @param input input buffer
+ * @param ilen length of input buffer
+ */
 size_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
+
+/**
+ * @brief print tree
+ * @param tree tree object to print
+ */
 int co_tree_print(co_obj_t *tree);
+
+/**
+ * @brief print raw dump of tree
+ * @param tree tree object to print
+ */
 int co_tree_print_raw(co_obj_t *tree);
 
 #endif

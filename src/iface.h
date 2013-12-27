@@ -90,19 +90,19 @@ co_obj_t *co_iface_add(const char *iface_name, const int family);
 
 /**
  * @brief connects the commotion interface to wpa supplicant
- * @param iface name of commotion interface
+ * @param iface interface object
  */
 int co_iface_wpa_connect(co_obj_t *iface);
 
 /**
  * @brief turns off wpa supplicant
- * @param iface name of commotion interface
+ * @param iface interface object
  */
 int co_iface_wpa_disconnect(co_obj_t *iface);
 
 /**
  * @brief 
- * @param iface interface name
+ * @param iface interface object
  * @param output output of hardware MAC address lookup
  * @param output_size size of MAC address. Must be six bytes
  */
@@ -110,7 +110,7 @@ int co_iface_get_mac(co_obj_t *iface, unsigned char *output, int output_size);
 
 /**
  * @brief sets ip address and netmask for commotion interface
- * @param iface name of commotion interface
+ * @param iface interface object
  * @param ip_addr ip address for the socket
  * @param netmask netmask for the socket
  */
@@ -118,68 +118,68 @@ int co_iface_set_ip(co_obj_t *iface, const char *ip_addr, const char *netmask);
 
 /**
  * @brief Resets ip address of chosen interface
- * @param iface interface name
+ * @param iface interface object
  */
 int co_iface_unset_ip(co_obj_t *iface);
 
 /**
  * @brief sets SSID from profile or uses default
- * @param iface name of interface
+ * @param iface interface object
  * @param ssid desired SSID
  */
 int co_iface_set_ssid(co_obj_t *iface, const char *ssid);
 
 /**
  * @brief sets BSSID from profile or uses default
- * @param iface name of interface
+ * @param iface interface object
  * @param bssid desired BSSID
  */
 int co_iface_set_bssid(co_obj_t *iface, const char *bssid);
 
 /**
  * @brief sets wireless frequency (eg. channel) from profile or uses default
- * @param iface name of interface
+ * @param iface interface object
  * @param frequency desired frequency
  */
 int co_iface_set_frequency(co_obj_t *iface, const int frequency);
 
 /**
  * @brief specifies the wpa encryption protocol
- * @param iface name of interface
+ * @param iface interface object
  * @param proto desired protocol
  */
 int co_iface_set_encryption(co_obj_t *iface, const char *proto);
 
 /**
  * @brief specifies the wpa encryption key
- * @param iface name of interface
+ * @param iface interface object
  * @param key desired key
  */
 int co_iface_set_key(co_obj_t *iface, const char *key);
 
 /**
  * @brief specifies the Wi-Fi mode
- * @param iface name of interface
+ * @param iface interface object
  * @param mode desired mode
  */
 int co_iface_set_mode(co_obj_t *iface, const char *mode);
 
 /**
  * @brief sets AP_SCAN value
- * @param iface name of interface
+ * @param iface interface object
  * @param value desired value for AP_SCAN
  */
 int co_iface_set_apscan(co_obj_t *iface, const int value);
 
 /**
  * @brief enables specified wireless network
- * @param iface name of interface
+ * @param iface interface object
  */
 int co_iface_wireless_enable(co_obj_t *iface);
 
 /**
  * @brief disables specified wireless network
- * @param iface name of interface
+ * @param iface interface object
  */
 int co_iface_wireless_disable(co_obj_t *iface);
 

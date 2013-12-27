@@ -47,30 +47,97 @@ typedef struct _listnode_t _listnode_t;
 _DECLARE_LIST(16);
 _DECLARE_LIST(32);
 
+/**
+ * @brief return length (number of objects) of given list
+ * @param list list object
+ */
 size_t co_list_length(co_obj_t *list);
 
+/**
+ * @brief return first element of given list
+ * @param list list object
+ */
 co_obj_t * co_list_get_first(const co_obj_t *list);
 
+/**
+ * @brief return last element of given list
+ * @param list list object
+ */
 co_obj_t * co_list_get_last(const co_obj_t *list);
 
+/**
+ * @brief process list with given iterator function
+ * @param list list object to process
+ * @param iter iterator function
+ * @param context additional arguments to iterator
+ */
 co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
 
+/**
+ * @brief determine if list contains specified item
+ * @param list list object to process
+ * @param item item to search for
+ */
 int co_list_contains(co_obj_t *list, co_obj_t *item);
 
+/**
+ * @brief insert new item in list before specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert before
+ */
 int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
     co_obj_t *this_obj);
 
+/**
+ * @brief insert new item in list after specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert after
+ */
 int co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
+/**
+ * @brief insert new item at beginning of list
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
 int co_list_prepend(co_obj_t *list, co_obj_t *new_obj);
 
+/**
+ * @brief insert new item at end of list
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
 int co_list_append(co_obj_t *list, co_obj_t *new_obj);
 
+/**
+ * @brief delete specified item from list
+ * @param list list object to process
+ * @param item item to delete
+ */
 co_obj_t *co_list_delete(co_obj_t *list, co_obj_t *item);
 
+/**
+ * @brief return item at specified position in list
+ * @param list list object to process
+ * @param index number of item to return
+ */
 co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
 
+/**
+ * @brief dump raw representation of list
+ * @param output output buffer 
+ * @param olen length of output buffer 
+ * @param list list object to process
+ */
 size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
 
+/**
+ * @brief import list from raw representation
+ * @param list target pointer to new list object
+ * @param input input buffer 
+ * @param ilen length of input buffer 
+ */
 size_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
 #endif

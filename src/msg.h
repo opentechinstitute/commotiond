@@ -38,7 +38,23 @@
 #include <inttypes.h>
 #include "obj.h"
 
+/**
+ * @brief allocate request
+ * @param output buffer for output
+ * @param olen output buffer length
+ * @param method name of method
+ * @param param parameters to method
+ */
 size_t co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj_t *param);
+
+/**
+ * @brief allocate response
+ * @param output buffer for output
+ * @param olen output buffer length
+ * @param id response ID
+ * @param error error object
+ * @param result result of request
+ */
 size_t co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_obj_t *error, co_obj_t *result);
 
 #endif

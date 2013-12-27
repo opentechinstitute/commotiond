@@ -37,6 +37,9 @@
 
 typedef struct co_plugin_t co_plugin_t;
 
+/**
+ * @struct co_plugin_t contains file path, descriptor and name information for plugins
+ */
 struct co_plugin_t {
   co_obj_t _header;
   uint8_t _exttype;
@@ -48,12 +51,26 @@ struct co_plugin_t {
   void *handle;
 } __attribute__((packed));
 
+/**
+ * @brief shuts down and closes all plugins
+ */
 int co_plugins_shutdown(void);
 
+/**
+ * @brief starts all loaded plugins
+ */
 int co_plugins_start(void);
 
+/**
+ * @brief initializes global plugin list
+ * @param index_size specifies size of index for plugins list (16 or 32 bit)
+ */
 int co_plugins_init(size_t index_size);
 
+/**
+ * @brief loads all plugins in specified path
+ * @param dir_path directory to load plugins from
+ */
 int co_plugins_load(const char *dir_path);
 
 #endif
