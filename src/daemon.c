@@ -178,7 +178,6 @@ CMD(up)
   co_obj_t *prof = co_profile_find(co_list_element(params, 1));
   CHECK(prof != NULL, "Failed to load profile.");
 #ifndef _OPENWRT
-  co_profile_dump(prof);
   char *ipgen, *ip, *ipgenmask, *ssid, *bssid, *mode, *dns, *domain, *netmask;
   unsigned int chan;
   CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")), "Failed to get 'ip' option.");
@@ -928,8 +927,6 @@ int main(int argc, char *argv[]) {
   }
 
   co_id_set_from_int(newid);
-  nodeid_t id = co_id_get();
-  DEBUG("Node ID: %d", (int) id.id);
 
   co_profiles_init(16); /* Set up profiles */
   SCHEMA_GLOBAL(global);
