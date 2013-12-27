@@ -51,7 +51,6 @@
 #include "profile.h"
 #include "socket.h"
 #include "msg.h"
-#include "olsrd.h"
 #include "iface.h"
 #include "id.h"
 #include "obj.h"
