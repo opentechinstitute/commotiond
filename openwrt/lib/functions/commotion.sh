@@ -11,6 +11,34 @@ SOCKET="/var/run/commotiond.sock"
 DEFAULT_WAN_ZONE="wan"
 DEFAULT_CLIENT_BRIDGE="client"
 
+is_true() {
+  case "$1" in
+    1|on|true|enabled)
+      echo "0"
+      return 0
+    ;;
+    0|off|false|disabled)
+      echo "1"
+      return 1
+    ;;
+  esac
+  return 1
+}
+  
+is_false() {
+  case "$1" in
+    1|on|true|enabled)
+      echo "1"
+      return 1
+    ;;
+    0|off|false|disabled)
+      echo "0"
+      return 0
+    ;;
+  esac
+  return 1
+}
+  
 unset_bridge() {
   local bridge="$1"
   local ifname="$2"
