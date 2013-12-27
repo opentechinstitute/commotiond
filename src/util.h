@@ -33,6 +33,7 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 #include <stdlib.h>
+#include <stdint.h>
 
 #define NEW(O, T) O##_create(sizeof(T##_t), T##_proto)
 #define _(N) proto.N

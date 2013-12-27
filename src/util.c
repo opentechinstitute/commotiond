@@ -40,6 +40,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdint.h>
 #include "debug.h"
 #include "util.h"
 #include "extern/md5.h"
@@ -326,15 +327,24 @@ void get_bssid(const char *essid, const unsigned int chan, char *bssid) {
   DEBUG("Hash: %s", (char *)hash);
 
   for(i = 0; i < BSSID_SIZE - CHAN_SIZE; i++)
+  {
     bssid[i] = hash[i];
+    DEBUG("BSSID byte %d as char: %c, as int: %d", i, bssid[i], bssid[i]);
+  }
 
-  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons((uint16_t)chan));
+  bssid[i] = chan / 10;
+  bssid[i + 1] = chan % 10;
+/*
+  snprintfcat(channel, CHAN_SIZE + 1, "%u", htons(chan));
 
   for(int j = 0; j < CHAN_SIZE; j++)
   {
     bssid[i] = channel[j];
     i++;
+    DEBUG("BSSID byte %d as char: %c, as int: %d", i, bssid[i], bssid[i]);
+    DEBUG("Channel byte %d as char: %c, as int: %d", j, channel[j], channel[j]);
   }
+*/
 
 
   DEBUG("BSSID buffer: %s", (char *)bssid);
