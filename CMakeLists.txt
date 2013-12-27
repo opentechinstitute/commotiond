@@ -16,7 +16,7 @@ SET(COMMOTION_PIDFILE \"/var/run/commotiond.pid\")
 SET(COMMOTION_MANAGESOCK \"/var/run/commotiond.sock\")
 SET(COMMOTION_PLUGINDIR \"/usr/lib/commotion/plugins\")
 SET(COMMOTION_PROFILEDIR \"/etc/commotion/profiles.d\")
-SET(CMAKE_VERBOSE_MAKEFILE ON)
+SET(CMAKE_VERBOSE_MAKEFILE OFF)
 
 SET(COMMON_INCLUDES ${PROJECT_SOURCE_DIR}/src)
 
