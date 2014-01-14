@@ -121,12 +121,12 @@ proto_commotion_setup() {
 	      		logger -t "commotion.proto" -s "Restarting $client_bridge interface"
 	      		ubus call network.interface."$client_bridge" down
 	      		ubus call network.interface."$client_bridge" up
-	      		local bridge_ip="$(uci_get_state "network" "$client_bridge" "ipaddr" "$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)")"
-	      		logger -t "commotion.proto" -s "Bridge IP state: "$(uci_get_state $client_bridge ipaddr)"
-	      		logger -t "commotion.proto" -s "Bridge generated IP: "$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)"
-	      		local bridge_netmask="$(uci_get_state "network" "$client_bridge" "netmask" "$DEFAULT_CLIENT_NETMASK")"
-	      		logger -t "commotion.proto" -s "Bridge Netmask state: "$(uci_get_state $client_bridge netmask)"
-	      		logger -t "commotion.proto" -s "Bridge Default netmask: "$DEFAULT_CLIENT_NETMASK"
+	      		local bridge_ip="$(uci_get_state network $client_bridge ipaddr $(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw))"
+	      		logger -t "commotion.proto" -s "Bridge IP state: $(uci_get_state $client_bridge ipaddr)"
+	      		logger -t "commotion.proto" -s "Bridge generated IP: $(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)"
+	      		local bridge_netmask="$(uci_get_state network $client_bridge netmask $DEFAULT_CLIENT_NETMASK)"
+	      		logger -t "commotion.proto" -s "Bridge Netmask state: $(uci_get_state $client_bridge netmask)"
+	      		logger -t "commotion.proto" -s "Bridge Default netmask: $DEFAULT_CLIENT_NETMASK"
 	      		logger -t "commotion.proto" -s "Bridge: $client_bridge, IP: $bridge_ip, Netmask: $bridge_netmask"
 	      		uci_set network "$client_bridge" ipaddr "$bridge_ip"
 	      		uci_set_state network "$client_bridge" ipaddr "$bridge_ip"
