@@ -179,8 +179,8 @@ CMD(up)
   unsigned int chan;
   CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")), "Failed to get 'ip' option.");
   CHECK(co_profile_get_str(prof, &netmask, "netmask", sizeof("netmask")), "Failed to get 'netmask' option.");
-  CHECK(co_profile_get_str(prof, &ipgen, "ipgenerate", sizeof("ipgenerate")), "Failed to get 'ipgenerate' option.");
-  CHECK(co_profile_get_str(prof, &ipgenmask, "ipgeneratemask", sizeof("ipgeneratemask")), "Failed to get 'ipgeneratemask' option.");
+  CHECK(co_profile_get_str(prof, &ipgen, "ipgen", sizeof("ipgen")), "Failed to get 'ipgen' option.");
+  CHECK(co_profile_get_str(prof, &ipgenmask, "ipgenmask", sizeof("ipgenmask")), "Failed to get 'ipgenmask' option.");
   CHECK(co_profile_get_str(prof, &ssid, "ssid", sizeof("ssid")), "Failed to get 'ssid' option.");
   CHECK(co_profile_get_str(prof, &bssid, "bssid", sizeof("bssid")), "Failed to get 'bssid' option.");
   CHECK(co_profile_get_str(prof, &mode, "mode", sizeof("mode")), "Failed to get 'mode' option.");
