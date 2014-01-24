@@ -97,6 +97,7 @@ error:
 }
 
 static int _co_iface_wpa_remove_network(co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
@@ -108,6 +109,7 @@ error:
 }
 
 static int _co_iface_wpa_disable_network(co_obj_t *iface_obj) {
+  co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
   
