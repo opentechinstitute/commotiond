@@ -1,5 +1,5 @@
---- mac80211.sh.orig	2013-12-18 21:23:28.645954870 -0600
-+++ mac80211.sh	2013-12-24 22:19:20.575201046 -0600
+--- mac80211.sh.orig	2014-01-30 17:05:32.774138436 -0500
++++ mac80211.sh	2014-01-30 17:04:01.574138749 -0500
 @@ -1,6 +1,8 @@
  #!/bin/sh
  append DRIVERS "mac80211"
@@ -9,7 +9,7 @@
  mac80211_hostapd_setup_base() {
  	local phy="$1"
  	local ifname="$2"
-@@ -353,10 +355,53 @@
+@@ -353,10 +355,52 @@
  		[ -n "$ifname" ] || {
  			[ $i -gt 0 ] && ifname="wlan${phy#phy}-$i" || ifname="wlan${phy#phy}"
  		}
@@ -36,7 +36,6 @@
 +				encryption="none"
 +			fi
 +			export channel
-+			iw dev "$ifname" set channel "$channel"
 +			config_set "$device" channel "$channel"
 +			uci_set wireless "$device" channel "$channel"
 +			config_set "$vif" mode "$mode"
@@ -65,7 +64,16 @@
  
  		# It is far easier to delete and create the desired interface
  		case "$mode" in
-@@ -460,12 +505,37 @@
+@@ -407,7 +451,7 @@
+ 		#
+ 		# ALL station functionality will be passed to wpa_supplicant
+ 		#
+-		if [ ! "$mode" = "ap" ]; then
++		if [ "$mode" != "ap" -a "$mode" != "adhoc" ]; then
+ 			# We attempt to set the channel for all interfaces, although
+ 			# mac80211 may not support it or the driver might not yet
+ 			# for ap mode this is handled by hostapd
+@@ -460,12 +504,37 @@
  
  		case "$mode" in
  			adhoc)

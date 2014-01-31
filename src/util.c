@@ -332,6 +332,13 @@ void get_bssid(const char *essid, const unsigned int chan, char *bssid) {
     DEBUG("BSSID byte %d as char: %c, as int: %d", i, bssid[i], bssid[i]);
   }
 
+  /*
+   * Set the first byte to 0x02 (the value of
+   * a link-local ethernet address) which is
+   * required for a valid bssid.
+   */
+  bssid[0] = 0x02;
+
   bssid[i] = chan / 10;
   bssid[i + 1] = chan % 10;
 
