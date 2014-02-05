@@ -703,7 +703,7 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *fd) {
   co_socket_t *sock = (co_socket_t*)self;
   char reqbuf[REQUEST_MAX];
   memset(reqbuf, '\0', sizeof(reqbuf));
-  size_t reqlen = 0;
+  ssize_t reqlen = 0;
   char respbuf[RESPONSE_MAX];
   memset(respbuf, '\0', sizeof(respbuf));
   size_t resplen = 0;
