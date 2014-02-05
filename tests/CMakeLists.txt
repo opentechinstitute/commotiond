@@ -32,12 +32,11 @@ file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
 add_dependencies(${PROJECT_TEST_NAME} googletest)
 
-
 target_link_libraries(${PROJECT_TEST_NAME} commotion)
-target_link_libraries(${PROJECT_TEST_NAME} pthread)
 target_link_libraries(${PROJECT_TEST_NAME}
 	${GTEST_LIBS_DIR}/libgtest.a
 	${GTEST_LIBS_DIR}/libgtest_main.a)
+target_link_libraries(${PROJECT_TEST_NAME} pthread)
 
 add_test(test1 ${PROJECT_TEST_NAME})
 

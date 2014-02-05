@@ -101,7 +101,7 @@ static int _co_iface_wpa_remove_network(co_obj_t *iface_obj) {
   size_t len;
   
   CHECK(_co_iface_wpa_command(iface_obj, "REMOVE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
-  DEBUG("Removed wpa_supplicant network #%d", iface->wpa_id);
+  DEBUG("Removed wpa_supplicant network #%d", ((co_iface_t *)iface_obj)->wpa_id);
   return 1;
 error:
   return 0;
@@ -112,7 +112,7 @@ static int _co_iface_wpa_disable_network(co_obj_t *iface_obj) {
   size_t len;
   
   CHECK(_co_iface_wpa_command(iface_obj, "DISABLE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
-  DEBUG("Disabled wpa_supplicant network #%d", iface->wpa_id);
+  DEBUG("Disabled wpa_supplicant network #%d", ((co_iface_t *)iface_obj)->wpa_id);
   return 1;
 error:
   return 0;

@@ -189,7 +189,8 @@ co_call(co_obj_t *connection, co_obj_t **response, const char *method, const siz
   CHECK(connection != NULL && IS_SOCK(connection), "Invalid connection.");
   co_obj_t *params = NULL, *rlist = NULL, *rtree = NULL;
   int retval = 0;
-  size_t reqlen = 0, resplen = 0;
+  size_t reqlen = 0;
+  ssize_t resplen = 0;
   char req[REQUEST_MAX];
   char resp[RESPONSE_MAX];
   if(request != NULL)
