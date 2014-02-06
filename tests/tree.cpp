@@ -126,6 +126,10 @@ void TreeTest::DeleteObj()
   ASSERT_EQ(TestString2, ptr);
   
   ptr = co_tree_find(Tree16, "1TESTKEY1", 9);
+  ASSERT_EQ(NULL, ptr);
+  
+  ptr = co_tree_find(Tree16, "2TESTKEY2", 9);
+  ASSERT_EQ(NULL, ptr);
 
   
   // repeat for Tree32
@@ -140,6 +144,12 @@ void TreeTest::DeleteObj()
   
   ptr = co_tree_delete(Tree32, "2TESTKEY2", 9);
   ASSERT_EQ(TestString2, ptr);
+  
+  ptr = co_tree_find(Tree32, "1TESTKEY1", 9);
+  ASSERT_EQ(NULL, ptr);
+  
+  ptr = co_tree_find(Tree32, "2TESTKEY2", 9);
+  ASSERT_EQ(NULL, ptr);
 
 }
 
