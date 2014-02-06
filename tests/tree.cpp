@@ -35,6 +35,13 @@ extern "C" {
 }
 #include "gtest/gtest.h"
 
+/*
+ * NOTE: Inserting keys with different length values will be interpreted as different keys (eg insert("test", 5) and insert("test", 6) are not the same
+ * and their values will be stored in different nodes in the tree
+ * 
+ * 
+ */
+
 class TreeTest : public ::testing::Test
 {
   protected:
@@ -42,11 +49,21 @@ class TreeTest : public ::testing::Test
     co_obj_t *Tree32;
     void InsertObj();
     void DeleteObj();
+    co_obj_t *TestString1;
+    co_obj_t *TestString2;
+    
+    int ret;
 
     TreeTest()
     {
       Tree16 = co_tree16_create();
       Tree32 = co_tree32_create();
+      
+      TestString1 = co_str8_create("1TESTVALUE1", 11, 0);
+      TestString2 = co_str8_create("2TESTVALUE2", 12, 0);
+      
+      int ret = NULL;
+      
     }
 
     virtual void SetUp()
@@ -62,40 +79,51 @@ class TreeTest : public ::testing::Test
 
 void TreeTest::InsertObj()
 {
-  co_obj_t *TestString1 = co_bin8_create("1TESTVALUE1", 11, 0);
-  int ret = co_tree_insert(Tree16, "1TESTKEY1", 10, TestString1);
+  ret = co_tree_insert(Tree16, "1TESTKEY1", 10, TestString1);
   ASSERT_EQ(1, ret);
+  
   co_obj_t *ptr = co_tree_find(Tree16, "1TESTKEY1", 10);
   ASSERT_EQ(TestString1, ptr);
-  co_obj_t *TestString2 = co_bin8_create("2TESTVALUE2", 12, 0);
+  
   ret = co_tree_insert(Tree16, "2TESTKEY2", 10, TestString2);
   ASSERT_EQ(1, ret);
+  
   ptr = co_tree_find(Tree16, "2TESTKEY2", 10);
   ASSERT_EQ(TestString2, ptr);
+  
   ret = co_tree_insert(Tree32, "1TESTKEY1", 10, TestString1);
   ASSERT_EQ(1, ret);
+  
   ptr = co_tree_find(Tree32, "1TESTKEY1", 10);
   ASSERT_EQ(TestString1, ptr);
+  
   ret = co_tree_insert(Tree32, "2TESTKEY2", 10, TestString2);
   ASSERT_EQ(1, ret);
+  
   ptr = co_tree_find(Tree32, "2TESTKEY2", 10);
   ASSERT_EQ(TestString2, ptr);
 }
 
 void TreeTest::DeleteObj()
 {
-  co_obj_t *TestString1 = co_bin8_create("1TESTVALUE1", 11, 0);
-  int ret = co_tree_insert(Tree16, "1TESTKEY1", 9, TestString1);
+  
+  ret = co_tree_insert(Tree16, "1TESTKEY1", 9, TestString1);
   ASSERT_EQ(1, ret);
+  
   co_obj_t *ptr = co_tree_delete(Tree16, "1TESTKEY1", 9);
   ASSERT_EQ(TestString1, ptr);
-  co_obj_t *TestString2 = co_bin8_create("2TESTVALUE2", 11, 0);
+  
+  // co_obj_t *TestString2 = co_bin8_create("2TESTVALUE2", 11, 0);
   ret = co_tree_insert(Tree16, "2TESTKEY2", 9, TestString2);
   ASSERT_EQ(1, ret);
+  
   ptr = co_tree_delete(Tree16, "2TESTKEY2", 9);
   ASSERT_EQ(TestString2, ptr);
-}
   
+  // repeat for Tree32
+  
+}
+
 TEST_F(TreeTest, TreeInsertTest)
 {
   InsertObj();
