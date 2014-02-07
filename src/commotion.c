@@ -159,7 +159,7 @@ co_request_append_int(co_obj_t *request, const int i)
 {
   CHECK_MEM(request);
   CHECK(IS_LIST(request), "Not a valid request.");
-  CHECK(i > INT64_MAX || i < INT64_MIN, "Integer out of bounds.");
+  CHECK(i < INT64_MAX && i > INT64_MIN, "Integer out of bounds.");
   if(i > INT32_MAX || i < INT32_MIN) return co_list_append(request, co_int64_create(i, 0));
   if(i > INT16_MAX || i < INT16_MIN) return co_list_append(request, co_int32_create(i, 0));
   if(i > INT8_MAX || i < INT8_MIN) return co_list_append(request, co_int16_create(i, 0));
@@ -173,7 +173,7 @@ co_request_append_uint(co_obj_t *request, const unsigned int i)
 {
   CHECK_MEM(request);
   CHECK(IS_LIST(request), "Not a valid request.");
-  CHECK(i > UINT64_MAX, "Integer out of bounds.");
+  CHECK(i < UINT64_MAX, "Integer out of bounds.");
   if(i > UINT32_MAX) return co_list_append(request, co_uint64_create(i, 0));
   if(i > UINT16_MAX) return co_list_append(request, co_uint32_create(i, 0));
   if(i > UINT8_MAX) return co_list_append(request, co_uint16_create(i, 0));
