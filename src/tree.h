@@ -193,6 +193,13 @@ size_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
 size_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
 
 /**
+ * @brief print tree with indent
+ * @param tree tree object to print
+ * @param indent level of indent
+ */
+void co_tree_print_indent(co_obj_t *tree, int indent);
+
+/**
  * @brief print tree
  * @param tree tree object to print
  */
