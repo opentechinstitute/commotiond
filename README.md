@@ -4,7 +4,7 @@ This embedded library and daemon are the start of what will form the new core of
 
 Build it
 ============
-NOTE: this project uses CMake, so you must have that installed on your system:
+NOTE: this project uses CMake, so you must have that installed on your system, as well as subversion and sqlite3 header files (libsqlite3-dev).
 
 1. Clone the repository.
 2. cd commmotiond
