@@ -308,12 +308,14 @@ _co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *va
     ((co_tree16_t *)root)->root = _co_tree_insert_r(((co_tree16_t *)root)->root, \
       ((co_tree16_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree16_t *)root)->root;
+    hattach(n, root);
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
     ((co_tree32_t *)root)->root = _co_tree_insert_r(((co_tree32_t *)root)->root, \
       ((co_tree32_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree32_t *)root)->root;
+    hattach(n, root);
   }
 
   CHECK(n != NULL, "Failed to insert value.");
