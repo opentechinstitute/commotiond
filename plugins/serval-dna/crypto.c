@@ -179,7 +179,7 @@ int cmd_serval_sign(const char *sid_str,
     stowSid(packedSid,0,sid_str);
   }
   
-  if (keyring_path) {
+  if (keyring_path || !sid_len) {
     CHECK_ERR(serval_init_keyring(sid_str ? packedSid : NULL,
                      sid_str ? SID_SIZE : 0,
 		     keyring_path,
