@@ -38,6 +38,25 @@
 
 #define KEYRING_PIN NULL
 #define BUF_SIZE 1024
+#define crypto_sign_PUBLICKEYBYTES crypto_sign_edwards25519sha512batch_PUBLICKEYBYTES
+#define crypto_sign_SECRETKEYBYTES crypto_sign_edwards25519sha512batch_SECRETKEYBYTES
+#define SIGNATURE_BYTES crypto_sign_edwards25519sha512batch_BYTES
+
+struct svl_crypto_ctx {
+  char *keyring_path;
+  size_t keyring_len;
+  keyring_file *keyring_file;
+  unsigned char sid[SID_SIZE]; // SID public key
+  unsigned char sas_public[crypto_sign_PUBLICKEYBYTES]; // SAS public key
+  unsigned char sas_private[crypto_sign_SECRETKEYBYTES]; // SAS private key
+  unsigned char signature[SIGNATURE_BYTES];
+  unsigned char *msg; // byte array used to create signature
+  size_t msg_len;
+};
+typedef struct svl_crypto_ctx svl_crypto_ctx;
+
+svl_crypto_ctx *svl_crypto_ctx_new(void);
+void svl_crypto_ctx_free(svl_crypto_ctx *ctx);
 
 int serval_crypto_register(void);
 
@@ -51,41 +70,14 @@ int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
 int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
-int serval_open_keyring(const char *keyring_path,
-			const size_t keyring_len,
-			keyring_file **_keyring);
+int serval_open_keyring(svl_crypto_ctx *ctx);
 
-int serval_init_keyring(unsigned char *sid,
-		 const size_t sid_len,
-		 const char *keyring_path,
-		 const size_t keyring_len,
-		 keyring_file **_keyring,
-		 unsigned char **key,
-		 int *key_len);
+int serval_init_keyring(svl_crypto_ctx *ctx);
 
-int cmd_serval_sign(const char *sid_str, 
-		    const size_t sid_len,
-		    const unsigned char *msg,
-		    const size_t msg_len,
-		    char *sig_str_buf,
-		    const size_t sig_str_size,
-		    const char *keyring_path,
-		    const size_t keyring_len);
+int cmd_serval_sign(svl_crypto_ctx *ctx);
 
-int cmd_serval_verify(const char *sas_key,
-		   const size_t sas_key_len,
-		   const unsigned char *msg,
-		   const size_t msg_len,
-		   const char *sig,
-		   const size_t sig_len);
+int cmd_serval_verify(svl_crypto_ctx *ctx);
 
-int serval_verify_client(const char *sid_str,
-		  const size_t sid_len,
-		  const unsigned char *msg,
-		  const size_t msg_len,
-		  const char *sig,
-		  const size_t sig_len,
-		  const char *keyring_path,
-		  const size_t keyring_len);
+int serval_verify_client(svl_crypto_ctx *ctx);
 
 #endif
