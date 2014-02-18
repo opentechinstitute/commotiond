@@ -246,51 +246,22 @@ static int serval_cmd(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   int ret = 1, opt = 0, opt_index = 0;
-//   char *keyring_opt = NULL;
-//   static const char *opt_string = "k:h";
   static const char *opt_string = "h";
   svl_crypto_ctx *ctx = svl_crypto_ctx_new();
   CHECK_MEM(ctx);
 
   static struct option long_opts[] = {
-//     {"keyring", required_argument, NULL, 'k'},
     {"help", no_argument, NULL, 'h'}
   };
 
-//   opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
-
-//   while(opt != -1) {
-//     switch(opt) {
-//       case 'k':
-// 	keyring_opt = optarg;
-// 	break;
-//       case 'h':
-//       default:
-  if (getopt_long(argc, argv, opt_string, long_opts, &opt_index) != -1) { 
+  if ((opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index)) != -1) { 
     // TODO
-//     serval_cmd(1,["help"]);
-//         print_usage(SERVAL_CRYPTO);
-	if (opt == 'h')
-	  return 0;
-        return 1;
+    char *asd[] = {"help"};
+    serval_cmd(1,asd);
+    if (opt == 'h')
+      return 0;
+    return 1;
   }
-//         break;
-//     }
-//     opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
-//   }
-  
-//   if (keyring_opt) {
-//     CHECK(strlen(keyring_opt) < PATH_MAX,"keyring path too long");
-//     strcpy(keyring_path,keyring_opt);
-//   } else {
-//     strcpy(keyring_path,DEFAULT_SERVAL_PATH);
-//     strcpy(keyring_path,"/");
-//     strcpy(keyring_path,"serval.keyring");
-//   }
-//   ctx->keyring_len = strlen(keyring_path);
-//   ctx->keyring_path = h_malloc(ctx->keyring_len + 1);
-//   strcpy(ctx->keyring_path,keyring_path);
-//   hattach(ctx->keyring_path,ctx);
   
   // Run the Serval command
   
@@ -343,14 +314,6 @@ int main(int argc, char *argv[]) {
     ctx->msg = (unsigned char*)argv[optind+3];
     ctx->msg_len = strlen(argv[optind+3]);
     int verdict = serval_verify_client(ctx);
-//     int verdict = serval_verify_client(argv[optind+1],
-// 				strlen(argv[optind+1]),
-// 				(unsigned char*)argv[optind+3],
-// 				strlen(argv[optind+3]),
-// 				argv[optind+2],
-// 				strlen(argv[optind+2]),
-// 				keyring_path,
-// 				strlen(keyring_path));
     if (verdict == 1)
       printf("Message verified!\n");
     else
@@ -364,6 +327,7 @@ int main(int argc, char *argv[]) {
   overlay_mdp_client_done();
   rhizome_close_db();
   
+  ret = 0;
 error:
   if (ctx)
     svl_crypto_ctx_free(ctx);

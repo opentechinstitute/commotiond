@@ -97,8 +97,8 @@ serval_extract_sas(svl_crypto_ctx *ctx)
   unsigned char *sas_public = NULL;
   unsigned char *sas_private = keyring_find_sas_private(ctx->keyring_file, ctx->sid, &sas_public);
   CHECK(sas_private && sas_public,"Failed to fetch SAS private key");
-  memcpy(ctx->sas_private, sas_private, crypto_sign_PUBLICKEYBYTES);
-  memcpy(ctx->sas_public, sas_public, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->sas_private, sas_private, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->sas_public, sas_public, crypto_sign_PUBLICKEYBYTES);
   return 1;
 error:
   return 0;
@@ -322,6 +322,7 @@ cmd_serval_sign(svl_crypto_ctx *ctx)
 	      "Failed to initialize Serval keyring");
   } else {
     // or just use the default keyring
+    ctx->keyring_file = keyring; // serval global
     CHECK_ERR(serval_extract_sas(ctx),
 	      "Failed to fetch SAS keys");
   }
