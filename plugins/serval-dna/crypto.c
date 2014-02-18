@@ -469,7 +469,6 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   if (co_str_cmp_str(co_list_element(params, 0), "sign") == 0) {
     
     CHECK_ERR(list_len == 2 || list_len == 3, "Invalid arguments");
-    char sig_buf[(2 * SIGNATURE_BYTES) + 1] = {0};
     
     if (list_len == 3) {
       char *sid_str = _LIST_ELEMENT(params, 1);
@@ -498,10 +497,16 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     }
     CHECK_ERR(cmd_serval_sign(ctx), "Failed to create signature");
     
-    // convert ctx->signature to hex: 
-    strncpy(sig_buf, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
-    sig_buf[2 * SIGNATURE_BYTES] = '\0';
-    CMD_OUTPUT("result", co_str8_create(sig_buf, (2 * SIGNATURE_BYTES) + 1, 0));
+    // convert ctx->signature, ctx->sas_public, and ctx->sid to hex: 
+    char sid_str[(2 * SID_SIZE) + 1] = {0};
+    strncpy(sid_str, alloca_tohex(ctx->sid, SID_SIZE), 2 * SID_SIZE);
+    char sas_str[(2 * crypto_sign_PUBLICKEYBYTES) + 1] = {0};
+    strncpy(sas_str, alloca_tohex(ctx->sas_public, crypto_sign_PUBLICKEYBYTES), 2 * crypto_sign_PUBLICKEYBYTES);
+    char sig_str[(2 * SIGNATURE_BYTES) + 1] = {0};
+    strncpy(sig_str, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
+    CMD_OUTPUT("SID", co_str8_create(sid_str, (2 * SID_SIZE) + 1, 0));
+    CMD_OUTPUT("SAS", co_str8_create(sas_str, (2 * crypto_sign_PUBLICKEYBYTES) + 1, 0));
+    CMD_OUTPUT("signature", co_str8_create(sig_str, (2 * SIGNATURE_BYTES) + 1, 0));
     
   } else if (co_str_cmp_str(co_list_element(params, 0), "verify") == 0) {
     
@@ -517,9 +522,11 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     if (verdict == 1) {
       DEBUG("signature verified");
       CMD_OUTPUT("result", co_bool_create(true, 0));  // successfully verified
+      CMD_OUTPUT("verified",co_str8_create("true",sizeof("true"),0));
     } else if (verdict == 0) {
       DEBUG("signature NOT verified");
       CMD_OUTPUT("result", co_bool_create(false, 0));
+      CMD_OUTPUT("verified",co_str8_create("false",sizeof("false"),0));
     }
     
   }
