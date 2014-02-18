@@ -31,7 +31,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -245,23 +244,10 @@ static int serval_cmd(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  int ret = 1, opt = 0, opt_index = 0;
-  static const char *opt_string = "h";
+  int ret = 1;
+  char *instance_path = NULL;
   svl_crypto_ctx *ctx = svl_crypto_ctx_new();
   CHECK_MEM(ctx);
-
-  static struct option long_opts[] = {
-    {"help", no_argument, NULL, 'h'}
-  };
-
-  if ((opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index)) != -1) { 
-    // TODO
-    char *asd[] = {"help"};
-    serval_cmd(1,asd);
-    if (opt == 'h')
-      return 0;
-    return 1;
-  }
   
   // Run the Serval command
   
@@ -278,22 +264,24 @@ int main(int argc, char *argv[]) {
   }
   ctx->keyring_len = strlen(ctx->keyring_path);
   
-  if (!strcmp(argv[optind],"sign")) {
-    if (argc - optind < 2 || argc - optind > 3) {
+  argc--;
+  argv++;
+  if (!strcmp(argv[0],"sign")) {
+    if (argc < 2 || argc > 3) {
       print_usage(SERVAL_SIGN);
       goto error;
     }
     char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
-    if (argc - optind == 3) {
-      char *sid_str = argv[optind+1];
+    if (argc == 3) {
+      char *sid_str = argv[1];
       CHECK(strlen(sid_str) == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
 		"Invalid SID");
       stowSid(ctx->sid, 0, sid_str);
-      ctx->msg = (unsigned char*)argv[optind+2];
-      ctx->msg_len = strlen(argv[optind+2]);
-    } else if (argc - optind == 2) {
-      ctx->msg = (unsigned char*)argv[optind+1];
-      ctx->msg_len = strlen(argv[optind+1]);
+      ctx->msg = (unsigned char*)argv[2];
+      ctx->msg_len = strlen(argv[2]);
+    } else if (argc == 2) {
+      ctx->msg = (unsigned char*)argv[1];
+      ctx->msg_len = strlen(argv[1]);
     }
     CHECK(cmd_serval_sign(ctx), "Failed to create signature");
     // convert ctx->signature to hex: 
@@ -301,18 +289,26 @@ int main(int argc, char *argv[]) {
     sig_buf[2 * SIGNATURE_BYTES] = '\0';
     printf("%s\n",sig_buf);
     
-  } else if (!strcmp(argv[optind],"verify"))  {
-    if (argc - optind != 4) {
+  } else if (!strcmp(argv[0],"verify"))  {
+    if (argc != 4) {
       print_usage(SERVAL_VERIFY);
       goto error;
     }
-    char *sid_str = argv[optind+1];
+    
+    // Set SERVALINSTANCE_PATH environment variable
+    char *last_slash = strrchr(ctx->keyring_path,(int)'/');
+    instance_path = calloc(last_slash - ctx->keyring_path + 1,sizeof(char));
+    strncpy(instance_path,ctx->keyring_path,last_slash - ctx->keyring_path);
+    CHECK(setenv("SERVALINSTANCE_PATH", instance_path, 1) == 0,
+	      "Failed to set SERVALINSTANCE_PATH env variable");
+    
+    char *sid_str = argv[1];
     CHECK(strlen(sid_str) == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
 	      "Invalid SID");
     stowSid(ctx->sid, 0, sid_str);
-    CHECK(fromhexstr(ctx->signature, argv[optind+2], SIGNATURE_BYTES) == 0, "Invalid signature");
-    ctx->msg = (unsigned char*)argv[optind+3];
-    ctx->msg_len = strlen(argv[optind+3]);
+    CHECK(fromhexstr(ctx->signature, argv[2], SIGNATURE_BYTES) == 0, "Invalid signature");
+    ctx->msg = (unsigned char*)argv[3];
+    ctx->msg_len = strlen(argv[3]);
     int verdict = serval_verify_client(ctx);
     if (verdict == 1)
       printf("Message verified!\n");
@@ -320,7 +316,7 @@ int main(int argc, char *argv[]) {
       printf("Message NOT verified!\n");
     
   } else {  // Serval built-in commands
-    ret = serval_cmd(argc - optind, argv + optind);
+    ret = serval_cmd(argc, argv);
   }
   
   /* clean up after ourselves */
@@ -329,6 +325,8 @@ int main(int argc, char *argv[]) {
   
   ret = 0;
 error:
+  if (instance_path)
+    free(instance_path);
   if (ctx)
     svl_crypto_ctx_free(ctx);
   return ret;
