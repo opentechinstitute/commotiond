@@ -281,7 +281,7 @@ serval_init_keyring(svl_crypto_ctx *ctx)
 {
   keyring_identity *new_ident;
   
-  CHECK_ERR(ctx && ctx->keyring_path && ctx->keyring_len,"Invalid ctx");
+  CHECK_ERR(ctx,"Invalid ctx");
   
   CHECK_ERR(serval_open_keyring(ctx), "Failed to open keyring");
   
