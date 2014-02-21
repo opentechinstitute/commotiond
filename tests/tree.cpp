@@ -67,8 +67,6 @@ class TreeTest : public ::testing::Test
       TestString1 = co_str8_create("1TESTVALUE1", 12, 0);
       TestString2 = co_str8_create("2TESTVALUE2", 12, 0);
       
-      // TestString3 = co_str8_create("1TESTVALUE1", 12, 0);
-      
       ReplaceString1 = co_str8_create("REPLACE", 9, 0);
     }
 
@@ -152,6 +150,9 @@ void TreeTest::DeleteObj()
   ptr = co_tree_find(Tree16, "2TESTKEY2", 10);
   ASSERT_EQ(NULL, ptr);
 
+  // reinitialize
+  TestString1 = co_str8_create("1TESTVALUE1", 12, 0);
+  TestString2 = co_str8_create("2TESTVALUE2", 12, 0);
   
   // repeat for Tree32
   ret = co_tree_insert(Tree32, "1TESTKEY1", 10, TestString1);
@@ -185,17 +186,19 @@ void TreeTest::UpdateObj()
   ptr = co_tree_find(Tree16, "1TESTKEY1", 10);
   ASSERT_EQ(0, co_str_cmp(ptr, ReplaceString1));
     
-  /*
+  
   // repeat for Tree32
   ret = co_tree_insert(Tree32, "1TESTKEY1", 10, TestString1);
   ASSERT_EQ(1, ret);
+  
                           
   ret = co_tree_set_str(Tree32, "1TESTKEY1", 10, "REPLACE", 9);
   ASSERT_EQ(1, ret);
     
+  
   ptr = co_tree_find(Tree32, "1TESTKEY1", 10);
   ASSERT_EQ(0, co_str_cmp(ptr, ReplaceString1));
-  */
+  
 }
 
 TEST_F(TreeTest, TreeInsertTest)
@@ -203,13 +206,14 @@ TEST_F(TreeTest, TreeInsertTest)
   InsertObj();
 } 
 
-
 TEST_F(TreeTest, TreeDeleteTest)
 {
   DeleteObj();
 } 
 
+/*
 TEST_F(TreeTest, TreeUpdateTest)
 {
     UpdateObj();
 } 
+*/
