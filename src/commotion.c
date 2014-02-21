@@ -361,6 +361,7 @@ error:
 void
 co_free(co_obj_t *object)
 {
+  hattach(object, NULL);
   co_obj_free(object);
   return;
 }
