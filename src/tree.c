@@ -239,16 +239,7 @@ co_tree_delete(co_obj_t *root, const char *key, const size_t klen)
   }
 
   CHECK(value != NULL, "Failed to delete value.");
-  
-  if(CO_TYPE(root) == _tree16)
-  {
-      CHECK(((co_tree16_t *)root)->_len - (_co_tree_decrement(root)) == 1, "Failed to decrement value.");
-  }
-  else if(CO_TYPE(root) == _tree32)
-  {
-      CHECK(((co_tree32_t *)root)->_len - (_co_tree_decrement(root)) == 1, "Failed to decrement value.");
-  }
-  
+  CHECK(_co_tree_decrement(root), "Failed to decrement value.");
   return value;
 error:
   return NULL;
