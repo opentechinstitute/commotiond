@@ -704,44 +704,105 @@ error:
 }
 
 static inline void
-_co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count)
+_co_tree_print_r(co_obj_t *tree, _treenode_t *current, int *count, int indent)
 {
   CHECK(IS_TREE(tree), "Recursion target is not a tree.");
   if(current == NULL) return;
+  
   char *key = NULL;
-  char *value = NULL;
+  char *val = NULL;
+  
   if(co_node_value(current) != NULL)
   {
     (*count)++;
     co_obj_data(&key, co_node_key(current));
-    co_obj_data(&value, co_node_value(current));
-    //CHECK(IS_STR(key) && IS_STR(value), "Incorrect types for profile.");
-    if(*count < co_tree_length(tree))
+    co_obj_t *value = co_node_value(current);
+    
+    for (int i = 0; i < indent; i++) printf("  ");
+    printf("\"%s\": ",key);
+
+    if ((CO_TYPE(value) == _tree16) || (CO_TYPE(value) == _tree32))
     {
-      printf(" \"%s\": \"%s\", ", key, value);
+      printf("\n");
+      for (int i = 0; i < indent; i++) printf("  ");
+      printf("  {\n");
+      int new_count = 0;
+      _co_tree_print_r((co_obj_t*)value, co_tree_root((co_obj_t*)value),&new_count, indent+2);
+      for (int i = 0; i < indent; i++) printf("  ");
+      printf("  }");
+    }
+    else if ((CO_TYPE(value) == _list16) || (CO_TYPE(value) == _list32))
+    {
+      printf("\n");
+      co_list_print_indent((co_obj_t*)value,indent+1);
     }
     else
     {
-      printf(" \"%s\": \"%s\" ", key, value);
+      co_obj_data(&val,value);
+      switch(CO_TYPE(value))
+      {
+	case _float32:
+	case _float64:
+	  printf("%f",*(float*)val);
+	  break;
+	case _uint8:
+	case _int8:
+	  printf("%d",*(int8_t*)val);
+	  break;
+	case _uint16:
+	case _int16:
+	  printf("%d",*(int16_t*)val);
+	  break;
+	case _uint32:
+	case _int32:
+	  printf("%ld",*(long*)val);
+	  break;
+	case _uint64:
+	case _int64:
+	  printf("%lld",*(long long*)val);
+	  break;
+	case _str8:
+	case _str16:
+	case _str32:
+	  printf("\"%s\"",val);
+	  break;
+	case _bin8:
+	case _bin16:
+	case _bin32:
+	  printf("%x",*(unsigned int*)val);
+      }
     }
+    if(*count < co_tree_length(tree))
+      printf(",");
+    printf("\n");
   }
-  _co_tree_print_r(tree, current->low, count); 
-  _co_tree_print_r(tree, current->equal, count); 
-  _co_tree_print_r(tree, current->high, count); 
-  return; 
+  _co_tree_print_r(tree, current->low, count, indent); 
+  _co_tree_print_r(tree, current->equal, count, indent); 
+  _co_tree_print_r(tree, current->high, count, indent); 
+  return;
 error:
   return;
+}
+
+void
+co_tree_print_indent(co_obj_t *tree, int indent)
+{
+  int count = 0;
+  
+  for (int i = 0; i < indent; i++) printf("  ");
+  printf("{\n");
+  _co_tree_print_r(tree, co_tree_root(tree), &count, indent+1);
+  for (int i = 0; i < indent; i++) printf("  ");
+  printf("}");
+  if (!indent) printf("\n");
 }
 
 int 
 co_tree_print(co_obj_t *tree)
 {
   CHECK_MEM(tree);
-  int count = 0;
 
-  printf("{");
-  _co_tree_print_r(tree, co_tree_root(tree), &count);
-  printf("}\n");
+  co_tree_print_indent(tree,0);
 
   return 1;
 error:

@@ -442,6 +442,12 @@ co_list_raw(char *output, const size_t olen, const co_obj_t *list)
         CHECK(read >= 0, "Failed to dump object.");
         CHECK(read + written < olen, "Data too large for buffer.");
     }
+    else if ((CO_TYPE(next->value) == _tree16) || (CO_TYPE(next->value) == _tree32))
+    {
+        read = co_tree_raw(out, olen - written, next->value);
+        CHECK(read >= 0, "Failed to dump object.");
+        CHECK(read + written < olen, "Data too large for buffer.");
+    }
     else
     {
         read = co_obj_raw(&in, next->value);
@@ -503,4 +509,89 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
   return read;
 error:
   return -1;
+}
+
+static co_obj_t *
+_co_list_print_i(co_obj_t *list, co_obj_t *current, void *_indent)
+{
+  if (current == list) return NULL;
+  
+  char *val = NULL;
+  int indent = *(int*)_indent;
+  
+  if ((CO_TYPE(current) == _tree16) || (CO_TYPE(current) == _tree32))
+  {
+    co_tree_print_indent(current, indent);
+  }
+  else if ((CO_TYPE(current) == _list16) || (CO_TYPE(current) == _list32))
+  {
+    co_list_print_indent(current, indent);
+  }
+  else
+  {
+    for (int i = 0; i < indent; i++) printf("  ");
+    co_obj_data(&val,current);
+    switch(CO_TYPE(current))
+    {
+      case _float32:
+      case _float64:
+	printf("%f",*(float*)val);
+	break;
+      case _uint8:
+      case _int8:
+	printf("%d",*(int8_t*)val);
+	break;
+      case _uint16:
+      case _int16:
+	printf("%d",*(int16_t*)val);
+	break;
+      case _uint32:
+      case _int32:
+	printf("%ld",*(long*)val);
+	break;
+      case _uint64:
+      case _int64:
+	printf("%lld",*(long long*)val);
+	break;
+      case _str8:
+      case _str16:
+      case _str32:
+	printf("\"%s\"",val);
+	break;
+      case _bin8:
+      case _bin16:
+      case _bin32:
+	printf("%x",*(unsigned int*)val);
+    }
+  }
+  if (co_list_get_last(list) != current)
+    printf(",");
+  printf("\n");
+  
+  return NULL;
+}
+
+void
+co_list_print_indent(co_obj_t *list, int indent)
+{
+  for (int i = 0; i < indent; i++) printf("  ");
+  printf("[\n");
+  indent++;
+  co_list_parse(list, _co_list_print_i, &indent);
+  indent--;
+  for (int i = 0; i < indent; i++) printf("  ");
+  printf("]");
+  if (!indent) printf("\n");
+}
+
+int 
+co_list_print(co_obj_t *list)
+{
+  CHECK_MEM(list);
+
+  co_list_print_indent(list,0);
+  
+  return 1;
+error:
+  return 0;
 }

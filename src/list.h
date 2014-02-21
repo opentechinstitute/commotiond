@@ -140,4 +140,18 @@ size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
  * @param ilen length of input buffer 
  */
 size_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
+
+/**
+ * @brief print list with indent
+ * @param list list  object to print
+ * @param indent level of indent
+ */
+void co_list_print_indent(co_obj_t *list, int indent);
+
+/**
+ * @brief print list
+ * @param list list object to print
+ */
+int co_list_print(co_obj_t *list);
+
 #endif
