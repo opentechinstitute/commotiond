@@ -179,7 +179,9 @@ int main(int argc, char *argv[]) {
       }
       if(co_call(conn, &response, method, mlen, request)) retval = 0;
       CHECK(response != NULL, "Invalid response");
+      co_free(request);
       co_response_print(response);
+      co_free(response);
     }
   }
   co_shutdown();
