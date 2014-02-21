@@ -536,7 +536,7 @@ CMD(get)
 {
   *output = co_tree16_create();
   size_t plen = co_list_length(params);
-  CHECK(((plen == 2) || (plen == 1)), "Incorrect parameters.");
+  CHECK((plen == 2), "Incorrect parameters.");
   co_obj_t *prof = NULL;
 
   if(!co_str_cmp_str(co_list_element(params, 0), "global"))
