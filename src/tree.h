@@ -89,7 +89,7 @@ _treenode_t *co_tree_root(const co_obj_t *tree);
  * @brief return length (number of key-value pairs) of given tree
  * @param tree tree object
  */
-size_t co_tree_length(co_obj_t *tree);
+ssize_t co_tree_length(co_obj_t *tree);
 
 /**
  * @brief return value from given tree that corresponds to key

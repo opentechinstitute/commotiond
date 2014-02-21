@@ -103,7 +103,7 @@ co_node_value(_treenode_t *node)
     return NULL;
 }
 
-static size_t 
+static ssize_t 
 _co_tree_change_length(co_obj_t *tree, const int delta)
 { 
   if(CO_TYPE(tree) == _tree16)
@@ -118,19 +118,19 @@ _co_tree_change_length(co_obj_t *tree, const int delta)
   return -1;
 }
 
-size_t 
+ssize_t 
 co_tree_length(co_obj_t *tree)
 { 
   return _co_tree_change_length(tree, 0);
 }
 
-static size_t 
+static ssize_t 
 _co_tree_increment(co_obj_t *tree)
 { 
   return _co_tree_change_length(tree, 1);
 }
 
-static size_t 
+static ssize_t 
 _co_tree_decrement(co_obj_t *tree)
 { 
   return _co_tree_change_length(tree, -1);
@@ -239,7 +239,7 @@ co_tree_delete(co_obj_t *root, const char *key, const size_t klen)
   }
 
   CHECK(value != NULL, "Failed to delete value.");
-  CHECK(_co_tree_decrement(root), "Failed to decrement value.");
+  CHECK(_co_tree_decrement(root) >= 0, "Failed to decrement value.");
   return value;
 error:
   return NULL;
@@ -308,16 +308,18 @@ _co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *va
     ((co_tree16_t *)root)->root = _co_tree_insert_r(((co_tree16_t *)root)->root, \
       ((co_tree16_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree16_t *)root)->root;
+    hattach(n, root);
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
     ((co_tree32_t *)root)->root = _co_tree_insert_r(((co_tree32_t *)root)->root, \
       ((co_tree32_t *)root)->root, key, klen, key, klen, value);
     n = ((co_tree32_t *)root)->root;
+    hattach(n, root);
   }
 
   CHECK(n != NULL, "Failed to insert value.");
-  CHECK(_co_tree_increment(root), "Failed to increment value.");
+  CHECK(_co_tree_increment(root) >= 0, "Failed to increment value.");
   return 1;
 error:
   return 0;
