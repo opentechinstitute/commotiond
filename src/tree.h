@@ -117,6 +117,15 @@ co_obj_t *co_tree_delete(co_obj_t *root, const char *key, const size_t klen);
 int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
 
 /**
+ * @brief insert object into given tree and associate with key, where value is not tied to tree
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value object to insert
+ */
+int co_tree_insert_unsafe(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+
+/**
  * @brief insert object into given tree and associate with key (overwrite if it exists)
  * @param root tree object
  * @param key key to search for
@@ -124,6 +133,15 @@ int co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t 
  * @param value value object to insert
  */
 int co_tree_insert_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
+
+/**
+ * @brief insert object into given tree and associate with key, where value is not tied to tree (overwrite if it exists)
+ * @param root tree object
+ * @param key key to search for
+ * @param klen length of key
+ * @param value value object to insert
+ */
+int co_tree_insert_unsafe_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value);
 
 /**
  * @brief set value contained in an object in the tree with a specified key (if a string)
