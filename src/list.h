@@ -90,12 +90,29 @@ int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
     co_obj_t *this_obj);
 
 /**
+ * @brief insert new item in list before specified item without the list managing the item's memory
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert before
+ */
+int co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, \
+    co_obj_t *this_obj);
+
+/**
  * @brief insert new item in list after specified item
  * @param list list object to process
  * @param new_obj item to insert
  * @param this_obj item to insert after
  */
 int co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
+
+/**
+ * @brief insert new item in list after specified item without the list managing the item's memory
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert after
+ */
+int co_list_insert_after_unsafe(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
 /**
  * @brief insert new item at beginning of list
@@ -105,11 +122,25 @@ int co_list_insert_after(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 int co_list_prepend(co_obj_t *list, co_obj_t *new_obj);
 
 /**
+ * @brief insert new item at beginning of list without the list managing the item's memory
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
+int co_list_prepend_unsafe(co_obj_t *list, co_obj_t *new_obj);
+
+/**
  * @brief insert new item at end of list
  * @param list list object to process
  * @param new_obj item to insert
  */
 int co_list_append(co_obj_t *list, co_obj_t *new_obj);
+
+/**
+ * @brief insert new item at end of list without the list managing the item's memory
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
+int co_list_append_unsafe(co_obj_t *list, co_obj_t *new_obj);
 
 /**
  * @brief delete specified item from list

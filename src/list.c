@@ -78,7 +78,7 @@ _DEFINE_LIST(16);
 _DEFINE_LIST(32);
 
 static _listnode_t *
-_listnode_create(co_obj_t *value)
+_listnode_create(co_obj_t *value, bool safe)
 {
   _listnode_t *ret = h_calloc(1, sizeof(_listnode_t));
   _LIST_PREV(ret) = NULL;
@@ -86,7 +86,7 @@ _listnode_create(co_obj_t *value)
   if(value != NULL)
   {
     ret->value = value;
-    hattach(value, ret);
+    if(safe) hattach(value, ret);
   }
   else
     ret->value = NULL;
@@ -279,7 +279,37 @@ specified list.");
   CHECK(!co_list_contains(list, new_obj), "New node already in specified \
 list.");
   _listnode_t *adjacent = _LIST_PREV(this_node);
-  _listnode_t *new_node = _listnode_create(new_obj);
+  _listnode_t *new_node = _listnode_create(new_obj, true);
+  hattach(new_node, list);
+  if(adjacent == NULL)
+  {
+    /* First in list. */
+    _co_list_set_first(list, new_node);
+  }
+  else
+  {
+    _LIST_NEXT(adjacent) = new_node;
+    _LIST_PREV(new_node) = adjacent;
+  }
+  _LIST_NEXT(new_node) = this_node;
+  _LIST_PREV(this_node) = new_node;
+  _co_list_increment(list);
+  return 1;
+error:
+  return 0;
+}
+
+int /* Done */
+co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
+{
+  CHECK(IS_LIST(list), "Not a list object.");
+  _listnode_t *this_node = _co_list_find_node(list, this_obj);
+  CHECK(this_node != NULL, "Unable to find existing node in \
+specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+list.");
+  _listnode_t *adjacent = _LIST_PREV(this_node);
+  _listnode_t *new_node = _listnode_create(new_obj, false);
   hattach(new_node, list);
   if(adjacent == NULL)
   {
@@ -309,7 +339,37 @@ specified list.");
   CHECK(!co_list_contains(list, new_obj), "New node already in specified \
 list.");
   _listnode_t *adjacent = _LIST_NEXT(this_node);
-  _listnode_t *new_node = _listnode_create(new_obj);
+  _listnode_t *new_node = _listnode_create(new_obj, true);
+  hattach(new_node, list);
+  if(adjacent == NULL)
+  {
+    /* Last in list. */
+    _co_list_set_last(list, new_node);
+  }
+  else
+  {
+    _LIST_PREV(adjacent) = new_node;
+    _LIST_NEXT(new_node) = adjacent;
+  }
+  _LIST_PREV(new_node) = this_node;
+  _LIST_NEXT(this_node) = new_node;
+  _co_list_increment(list);
+  return 1;
+error:
+  return 0;
+}
+
+int /* Done */
+co_list_insert_after_unsafe(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj)
+{
+  CHECK(IS_LIST(list), "Not a list object.");
+  _listnode_t *this_node = _co_list_find_node(list, this_obj);
+  CHECK(this_node != NULL, "Unable to find existing node in \
+specified list.");
+  CHECK(!co_list_contains(list, new_obj), "New node already in specified \
+list.");
+  _listnode_t *adjacent = _LIST_NEXT(this_node);
+  _listnode_t *new_node = _listnode_create(new_obj, false);
   hattach(new_node, list);
   if(adjacent == NULL)
   {
@@ -335,7 +395,23 @@ co_list_prepend(co_obj_t *list, co_obj_t *new_obj)
   if(co_list_length(list) == 0)
   {
     /* First item in list. */
-    _listnode_t *new_node = _listnode_create(new_obj);
+    _listnode_t *new_node = _listnode_create(new_obj, true);
+    _co_list_set_first(list, new_node);
+    _co_list_set_last(list, new_node);
+    hattach(new_node, list);
+    _co_list_increment(list);
+    return 1;
+  }
+  return co_list_insert_before(list, new_obj, (_co_list_get_first_node(list))->value);
+}
+
+int /* Done */
+co_list_prepend_unsafe(co_obj_t *list, co_obj_t *new_obj)
+{
+  if(co_list_length(list) == 0)
+  {
+    /* First item in list. */
+    _listnode_t *new_node = _listnode_create(new_obj, false);
     _co_list_set_first(list, new_node);
     _co_list_set_last(list, new_node);
     hattach(new_node, list);
@@ -351,7 +427,23 @@ co_list_append(co_obj_t *list, co_obj_t *new_obj)
   if(co_list_length(list) == 0)
   {
     /* First item in list. */
-    _listnode_t *new_node = _listnode_create(new_obj);
+    _listnode_t *new_node = _listnode_create(new_obj, true);
+    _co_list_set_first(list, new_node);
+    _co_list_set_last(list, new_node);
+    hattach(new_node, list);
+    _co_list_increment(list);
+    return 1;
+  }
+  return co_list_insert_after(list, new_obj, (_co_list_get_last_node(list))->value);
+}
+
+int /* Done */
+co_list_append_unsafe(co_obj_t *list, co_obj_t *new_obj)
+{
+  if(co_list_length(list) == 0)
+  {
+    /* First item in list. */
+    _listnode_t *new_node = _listnode_create(new_obj, false);
     _co_list_set_first(list, new_node);
     _co_list_set_last(list, new_node);
     hattach(new_node, list);
