@@ -246,7 +246,7 @@ error:
 }
 
 static inline _treenode_t *
-_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value)
+_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value, bool safe)
 {
   if (current == NULL) 
   { 
@@ -264,14 +264,14 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
 
   if (*key < current->splitchar) 
   {
-    current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value); 
+    current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value, safe); 
   } 
   else if (*key == current->splitchar) 
   { 
     if (klen > 1) 
     {
       // not done yet, keep going but one less
-      current->equal = _co_tree_insert_r(root, current->equal, orig_key, orig_klen, key+1, klen - 1, value);
+      current->equal = _co_tree_insert_r(root, current->equal, orig_key, orig_klen, key+1, klen - 1, value, safe);
     } 
     else 
     {
@@ -286,34 +286,37 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
       current->value = value;
       current->key = co_str8_create(orig_key, orig_klen, 0);
       hattach(current->key, current);
-      hattach(current->value, current);
       current->key->_ref++;
-      current->value->_ref++;
+      if(safe) 
+      {
+        hattach(current->value, current);
+        current->value->_ref++;
+      }
     }
   } 
   else 
   {
-    current->high = _co_tree_insert_r(root, current->high, orig_key, orig_klen, key, klen, value);
+    current->high = _co_tree_insert_r(root, current->high, orig_key, orig_klen, key, klen, value, safe);
   }
 
   return current; 
 }
 
 static int 
-_co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+_co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value, bool safe)
 {
   _treenode_t *n = NULL;
   if(CO_TYPE(root) == _tree16)
   {
     ((co_tree16_t *)root)->root = _co_tree_insert_r(((co_tree16_t *)root)->root, \
-      ((co_tree16_t *)root)->root, key, klen, key, klen, value);
+      ((co_tree16_t *)root)->root, key, klen, key, klen, value, safe);
     n = ((co_tree16_t *)root)->root;
     hattach(n, root);
   } 
   else if(CO_TYPE(root) == _tree32) 
   {
     ((co_tree32_t *)root)->root = _co_tree_insert_r(((co_tree32_t *)root)->root, \
-      ((co_tree32_t *)root)->root, key, klen, key, klen, value);
+      ((co_tree32_t *)root)->root, key, klen, key, klen, value, safe);
     n = ((co_tree32_t *)root)->root;
     hattach(n, root);
   }
@@ -330,7 +333,17 @@ co_tree_insert(co_obj_t *root, const char *key, const size_t klen, co_obj_t *val
 {
   _treenode_t *n = co_tree_find_node(co_tree_root(root), key, klen);
   CHECK(n == NULL, "Key exists.");
-  return _co_tree_insert(root, key, klen, value);
+  return _co_tree_insert(root, key, klen, value, true);
+error:
+  return 0;
+}
+
+int
+co_tree_insert_unsafe(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+{
+  _treenode_t *n = co_tree_find_node(co_tree_root(root), key, klen);
+  CHECK(n == NULL, "Key exists.");
+  return _co_tree_insert(root, key, klen, value, false);
 error:
   return 0;
 }
@@ -338,7 +351,13 @@ error:
 int
 co_tree_insert_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
 {
-  return _co_tree_insert(root, key, klen, value);
+  return _co_tree_insert(root, key, klen, value, true);
+}
+
+int
+co_tree_insert_unsafe_force(co_obj_t *root, const char *key, const size_t klen, co_obj_t *value)
+{
+  return _co_tree_insert(root, key, klen, value, false);
 }
 
 static int

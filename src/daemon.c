@@ -108,7 +108,7 @@ _cmd_help_i(co_obj_t *data, co_obj_t *current, void *context)
   size_t cmd_len = 0;
   CHECK((cmd_len = co_obj_data(&cmd_name, ((co_cmd_t *)current)->name)) > 0, "Failed to read command name.");
   DEBUG("Command: %s, Length: %d", cmd_name, (int)cmd_len);
-  co_tree_insert((co_obj_t *)context, cmd_name, cmd_len, ((co_cmd_t *)current)->usage);
+  co_tree_insert_unsafe((co_obj_t *)context, cmd_name, cmd_len, ((co_cmd_t *)current)->usage);
   return NULL;
 error:
   return NULL;
@@ -126,7 +126,7 @@ CMD(help)
       size_t clen = co_obj_data(&cstr, cmd);
       if(clen > 0)
       {
-        co_tree_insert(*output, cstr, clen, co_cmd_desc(cmd));
+        co_tree_insert_unsafe(*output, cstr, clen, co_cmd_desc(cmd));
         return 1;
       }
     }
@@ -140,7 +140,7 @@ _cmd_profiles_i(co_obj_t *data, co_obj_t *current, void *context)
 {
   char *name = NULL;
   size_t nlen = co_obj_data(&name, ((co_profile_t *)current)->name);
-  co_tree_insert((co_obj_t *)context, name, nlen, ((co_profile_t *)current)->name);
+  co_tree_insert_unsafe((co_obj_t *)context, name, nlen, ((co_profile_t *)current)->name);
   return NULL;
 }
 
@@ -292,6 +292,9 @@ CMD(state)
         CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")) > 0, "Attempting to generate IP but ip not set.");
         CHECK(co_generate_ip(ip, ipgenmask, co_id_get(), address, t), "Failed to generate IP.");
         object = co_str8_create(address, sizeof(address), 0);
+        CHECK(object != NULL, "Failed to get property.");
+        co_tree_insert(*output, propname, proplen, object);
+        return 1;
       }
       else
       {
@@ -322,6 +325,9 @@ CMD(state)
         CHECK(snprintfcat(bssidstr, BSSID_STR_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x", bssid[0] & 0xff, bssid[1] & 0xff, bssid[2] & 0xff, bssid[3] & 0xff, bssid[4] & 0xff, bssid[5] & 0xff) > 0, "Failed to convert BSSID.");
         DEBUG("BSSID: %s", bssidstr);
         object = co_str8_create(bssidstr, strlen(bssidstr) + 1, 0);
+        CHECK(object != NULL, "Failed to get property.");
+        co_tree_insert(*output, propname, proplen, object);
+        return 1;
       }
       else
       {
@@ -339,7 +345,7 @@ CMD(state)
   }
 
   CHECK(object != NULL, "Failed to get property.");
-  co_tree_insert(*output, propname, proplen, object);
+  co_tree_insert_unsafe(*output, propname, proplen, object);
   //co_obj_free(p);
   return 1;
 error:
@@ -561,7 +567,7 @@ CMD(get)
 
   co_obj_t *value = co_profile_get(prof, kobj);
   CHECK(value != NULL, "Invalid value.");
-  co_tree_insert(*output, kstr, klen, value);
+  co_tree_insert_unsafe(*output, kstr, klen, value);
   return 1;
 
 error:
