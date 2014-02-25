@@ -26,7 +26,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
- * =====================================================================================
+ * ============================================================================
  */
 
 #include <stdio.h>
@@ -48,29 +48,40 @@
 
 #include "serval-dna.h"
 
-extern struct subscriber *my_subscriber;
+/* libserval global for the primary keyring */
 extern keyring_file *keyring;
 
-char *serval_path = NULL;
+/* 
+ * libserval global identifying the subscriber corresponding
+ * to the primary identity in the primary keyring
+ */
+extern struct subscriber *my_subscriber;
 
+/* file path for the serval state/conf/keyring directory */
+char *serval_path = NULL;
+ 
+/* used to store error messages to pass in response to client commands */
 co_obj_t *err_msg = NULL;
 
-static int serval_create_signature(unsigned char *key,
-			const unsigned char *msg,
-			const size_t msg_len,
-			unsigned char *sig_buffer,
-			const size_t sig_size) {
-  
+/* Private */
+
+static int
+serval_create_signature(svl_crypto_ctx *ctx)
+{
+  CHECK(ctx && ctx->sas_private[0] && ctx->msg && ctx->msg_len,"Invalid ctx");
   unsigned long long sig_length = SIGNATURE_BYTES;
-  
-  CHECK(sig_size >= msg_len + SIGNATURE_BYTES,"Signature buffer too small");
-  
   unsigned char hash[crypto_hash_sha512_BYTES]; 
   
-  crypto_hash_sha512(hash, msg, msg_len); // create sha512 hash of message, which will then be signed
-  memcpy(sig_buffer,msg,msg_len);
+  // create sha512 hash of message, which will then be signed
+  crypto_hash_sha512(hash, ctx->msg, ctx->msg_len);
   
-  if (crypto_create_signature(key, hash, crypto_hash_sha512_BYTES, &sig_buffer[msg_len], &sig_length) != 0) // create signature of message hash, append it to end of message
+  // create signature of message hash, append it to end of message
+  int sig_ret = crypto_create_signature(ctx->sas_private,
+					hash,
+					crypto_hash_sha512_BYTES,
+					ctx->signature,
+					&sig_length);
+  if (sig_ret != 0)
     return 0;
   return 1;
   
@@ -78,311 +89,303 @@ error:
   return 0;
 }
 
-static int serval_extract_sas(unsigned char **key, int *key_len, keyring_file *_keyring, unsigned char *_sid) {
-    *key=keyring_find_sas_private(_keyring, _sid, NULL); // get SAS key associated with our SID
-    CHECK_ERR(*key,"Failed to fetch SAS key");
-    if (key_len) *key_len = crypto_sign_edwards25519sha512batch_SECRETKEYBYTES;
-    return 1;
-error:
-    return 0;
-}
-
-int serval_open_keyring(const char *keyring_path,
-			const size_t keyring_len,
-			keyring_file **_keyring) {
-  
-  char keyring_path_str[PATH_MAX] = {0};
-  
-  if (keyring_path == NULL || keyring_len == 0) { // if no keyring specified, use default keyring
-    strcpy(keyring_path_str,serval_path);
-    if (serval_path[strlen(serval_path) - 1] != '/')
-      strcat(keyring_path_str,"/");
-    strcat(keyring_path_str,"serval.keyring");
-    // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-    CHECK_ERR(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
-  }
-  else { // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
-    CHECK(keyring_len < PATH_MAX,"Keyring length too long");
-    strncpy(keyring_path_str,keyring_path,keyring_len);
-    keyring_path_str[keyring_len] = '\0';
-  }
-  
-  CHECK_ERR((*_keyring = keyring_open(keyring_path_str)),"Failed to open specified keyring file");
-
-  if (keyring_enter_pin(*_keyring, KEYRING_PIN) <= 0) {
-    /* put initial identity in if we don't have any visible */
-    CHECK_ERR(keyring_seed(*_keyring) == 0,"Failed to seed keyring");
-  }
-  
+static int
+serval_extract_sas(svl_crypto_ctx *ctx)
+{
+  CHECK(ctx,"Invalid ctx");
+  // get SAS key associated with our SID
+  unsigned char *sas_public = NULL;
+  unsigned char *sas_private = keyring_find_sas_private(ctx->keyring_file, ctx->sid, &sas_public);
+  CHECK(sas_private && sas_public,"Failed to fetch SAS private key");
+  memcpy(ctx->sas_private, sas_private, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->sas_public, sas_public, crypto_sign_PUBLICKEYBYTES);
   return 1;
 error:
   return 0;
 }
 
-int serval_init_keyring(unsigned char *sid,
-		       const size_t sid_len,
-		       const char *keyring_path,
-		       const size_t keyring_len,
-		       keyring_file **_keyring,
-		       unsigned char **key,
-		       int *key_len) {
-  keyring_identity *new_ident;
-  
-  unsigned char *_sid = sid;
-  
-  if (sid) CHECK(sid_len == SID_SIZE,"Invalid SID");
-  
-  CHECK_ERR(serval_open_keyring(keyring_path,keyring_len,_keyring),"Failed to open keyring");
-  
-  if (!sid) {
-    //create new sid
-    int c;
-    for(c = 0; c < (*_keyring)->context_count; c++) { // cycle through the keyring contexts until we find one with room for another identity
-      new_ident = keyring_create_identity(*_keyring,(*_keyring)->contexts[c], KEYRING_PIN); // create new Serval identity
-      if (new_ident)
-	break;
-    }
-    CHECK_ERR(new_ident,"failed to create new SID");
-    
-    CHECK_ERR(keyring_commit(*_keyring) == 0,"Failed to save new SID into keyring"); // need to commit keyring or else new identity won't be saved (needs permissions)
-    
-    _sid = new_ident->subscriber->sid;
-  }
-  
-  if (key)
-    CHECK(serval_extract_sas(key,key_len, *_keyring, _sid),"Failed to fetch SAS key");
-  
-  return 1;
-error:
-  return 0;
-}
-
-int cmd_serval_sign(const char *sid_str, 
-	 const size_t sid_len,
-	 const unsigned char *msg,
-	 const size_t msg_len,
-	 char *sig_str_buf,
-	 const size_t sig_str_size,
-	 const char *keyring_path,
-	 const size_t keyring_len) {
-  
+/* Used by serval-client */
+static int
+keyring_send_sas_request_client(struct subscriber *subscriber)
+{
   int ret = 0;
-  unsigned char signed_msg[msg_len + SIGNATURE_BYTES];
-  keyring_file *_keyring = NULL;
-  unsigned char *key = NULL;
-  unsigned char packedSid[SID_SIZE] = {0};
-  
-  CHECK(sig_str_size >= 2*SIGNATURE_BYTES + 1,"Signature buffer too small");
-  
-  if (sid_str) {
-    CHECK_ERR(sid_len == 2*SID_SIZE && str_is_subscriber_id(sid_str) == 1,"Invalid SID");
-    stowSid(packedSid,0,sid_str);
-  }
-  
-  if (keyring_path) {
-    CHECK_ERR(serval_init_keyring(sid_str ? packedSid : NULL,
-                     sid_str ? SID_SIZE : 0,
-		     keyring_path,
-		     keyring_len,
-		     &_keyring,
-		     &key,
-		     NULL), "Failed to initialize Serval keyring");
-  } else {
-    CHECK_ERR(serval_extract_sas(&key,NULL,keyring,packedSid),"Failed to fetch SAS key");
-  }
-  
-  CHECK_ERR(serval_create_signature(key, msg, msg_len, signed_msg, SIGNATURE_BYTES + msg_len),"Failed to create signature");
-  
-  strncpy(sig_str_buf,alloca_tohex(signed_msg + msg_len,SIGNATURE_BYTES),2*SIGNATURE_BYTES);
-  sig_str_buf[2*SIGNATURE_BYTES] = '\0';
-
-  ret = 1;
-error:
-  if (_keyring) keyring_free(_keyring);
-  return ret;
-}
-
-static int keyring_send_sas_request_client(struct subscriber *subscriber){
-  int sent, client_port, found = 0, ret = 0;
-  int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
-  unsigned char *srcsid[SID_SIZE] = {0}, *plain = NULL;
-  unsigned char signature[siglen];
+  unsigned char *srcsid[SID_SIZE] = {0};
   time_ms_t now = gettime_ms();
   
-  CHECK_ERR(overlay_mdp_getmyaddr(0,(sid_t *)srcsid) == 0,"Could not get local address");
-
+  CHECK_ERR(overlay_mdp_getmyaddr(0, (sid_t *)srcsid) == 0, "Could not get local address");
+  
   if (subscriber->sas_valid)
     return 1;
   
-  CHECK_ERR(now >= subscriber->sas_last_request + 100,"Too soon to ask for SAS mapping again");
+  CHECK_ERR(now >= subscriber->sas_last_request + 100, "Too soon to ask for SAS mapping again");
   
-  CHECK_ERR(my_subscriber,"couldn't request SAS (I don't know who I am)");
+  CHECK_ERR(my_subscriber, "Couldn't request SAS (I don't know who I am)");
   
   DEBUG("Requesting SAS mapping for SID=%s", alloca_tohex_sid(subscriber->sid));
   
-  CHECK_ERR(overlay_mdp_bind((sid_t *)my_subscriber->sid,(client_port=32768+(random()&32767))) == 0,"Failed to bind to client socket");
-
-/* request mapping (send request auth-crypted). */
-  overlay_mdp_frame mdp;
-  memset(&mdp,0,sizeof(mdp));  
-
-  mdp.packetTypeAndFlags=MDP_TX;
-  mdp.out.queue=OQ_MESH_MANAGEMENT;
-  memmove(mdp.out.dst.sid,subscriber->sid,SID_SIZE);
-  mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
-  mdp.out.src.port=client_port;
-  memmove(mdp.out.src.sid,srcsid,SID_SIZE);
-  mdp.out.payload_length=1;
-  mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
+  int client_port = 32768 + (random() & 32767);
+  CHECK_ERR(overlay_mdp_bind((sid_t *)my_subscriber->sid, client_port) == 0,
+	    "Failed to bind to client socket");
   
-  sent = overlay_mdp_send(&mdp, 0,0);
+  /* request mapping (send request auth-crypted). */
+  overlay_mdp_frame mdp;
+  memset(&mdp, 0, sizeof(mdp));  
+  
+  mdp.packetTypeAndFlags = MDP_TX;
+  mdp.out.queue = OQ_MESH_MANAGEMENT;
+  memmove(mdp.out.dst.sid, subscriber->sid, SID_SIZE);
+  mdp.out.dst.port = MDP_PORT_KEYMAPREQUEST;
+  mdp.out.src.port = client_port;
+  memmove(mdp.out.src.sid, srcsid, SID_SIZE);
+  mdp.out.payload_length = 1;
+  mdp.out.payload[0] = KEYTYPE_CRYPTOSIGN;
+  
+  int sent = overlay_mdp_send(&mdp, 0, 0);
   if (sent) {
     DEBUG("Failed to send SAS resolution request: %d", sent);
-    CHECK_ERR(mdp.packetTypeAndFlags != MDP_ERROR,"MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
+    CHECK_ERR(mdp.packetTypeAndFlags != MDP_ERROR, "MDP Server error #%d: '%s'", mdp.error.error, mdp.error.message);
   }
   
   time_ms_t timeout = now + 5000;
-
-  while(now<timeout) {
+  
+  while(now < timeout) {
     time_ms_t timeout_ms = timeout - gettime_ms();
     int result = overlay_mdp_client_poll(timeout_ms);
     
-    if (result>0) {
-      int ttl=-1;
-      if (overlay_mdp_recv(&mdp, client_port, &ttl)==0) {
-	switch(mdp.packetTypeAndFlags&MDP_TYPE_MASK) {
+    if (result > 0) {
+      int ttl = -1;
+      if (overlay_mdp_recv(&mdp, client_port, &ttl) == 0) {
+	int found = 0;
+	switch(mdp.packetTypeAndFlags & MDP_TYPE_MASK) {
 	  case MDP_ERROR:
 	    ERROR("overlay_mdp_recv: %s (code %d)", mdp.error.message, mdp.error.error);
 	    break;
 	  case MDP_TX:
-	  {
 	    DEBUG("Received SAS mapping response");
 	    found = 1;
 	    break;
-	  }
-	  break;
 	  default:
 	    DEBUG("overlay_mdp_recv: Unexpected MDP frame type 0x%x", mdp.packetTypeAndFlags);
 	    break;
 	}
-	if (found) break;
+	if (found)
+	  break;
       }
     }
-    now=gettime_ms();
+    now = gettime_ms();
     if (servalShutdown)
       break;
   }
-
+  
   unsigned keytype = mdp.out.payload[0];
   
-  CHECK_ERR(keytype == KEYTYPE_CRYPTOSIGN,"Ignoring SID:SAS mapping with unsupported key type %u", keytype);
+  CHECK_ERR(keytype == KEYTYPE_CRYPTOSIGN, "Ignoring SID:SAS mapping with unsupported key type %u", keytype);
   
-  CHECK_ERR(mdp.out.payload_length >= 1 + SAS_SIZE,"Truncated key mapping announcement? payload_length: %d", mdp.out.payload_length);
+  CHECK_ERR(mdp.out.payload_length >= 1 + SAS_SIZE,
+	    "Truncated key mapping announcement? payload_length: %d",
+	    mdp.out.payload_length);
   
-  plain = (unsigned char*)calloc(mdp.out.payload_length,sizeof(unsigned char));
-  unsigned long long plain_len=0;
-  unsigned char *sas_public=&mdp.out.payload[1];
-  unsigned char *compactsignature = &mdp.out.payload[1+SAS_SIZE];
+  unsigned char *plain = (unsigned char*)calloc(mdp.out.payload_length,sizeof(unsigned char));
+  unsigned long long plain_len = 0;
+  unsigned char *sas_public = &mdp.out.payload[1];
+  unsigned char *compactsignature = &mdp.out.payload[SAS_SIZE + 1];
   
   /* reconstitute signed SID for verification */
-  memmove(&signature[0],&compactsignature[0],64);
-  memmove(&signature[64],&mdp.out.src.sid[0],SID_SIZE);
+  unsigned char signature[SID_SIZE + crypto_sign_edwards25519sha512batch_BYTES];
+  memmove(&signature[0], &compactsignature[0], 64);
+  memmove(&signature[64], &mdp.out.src.sid[0], SID_SIZE);
   
-  int r=crypto_sign_edwards25519sha512batch_open(plain,&plain_len,
-						 signature,siglen,
-						 sas_public);
-  CHECK_ERR(r == 0,"SID:SAS mapping verification signature does not verify");
-
+  int sign_ret = crypto_sign_edwards25519sha512batch_open(plain,
+							  &plain_len,
+							  signature,
+							  SID_SIZE + crypto_sign_edwards25519sha512batch_BYTES,
+							  sas_public);
+  CHECK_ERR(sign_ret == 0, "SID:SAS mapping verification signature does not verify");
+  
   /* These next two tests should never be able to fail, but let's just check anyway. */
-  CHECK_ERR(plain_len == SID_SIZE,"SID:SAS mapping signed block is wrong length");
-  CHECK_ERR(memcmp(plain, mdp.out.src.sid, SID_SIZE) == 0,"SID:SAS mapping signed block is for wrong SID");
+  CHECK_ERR(plain_len == SID_SIZE, "SID:SAS mapping signed block is wrong length");
+  CHECK_ERR(memcmp(plain, mdp.out.src.sid, SID_SIZE) == 0, "SID:SAS mapping signed block is for wrong SID");
   
   memmove(subscriber->sas_public, sas_public, SAS_SIZE);
-  subscriber->sas_valid=1;
-  subscriber->sas_last_request=now;
+  subscriber->sas_valid = 1;
+  subscriber->sas_last_request = now;
   ret = 1;
   
-error:
-  if (plain) free(plain);
+  error:
+  if (plain)
+    free(plain);
   return ret;
 }
 
-int cmd_serval_verify(const char *sas_key,
-		   const size_t sas_key_len,
-		   const unsigned char *msg,
-		   const size_t msg_len,
-		   const char *sig,
-		   const size_t sig_len) {
+/* Public */
+
+svl_crypto_ctx *
+svl_crypto_ctx_new(void)
+{
+  svl_crypto_ctx *ctx = h_calloc(1,sizeof(svl_crypto_ctx));
+  CHECK_MEM(ctx);
+  return ctx;
+error:
+  return NULL;
+}
+
+void
+svl_crypto_ctx_free(svl_crypto_ctx *ctx)
+{
+  if (!ctx)
+    return;
+  if (ctx->keyring_file)
+    keyring_free(ctx->keyring_file);
+  h_free(ctx);
+}
+
+int
+serval_open_keyring(svl_crypto_ctx *ctx)
+{
+  CHECK_ERR(ctx,"Invalid ctx");
+  if (ctx->keyring_len == 0) {
+    // if no keyring specified, use default keyring
+    CHECK(serval_path,"Default Serval path not initialized");
+    char keyring_path_str[PATH_MAX] = {0};
+    strcpy(keyring_path_str, serval_path);
+    if (serval_path[strlen(serval_path) - 1] != '/')
+      strcat(keyring_path_str, "/");
+    strcat(keyring_path_str, "serval.keyring");
+    // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
+    CHECK_ERR(setenv("SERVALINSTANCE_PATH", serval_path, 1) == 0,
+	      "Failed to set SERVALINSTANCE_PATH env variable");
+    ctx->keyring_len = strlen(keyring_path_str);
+    ctx->keyring_path = h_malloc(ctx->keyring_len + 1);
+    strcpy(ctx->keyring_path,keyring_path_str);
+    hattach(ctx->keyring_path,ctx);
+  } else {
+    // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
+    CHECK(ctx->keyring_len < PATH_MAX, "Keyring length too long");
+  }
+  
+  ctx->keyring_file = keyring_open(ctx->keyring_path);
+  CHECK_ERR(ctx->keyring_file, "Failed to open specified keyring file");
+
+  if (keyring_enter_pin(ctx->keyring_file, KEYRING_PIN) <= 0) {
+    // put initial identity in if we don't have any visible
+    CHECK_ERR(keyring_seed(ctx->keyring_file) == 0, "Failed to seed keyring");
+  }
+  
+  return 1;
+error:
+  return 0;
+}
+
+int
+serval_init_keyring(svl_crypto_ctx *ctx)
+{
+  keyring_identity *new_ident;
+  
+  CHECK_ERR(ctx,"Invalid ctx");
+  
+  CHECK_ERR(serval_open_keyring(ctx), "Failed to open keyring");
+  
+  if (!ctx->sid[0]) { //create new sid
+    // cycle through the keyring contexts until we find one with room for another identity
+    for(int c = 0; c < (ctx->keyring_file)->context_count; c++) {
+      // create new Serval identity
+      new_ident = keyring_create_identity(ctx->keyring_file,
+					  (ctx->keyring_file)->contexts[c],
+					  KEYRING_PIN);
+      if (new_ident)
+	break;
+    }
+    CHECK_ERR(new_ident, "Failed to create new SID");
+    
+    // need to commit keyring or else new identity won't be saved (needs permissions)
+    CHECK_ERR(keyring_commit(ctx->keyring_file) == 0, "Failed to save new SID into keyring");
+    
+    memcpy(ctx->sid,new_ident->subscriber->sid,SID_SIZE);
+  }
+  
+  CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
+  
+  return 1;
+error:
+  return 0;
+}
+
+int
+cmd_serval_sign(svl_crypto_ctx *ctx)
+{
+  CHECK_ERR(ctx,"Invalid ctx");
+  
+  /* If a non-default keyring path is given, and/or no SID is set,
+   * we need to initialize the keyring */
+  if (ctx->keyring_path || !ctx->sid[0]) {
+    CHECK_ERR(serval_init_keyring(ctx),
+	      "Failed to initialize Serval keyring");
+  } else {
+    // or just use the default keyring
+    ctx->keyring_file = keyring; // serval global
+    CHECK_ERR(serval_extract_sas(ctx),
+	      "Failed to fetch SAS keys");
+  }
+  
+  CHECK_ERR(serval_create_signature(ctx),"Failed to create signature");
+  
+  return 1;
+error:
+  return 0;
+}
+
+int
+cmd_serval_verify(svl_crypto_ctx *ctx)
+{
   int verdict = 0;
   
-  unsigned char bin_sig[SIGNATURE_BYTES];
-  unsigned char bin_sas[SAS_SIZE];
+  CHECK_ERR(ctx && ctx->msg && ctx->signature[0] && ctx->sas_public[0],"Invalid ctx");
   
-  CHECK_ERR(sig_len == 2*SIGNATURE_BYTES,"Invalid signature");
-  CHECK_ERR(sas_key_len == 2*SAS_SIZE,"Invalid SAS key");
-  
-  // convert signature from hex to binary
-  CHECK_ERR(fromhexstr(bin_sig,sig,SIGNATURE_BYTES) == 0,"Invalid signature");
-  CHECK_ERR(fromhexstr(bin_sas,sas_key,SAS_SIZE) == 0,"Invalid SAS key");
-  
-  DEBUG("Message to verify:\n%s",msg);
+  DEBUG("Message to verify:\n%s", ctx->msg);
   
   unsigned char hash[crypto_hash_sha512_BYTES];
-  crypto_hash_sha512(hash,msg,msg_len);
+  crypto_hash_sha512(hash, ctx->msg, ctx->msg_len);
   
-  if (crypto_verify_signature(bin_sas, hash, crypto_hash_sha512_BYTES,
-    &bin_sig[0], SIGNATURE_BYTES) == 0)
+  int sig_ret = crypto_verify_signature(ctx->sas_public,
+					hash,
+					crypto_hash_sha512_BYTES,
+					ctx->signature,
+					SIGNATURE_BYTES);
+  if (sig_ret == 0)
     verdict = 1;  // successfully verified
     
 error:
   return verdict;
 }
 
-int serval_verify_client(const char *sid_str,
-	   const size_t sid_len,
-	   const unsigned char *msg,
-	   const size_t msg_len,
-	   const char *sig,
-	   const size_t sig_len,
- 	   const char *keyring_path,
- 	   const size_t keyring_len) {
+/* Used by serval-client */
+int
+serval_verify_client(svl_crypto_ctx *ctx)
+{
+  CHECK(ctx && ctx->sid[0] && ctx->msg && ctx->signature[0] && ctx->keyring_path,
+	"Invalid ctx");
   
-  int verdict = 0;
-  char sas_str[2*SAS_SIZE+1] = {0};
-  unsigned char packedSid[SID_SIZE] = {0};
-  
-  CHECK(sid_len == 2*SID_SIZE,"Invalid SID length");
-  CHECK(sig_len == 2*SIGNATURE_BYTES,"Invalid signature length");
-  
-  CHECK(str_is_subscriber_id(sid_str) != 0,"Invalid SID");
-  stowSid(packedSid,0,sid_str);
-  
-  CHECK(serval_init_keyring(packedSid,
-			 SID_SIZE,
-			 keyring_path,
-			 keyring_len,
-			 &keyring,
-			 NULL,
-			 NULL), "Failed to initialize Serval keyring");
+  CHECK(serval_init_keyring(ctx), "Failed to initialize Serval keyring");
       
-  struct subscriber *sub = find_subscriber(packedSid, SID_SIZE, 1); // get Serval identity described by given SID
+  struct subscriber *sub = find_subscriber(ctx->sid, SID_SIZE, 1); // get Serval identity described by given SID
   
-  CHECK(sub,"Failed to fetch Serval subscriber");
+  CHECK(sub, "Failed to fetch Serval subscriber");
   
-  CHECK(keyring_send_sas_request_client(sub),"SAS request failed");
+  CHECK(keyring_send_sas_request_client(sub), "SAS request failed");
   
-  CHECK(sub->sas_valid,"Could not validate the signing key!");
-  CHECK(sub->sas_public[0],"Could not validate the signing key!");
-  CHECK(tohex(sas_str,sub->sas_public,SAS_SIZE),"Failed to convert signing key");
+  CHECK(sub->sas_valid, "Could not validate the signing key!");
+  CHECK(sub->sas_public[0], "Could not validate the signing key!");
   
-  verdict = cmd_serval_verify(sas_str,2*SAS_SIZE,
-			   msg,msg_len,sig,sig_len);
+  memcpy(ctx->sas_public,sub->sas_public,crypto_sign_PUBLICKEYBYTES);
   
+  return cmd_serval_verify(ctx);
 error:
-  return verdict;
+  return 0;
 }
 
-int serval_crypto_register(void) {
+int
+serval_crypto_register(void)
+{
   /** name: serval-crypto
    * param[0] - param[3]: (co_str?_t)
    */
@@ -390,35 +393,46 @@ int serval_crypto_register(void) {
   const char name[] = "serval-crypto",
   usage[] = "serval-crypto sign [<SID>] <MESSAGE> [--keyring=<KEYRING_PATH>]\n"
             "serval-crypto verify <SAS> <SIGNATURE> <MESSAGE>",
-  desc[] =   "Serval-crypto utilizes Serval's crypto API to:\n"
-  "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
-  "             a new key will be created on the default Serval keyring.\n"
-  "      * Verify any arbitrary text, a signature, and a Serval signing key (SAS), and will\n"
-  "             determine if the signature is valid.";
+  desc[] =  "Serval-crypto utilizes Serval's crypto API to:\n"
+	    "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
+	    "             a new key will be created on the default Serval keyring.\n"
+	    "      * Verify any arbitrary text, a signature, and a Serval signing key (SAS), and will\n"
+	    "             determine if the signature is valid.";
   
-  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_crypto_handler),"Failed to register commands");
+  int reg_ret = co_cmd_register(name,
+				sizeof(name),
+				usage,
+				sizeof(usage),
+				desc,
+				sizeof(desc),
+				serval_crypto_handler);
+  CHECK(reg_ret, "Failed to register commands");
   
   return 1;
 error:
   return 0;
 }
 
-int olsrd_mdp_register(void) {
+int
+olsrd_mdp_register(void)
+{
   /**
    * name: mdp-init
-   * param[0] <required>: <SID> (co_str8_t)
-   * param[1] <required>: <keyring_path> (co_str16_t)
+   * param[0] <required>: <keyring_path> (co_str16_t)
+   * param[1] <required>: <SID> (co_str8_t)
    */
   const char name[] = "mdp-init";
   
-  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_init),"Failed to register command");
+  CHECK(co_cmd_register(name, sizeof(name), "", 1, "", 1, olsrd_mdp_init), "Failed to register command");
   
   return 1;
 error:
   return 0;
 }
 
-int olsrd_mdp_sign_register(void) {
+int
+olsrd_mdp_sign_register(void)
+{
   /**
    * name: mdp-sign
    * param[0] <required>: key (co_bin8_t)
@@ -427,68 +441,92 @@ int olsrd_mdp_sign_register(void) {
   
   const char name[] = "mdp-sign";
   
-  CHECK(co_cmd_register(name,sizeof(name),"",1,"",1,olsrd_mdp_sign),"Failed to register command");
+  CHECK(co_cmd_register(name, sizeof(name), "", 1, "", 1, olsrd_mdp_sign), "Failed to register command");
   
   return 1;
 error:
   return 0;
 }
 
-int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
+int
+serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
   CLEAR_ERR();
   
-  int list_len = co_list_length(params), keypath = 0;
+  svl_crypto_ctx *ctx = NULL;
+  int list_len = co_list_length(params);
+  int keypath = 0;
   
-  CHECK_ERR(IS_LIST(params) && list_len >= 2,"Invalid params");
+  CHECK_ERR(IS_LIST(params) && list_len >= 2, "Invalid params");
   
-  if (!strncmp("--keyring=",co_obj_data_ptr(co_list_get_last(params)),10)) {
+  if (!strncmp("--keyring=", co_obj_data_ptr(co_list_get_last(params)), 10)) {
     keypath = 1;
     --list_len;
   }
   
-  if (co_str_cmp_str(co_list_element(params,0),"sign") == 0) {
+  ctx = svl_crypto_ctx_new();
+  
+  if (co_str_cmp_str(co_list_element(params, 0), "sign") == 0) {
     
-    CHECK_ERR(list_len == 2 || list_len == 3,"Invalid arguments");
-    char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
+    CHECK_ERR(list_len == 2 || list_len == 3, "Invalid arguments");
+    
     if (list_len == 3) {
-      CHECK_ERR(cmd_serval_sign(_LIST_ELEMENT(params,1),
-			co_str_len(co_list_element(params,1)) - 1,
-			(unsigned char*)_LIST_ELEMENT(params,2),
-			co_str_len(co_list_element(params,2)) - 1,
-			sig_buf,
-			2*SIGNATURE_BYTES + 1,
-			keypath ? _LIST_ELEMENT(params,3) + 10 : NULL, // strlen("--length=") == 10
-			keypath ? co_str_len(co_list_element(params,3)) - 11 : 0),"Failed to create signature");
+      char *sid_str = _LIST_ELEMENT(params, 1);
+      size_t sid_len = co_str_len(co_list_element(params, 1)) - 1;
+      CHECK_ERR(sid_len == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
+		"Invalid SID");
+      stowSid(ctx->sid, 0, sid_str);
+      ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 2);
+      ctx->msg_len = co_str_len(co_list_element(params, 2)) - 1;
+      if (keypath) {
+	ctx->keyring_path = _LIST_ELEMENT(params, 3) + 10;
+	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - 11;
+	CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+      }
+    
     } else if (list_len == 2) {
-      CHECK_ERR(cmd_serval_sign(NULL,
-			0,
-			(unsigned char*)_LIST_ELEMENT(params,1),
-			co_str_len(co_list_element(params,1)) - 1,
-			sig_buf,
-			2*SIGNATURE_BYTES + 1,
-			keypath ? _LIST_ELEMENT(params,2) + 10 : NULL, // strlen("--length=") == 10
-			keypath ? co_str_len(co_list_element(params,2)) - 11 : 0),"Failed to create signature");
+      
+      ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 1);
+      ctx->msg_len = co_str_len(co_list_element(params, 1)) - 1;
+      if (keypath) {
+	ctx->keyring_path = _LIST_ELEMENT(params, 2) + 10;
+	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - 11;
+	CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+      }
+
     }
-    CMD_OUTPUT("result",co_str8_create(sig_buf,2*SIGNATURE_BYTES+1,0));
+    CHECK_ERR(cmd_serval_sign(ctx), "Failed to create signature");
     
-  } else if (co_str_cmp_str(co_list_element(params,0),"verify") == 0) {
+    // convert ctx->signature, ctx->sas_public, and ctx->sid to hex: 
+    char sid_str[(2 * SID_SIZE) + 1] = {0};
+    strncpy(sid_str, alloca_tohex(ctx->sid, SID_SIZE), 2 * SID_SIZE);
+    char sas_str[(2 * crypto_sign_PUBLICKEYBYTES) + 1] = {0};
+    strncpy(sas_str, alloca_tohex(ctx->sas_public, crypto_sign_PUBLICKEYBYTES), 2 * crypto_sign_PUBLICKEYBYTES);
+    char sig_str[(2 * SIGNATURE_BYTES) + 1] = {0};
+    strncpy(sig_str, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
+    CMD_OUTPUT("SID", co_str8_create(sid_str, (2 * SID_SIZE) + 1, 0));
+    CMD_OUTPUT("SAS", co_str8_create(sas_str, (2 * crypto_sign_PUBLICKEYBYTES) + 1, 0));
+    CMD_OUTPUT("signature", co_str8_create(sig_str, (2 * SIGNATURE_BYTES) + 1, 0));
     
-    CHECK_ERR(!keypath,"Keyring option not available for verification");
-    CHECK_ERR(list_len == 4,"Invalid arguments");
-    int verdict = cmd_serval_verify(_LIST_ELEMENT(params,1),
-				  co_str_len(co_list_element(params,1)) - 1,
-				  (unsigned char*)_LIST_ELEMENT(params,3),
-				  co_str_len(co_list_element(params,3)) - 1,
-				  _LIST_ELEMENT(params,2),
-				  co_str_len(co_list_element(params,2)) - 1);
-// 				  keypath ? _LIST_ELEMENT(params,4) + 10 : NULL, // strlen("--length=") == 10
-// 				  keypath ? co_str_len(co_list_element(params,4)) - 10 : 0);
+  } else if (co_str_cmp_str(co_list_element(params, 0), "verify") == 0) {
+    
+    CHECK_ERR(!keypath, "Keyring option not available for verification");
+    CHECK_ERR(list_len == 4, "Invalid arguments");
+    // convert SAS and signature from hex to bin
+    CHECK_ERR(fromhexstr(ctx->signature, _LIST_ELEMENT(params, 2), SIGNATURE_BYTES) == 0, "Invalid signature");
+    CHECK_ERR(fromhexstr(ctx->sas_public, _LIST_ELEMENT(params, 1), crypto_sign_PUBLICKEYBYTES) == 0, "Invalid SAS key");
+    ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 3);
+    ctx->msg_len = co_str_len(co_list_element(params, 3)) - 1;
+
+    int verdict = cmd_serval_verify(ctx);
     if (verdict == 1) {
       DEBUG("signature verified");
-      CMD_OUTPUT("result",co_bool_create(true,0));  // successfully verified
+      CMD_OUTPUT("result", co_bool_create(true, 0));  // successfully verified
+      CMD_OUTPUT("verified",co_str8_create("true",sizeof("true"),0));
     } else if (verdict == 0) {
       DEBUG("signature NOT verified");
-      CMD_OUTPUT("result",co_bool_create(false,0));
+      CMD_OUTPUT("result", co_bool_create(false, 0));
+      CMD_OUTPUT("verified",co_str8_create("false",sizeof("false"),0));
     }
     
   }
@@ -496,60 +534,61 @@ int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   return 1;
 error:
   INS_ERROR();
+  if (ctx)
+    svl_crypto_ctx_free(ctx);
   return 0;
 }
 
-int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  keyring_file *mdp_keyring = NULL;
-  unsigned char *mdp_key = NULL;
-  int mdp_key_len = 0;
-  unsigned char packedSid[SID_SIZE] = {0};
+int
+olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  svl_crypto_ctx *ctx = NULL;
+  CHECK(IS_LIST(params) && co_list_length(params) == 2, "Invalid params");
   
-  CHECK(IS_LIST(params) && co_list_length(params) == 2,"Invalid params");
+  size_t sid_len = co_str_len(co_list_element(params, 1));
+  char *sid_str = _LIST_ELEMENT(params, 1);
   
-  size_t sid_len = co_str_len(co_list_element(params,1));
-  char *sid_str = _LIST_ELEMENT(params,1);
+  CHECK(sid_len == (2 * SID_SIZE) + 1 && str_is_subscriber_id(sid_str) == 1, "Invalid SID");
   
-  CHECK(sid_len == 2*SID_SIZE + 1 && str_is_subscriber_id(sid_str) == 1,"Invalid SID");
-  stowSid(packedSid,0,sid_str);
+  ctx = svl_crypto_ctx_new();
   
-  CHECK(serval_init_keyring(packedSid,
-		     SID_SIZE,
-		     _LIST_ELEMENT(params,0),
-		     co_str_len(co_list_element(params,0)),
-		     &mdp_keyring,
-		     &mdp_key,
-		     &mdp_key_len), "Failed to initialize Serval keyring");
+  stowSid(ctx->sid, 0, sid_str);
   
-  CMD_OUTPUT("key",co_bin8_create((char*)mdp_key,mdp_key_len,0));
+  ctx->keyring_path = _LIST_ELEMENT(params, 0);
+  ctx->keyring_len = co_str_len(co_list_element(params, 0)) - 1;
+  CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+  
+  CHECK(serval_init_keyring(ctx), "Failed to initialize Serval keyring");
+  
+  CMD_OUTPUT("key", co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0));
   
   return 1;
 error:
+  if (ctx)
+    svl_crypto_ctx_free(ctx);
   return 0;
 }
 
-int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  int msg_len = 0, ret = 0, sig_buf_len;
-  unsigned char *msg = NULL, *sig_buf = NULL;
+int
+olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  int ret = 0;
+  svl_crypto_ctx *ctx = svl_crypto_ctx_new();
   
   /** skipping some error checking for performance reasons */
   
-//   CHECK(IS_LIST(params) && co_list_length(params) == 2,"Invalid params");
+//   CHECK(IS_LIST(params) && co_list_length(params) == 2, "Invalid params");
   
-  msg_len = co_obj_data((char**)&msg,co_list_element(params,1));
-  sig_buf_len = SIGNATURE_BYTES + msg_len + 1;
-  sig_buf = calloc(sig_buf_len,sizeof(unsigned char));
+  ctx->msg_len = co_obj_data((char**)&ctx->msg, co_list_element(params, 1));
   
-  CHECK(serval_create_signature((unsigned char*)_LIST_ELEMENT(params,0),
-                     msg,
-		     msg_len,
-		     sig_buf,
-		     sig_buf_len),"Failed to sign OLSRd packet");
+  memcpy(ctx->sas_private,_LIST_ELEMENT(params, 0),crypto_sign_SECRETKEYBYTES);
   
-  CMD_OUTPUT("sig",co_bin8_create((char*)(sig_buf+msg_len),SIGNATURE_BYTES,0));
+  CHECK(serval_create_signature(ctx), "Failed to sign OLSRd packet");
+  
+  CMD_OUTPUT("sig", co_bin8_create((char*)ctx->signature, SIGNATURE_BYTES, 0));
   
   ret = 1;
 error:
-  if (sig_buf) free(sig_buf);
+  svl_crypto_ctx_free(ctx);
   return ret;
 }

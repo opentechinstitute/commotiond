@@ -31,7 +31,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
 #include <unistd.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -57,7 +56,7 @@ typedef enum {
   SERVAL_SIGN = 0,
   SERVAL_VERIFY = 1,
   SERVAL_CRYPTO = 2
-} serval_cmd;
+} serval_client_cmd;
 
 #define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
 _DECLARE_SERVAL(commandline_usage);
@@ -204,7 +203,7 @@ static struct cli_schema command_line_options[]={
   {NULL,{NULL}}
 };
 
-static int print_usage(serval_cmd cmd) {
+static int print_usage(serval_client_cmd cmd) {
   printf("Serval client\n");
   printf("Usage:\n");
   if (cmd == SERVAL_SIGN || cmd == SERVAL_CRYPTO) {
@@ -218,124 +217,117 @@ static int print_usage(serval_cmd cmd) {
   return 1;
 }
 
+static int serval_cmd(int argc, char *argv[]) {
+  struct cli_parsed parsed;
+  int result = cli_parse(argc, (const char*const*)argv, command_line_options, &parsed);
+  switch (result) {
+    case 0:
+      // Do not run the command if the configuration does not load ok.
+      if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
+	if (cli_invoke(&parsed, NULL) == 0) {
+	  return 0;
+	}
+      }
+      break;
+    case 1:
+    case 2:
+      // Load configuration so that log messages can get out.
+      cf_reload_permissive();
+      //       NOWHENCE(HINTF("Run \"%s help\" for more information.", argv0 ? argv0 : "servald"));
+      break;
+    default:
+      // Load configuration so that log error messages can get out.
+      cf_reload_permissive();
+      break;
+  }
+  return 1;
+}
+
 int main(int argc, char *argv[]) {
-  int ret = 1, opt = 0, opt_index = 0, keypath = 0;
-  char keyring_path[PATH_MAX] = {0};
-  char *keyring_opt = NULL;
-  static const char *opt_string = "k:h";
-
-  static struct option long_opts[] = {
-    {"keyring", required_argument, NULL, 'k'},
-    {"help", no_argument, NULL, 'h'}
-  };
-
-  opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
-
-  while(opt != -1) {
-    switch(opt) {
-      case 'k':
-	keyring_opt = optarg;
-	break;
-      case 'h':
-      default:
-        print_usage(SERVAL_CRYPTO);
-        return 0;
-        break;
-    }
-    opt = getopt_long(argc, argv, opt_string, long_opts, &opt_index);
-  }
-  
-  if (keyring_opt) {
-    CHECK(strlen(keyring_opt) < PATH_MAX,"keyring path too long");
-    strcpy(keyring_path,keyring_opt);
-  } else {
-    strcpy(keyring_path,DEFAULT_SERVAL_PATH);
-    strcpy(keyring_path,"/");
-    strcpy(keyring_path,"serval.keyring");
-  }
+  int ret = 1;
+  char *instance_path = NULL;
+  svl_crypto_ctx *ctx = svl_crypto_ctx_new();
+  CHECK_MEM(ctx);
   
   // Run the Serval command
   
-  if (!strcmp(argv[optind],"sign")) {
-    if (argc - optind <= 2 || argc - optind >= 4) {
+  if (!strncmp("--keyring=",argv[argc-1],10)) {
+    CHECK(strlen(argv[argc-1] + 10) < PATH_MAX,"keyring path too long");
+    ctx->keyring_path = argv[argc-1] + 10;
+    argc--;
+  } else {
+    // add default path to ctx->keyring_path
+    ctx->keyring_path = h_malloc(strlen(DEFAULT_SERVAL_PATH) + strlen("/serval.keyring"));
+    hattach(ctx->keyring_path,ctx);
+    strcpy(ctx->keyring_path,DEFAULT_SERVAL_PATH);
+    strcat(ctx->keyring_path,"/serval.keyring");
+  }
+  ctx->keyring_len = strlen(ctx->keyring_path);
+  
+  argc--;
+  argv++;
+  if (!strcmp(argv[0],"sign")) {
+    if (argc < 2 || argc > 3) {
       print_usage(SERVAL_SIGN);
       goto error;
     }
     char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
-    if (!strncmp("--keyring=",argv[argc-1],10)) {
-      keypath = 1;
-      argc--;
+    if (argc == 3) {
+      char *sid_str = argv[1];
+      CHECK(strlen(sid_str) == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
+		"Invalid SID");
+      stowSid(ctx->sid, 0, sid_str);
+      ctx->msg = (unsigned char*)argv[2];
+      ctx->msg_len = strlen(argv[2]);
+    } else if (argc == 2) {
+      ctx->msg = (unsigned char*)argv[1];
+      ctx->msg_len = strlen(argv[1]);
     }
-    char keyring_path[PATH_MAX] = {0};
-    FORM_SERVAL_INSTANCE_PATH(keyring_path, "serval.keyring");
-    if (argc - optind == 3) {
-      CHECK(cmd_serval_sign(argv[optind+1],
-			  strlen(argv[optind+1]),
-			  (unsigned char*)argv[optind+2],
-			  strlen(argv[optind+2]),
-			  sig_buf,
-			  2*SIGNATURE_BYTES + 1,
-			  keypath ? argv[optind+3] + 10 : keyring_path, // strlen("--length=") == 10
-			  keypath ? strlen(argv[optind+3] + 10) : strlen(keyring_path)),"Failed to create signature");
-    } else if (argc - optind == 2) {
-      CHECK(cmd_serval_sign(NULL,
-			0,
-			(unsigned char*)argv[optind+1],
-			strlen(argv[optind+1]),
-			sig_buf,
-			2*SIGNATURE_BYTES + 1,
-			keypath ? argv[optind+2] + 10 : keyring_path, // strlen("--length=") == 10
-			keypath ? strlen(argv[optind+2] + 10) : strlen(keyring_path)),"Failed to create signature");
-    }
+    CHECK(cmd_serval_sign(ctx), "Failed to create signature");
+    // convert ctx->signature to hex: 
+    strncpy(sig_buf, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
+    sig_buf[2 * SIGNATURE_BYTES] = '\0';
     printf("%s\n",sig_buf);
     
-  } else if (!strcmp(argv[optind],"verify"))  {
-    if (argc - optind != 4) {
+  } else if (!strcmp(argv[0],"verify"))  {
+    if (argc != 4) {
       print_usage(SERVAL_VERIFY);
       goto error;
     }
-    int verdict = serval_verify_client(argv[optind+1],
-				strlen(argv[optind+1]),
-				(unsigned char*)argv[optind+3],
-				strlen(argv[optind+3]),
-				argv[optind+2],
-				strlen(argv[optind+2]),
-				keyring_path,
-				strlen(keyring_path));
+    
+    // Set SERVALINSTANCE_PATH environment variable
+    char *last_slash = strrchr(ctx->keyring_path,(int)'/');
+    instance_path = calloc(last_slash - ctx->keyring_path + 1,sizeof(char));
+    strncpy(instance_path,ctx->keyring_path,last_slash - ctx->keyring_path);
+    CHECK(setenv("SERVALINSTANCE_PATH", instance_path, 1) == 0,
+	      "Failed to set SERVALINSTANCE_PATH env variable");
+    
+    char *sid_str = argv[1];
+    CHECK(strlen(sid_str) == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
+	      "Invalid SID");
+    stowSid(ctx->sid, 0, sid_str);
+    CHECK(fromhexstr(ctx->signature, argv[2], SIGNATURE_BYTES) == 0, "Invalid signature");
+    ctx->msg = (unsigned char*)argv[3];
+    ctx->msg_len = strlen(argv[3]);
+    int verdict = serval_verify_client(ctx);
     if (verdict == 1)
       printf("Message verified!\n");
     else
       printf("Message NOT verified!\n");
     
   } else {  // Serval built-in commands
-    struct cli_parsed parsed;
-    int result = cli_parse(argc - optind, (const char*const*)(argv + optind), command_line_options, &parsed);
-    switch (result) {
-      case 0:
-        // Do not run the command if the configuration does not load ok.
-        if (((parsed.commands[parsed.cmdi].flags & CLIFLAG_PERMISSIVE_CONFIG) ? cf_reload_permissive() : cf_reload()) != -1) {
-	  if (cli_invoke(&parsed, NULL) == 0) {
-	    ret = 0;
-	  }
-        }
-        break;
-      case 1:
-      case 2:
-        // Load configuration so that log messages can get out.
-        cf_reload_permissive();
-        //       NOWHENCE(HINTF("Run \"%s help\" for more information.", argv0 ? argv0 : "servald"));
-        break;
-      default:
-        // Load configuration so that log error messages can get out.
-        cf_reload_permissive();
-        break;
-    }
+    ret = serval_cmd(argc, argv);
   }
   
   /* clean up after ourselves */
   overlay_mdp_client_done();
   rhizome_close_db();
   
+  ret = 0;
 error:
+  if (instance_path)
+    free(instance_path);
+  if (ctx)
+    svl_crypto_ctx_free(ctx);
   return ret;
 }
