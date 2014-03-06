@@ -99,7 +99,7 @@ proto_commotion_setup() {
 	      	unset_bridge "$client_bridge" "$iface"
 	      	logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
 	      	export DHCP_INTERFACE="$config"
-	      	udhcpc -q -i ${iface} -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
+	      	udhcpc -q -i ${iface} -p /var/run/udhcpc-${iface}.pid -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
 	      	dhcp_status=$?
 	      	export DHCP_INTERFACE=""
 	      	if [ $dhcp_status -eq 0 ]; then
@@ -107,14 +107,12 @@ proto_commotion_setup() {
 	      		# see commotion.dhcp.script for the rest of
 	      		# the setup code.
 	      		have_ip=1
-	      		uci_set_state network "$config" lease 2
 
 	      		# get out of here early.
 	      		return
 	      	else
 	      		unset_fwzone "$config"
 	      		uci_commit firewall
-	      		uci_set_state network "$config" lease 1
 	      		set_bridge "$client_bridge" "$iface"
 	      		logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
 	      		
@@ -142,7 +140,6 @@ proto_commotion_setup() {
         "server")
 	      	unset_fwzone "$config"
 	      	uci_commit firewall
-	      	uci_set_state network "$config" lease 1
 	      	set_bridge "$client_bridge" "$iface"
 	      	logger -t "commotion.proto" -s "Adding $iface to bridge $client_bridge"
 	      	
@@ -165,9 +162,13 @@ proto_commotion_setup() {
 	      	
 	      	unset_bridge "$client_bridge" "$iface"
 	      	logger -t "commotion.proto" -s "Removing $iface from bridge $client_bridge"
-	      	export DHCP_INTERFACE="$config"
-	      	proto_run_command "$config" udhcpc -i ${iface} -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
+	      	proto_export "DHCP_INTERFACE=$config"
+	      	proto_run_command "$config" udhcpc -i ${iface} -f -T "$dhcp_timeout" -t 0 -p /var/run/udhcpc-"$iface".pid -s /lib/netifd/commotion.dhcp.script
+		have_ip=1
         ;;
+	"none")
+	      	unset_bridge "$client_bridge" "$iface"
+	;;
       esac
       ;;
   esac
@@ -176,8 +177,13 @@ proto_commotion_setup() {
 	
 	if [ $have_ip -eq 0 ]; then
 		if [ "$class" != "mesh" ]; then
-			local ip=${ipaddr:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
-			local netmask=${netmask:-$DEFAULT_CLIENT_NETMASK}
+			if [ "$class" == "wired" -a "$dhcp" == "none" ]; then
+				local ip="$ipaddr" 
+				local netmask="$netmask"
+			else 
+				local ip=${ipaddr:-$(commotion_gen_ip $DEFAULT_CLIENT_SUBNET $DEFAULT_CLIENT_IPGENMASK gw)} 
+				local netmask=${netmask:-$DEFAULT_CLIENT_NETMASK}
+			fi
 			proto_add_ipv4_address $ip $netmask
 			logger -t "commotion.proto" -s "proto_add_ipv4_address: $ip $netmask"
 			uci_set_state network "$config" ipaddr "$ip"
