@@ -162,6 +162,9 @@ proto_commotion_setup() {
 	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
 		brctl delif br-"$client_bridge" "$iface"
 	      	logger -t "commotion.proto" "Successfully removed $iface from bridge $client_bridge"
+	      	logger -t "commotion.proto" "Restarting $client_bridge interface"
+	      	ubus call network.interface."$client_bridge" down
+	      	ubus call network.interface."$client_bridge" up
 	      	proto_export "DHCP_INTERFACE=$config"
 		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	proto_run_command "$config" udhcpc -i ${iface} -f -T "$dhcp_timeout" -t 0 -p /var/run/udhcpc-"$iface".pid -s /lib/netifd/commotion.dhcp.script
