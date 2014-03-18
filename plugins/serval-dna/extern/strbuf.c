@@ -50,25 +50,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "strbuf.h"
 
-static int __strbuf_vsprintf(strbuf sb, const char *fmt, va_list ap)
-{
-  int n;
-  if (sb->start && !sb->end) {
-    n = vsprintf(sb->current, fmt, ap);
-  } else if (sb->start && sb->current < sb->end) {
-    int space = sb->end - sb->current + 1;
-    n = vsnprintf(sb->current, space, fmt, ap);
-    if (n >= space)
-      *sb->end = '\0';
-  } else {
-    char tmp[1];
-    n = vsnprintf(tmp, sizeof tmp, fmt, ap);
-  }
-  if (n != -1)
-    sb->current += n;
-  return n;
-}
-
 strbuf __strbuf_init(strbuf sb, char *buffer, ssize_t size)
 {
   sb->start = buffer;
@@ -125,6 +106,25 @@ int __strbuf_sprintf(strbuf sb, const char *fmt, ...)
   return n;
 }
 
+int __strbuf_vsprintf(strbuf sb, const char *fmt, va_list ap)
+{
+  int n;
+  if (sb->start && !sb->end) {
+    n = vsprintf(sb->current, fmt, ap);
+  } else if (sb->start && sb->current < sb->end) {
+    int space = sb->end - sb->current + 1;
+    n = vsnprintf(sb->current, space, fmt, ap);
+    if (n >= space)
+      *sb->end = '\0';
+  } else {
+    char tmp[1];
+    n = vsnprintf(tmp, sizeof tmp, fmt, ap);
+  }
+  if (n != -1)
+    sb->current += n;
+  return n;
+}
+
 inline int __strbuf_overrun(const_strbuf sb) {
   return sb->end && sb->current > sb->end;
 }
@@ -133,4 +133,10 @@ inline char *__strbuf_str(const_strbuf sb) {
 }
 inline size_t __strbuf_count(const_strbuf sb) {
   return sb->current - sb->start;
+}
+inline size_t __strbuf_len(const_strbuf sb) {
+  return __strbuf_end(sb) - sb->start;
+}
+inline char *__strbuf_end(const_strbuf sb) {
+  return sb->end && sb->current > sb->end ? sb->end : sb->current;
 }

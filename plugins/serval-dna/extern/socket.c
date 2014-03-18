@@ -64,17 +64,29 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "strbuf_helpers.h"
 #include "str.h"
 
+static char *thisinstancepath = NULL;
+
+static const char *__serval_instancepath()
+{
+  if (thisinstancepath)
+    return thisinstancepath;
+  const char *instancepath = getenv("SERVALINSTANCE_PATH");
+  if (!instancepath)
+    instancepath = DEFAULT_INSTANCE_PATH;
+  return instancepath;
+}
+
 static int __vformf_serval_instance_path(char *buf, size_t bufsiz, const char *fmt, va_list ap)
 {
-  strbuf b = strbuf_local(buf, bufsiz);
-  strbuf_va_vprintf(b, fmt, ap);
-  if (!strbuf_overrun(b) && strbuf_len(b) && buf[0] != '/') {
-    strbuf_reset(b);
-    strbuf_puts(b, serval_instancepath());
-    strbuf_putc(b, '/');
-    strbuf_va_vprintf(b, fmt, ap);
+  strbuf b = __strbuf_local(buf, bufsiz);
+  __strbuf_va_vprintf(b, fmt, ap);
+  if (!__strbuf_overrun(b) && __strbuf_len(b) && buf[0] != '/') {
+    __strbuf_reset(b);
+    __strbuf_puts(b, __serval_instancepath());
+    __strbuf_putc(b, '/');
+    __strbuf_va_vprintf(b, fmt, ap);
   }
-  if (!strbuf_overrun(b))
+  if (!__strbuf_overrun(b))
     return 1;
   WHYF("instance path overflow (strlen %lu, sizeof buffer %lu): %s",
        (unsigned long)__strbuf_count(b),

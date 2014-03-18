@@ -81,7 +81,6 @@ time_ms_t __gettime_ms()
   return nowtv.tv_sec * 1000LL + nowtv.tv_usec / 1000;
 }
 
-#if 0
 static int __urandombytes(unsigned char *buf, unsigned long long len)
 {
   static int urandomfd = -1;
@@ -115,7 +114,6 @@ static int __urandombytes(unsigned char *buf, unsigned long long len)
   }
   return 0;
 }
-#endif
 
 /** Create a new MDP socket and return its descriptor (-1 on error). */
 int __overlay_mdp_client_socket(void)
@@ -124,7 +122,7 @@ int __overlay_mdp_client_socket(void)
   int mdp_sockfd;
   struct socket_address addr;
   uint32_t random_value;
-  if (urandombytes((unsigned char *)&random_value, sizeof random_value) == -1)
+  if (__urandombytes((unsigned char *)&random_value, sizeof random_value) == -1)
     return WHY("urandombytes() failed");
   if (make_local_sockaddr(&addr, "mdp.client.%u.%08lx.socket", getpid(), (unsigned long)random_value) == -1)
     return -1;

@@ -65,15 +65,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define __strbuf_local(buf,len) __strbuf_init(alloca(SIZEOF_STRBUF), (buf), (len))
 
+#define __strbuf_va_vprintf(sb,fmt,ap) do { \
+            va_list __strbuf_ap; \
+            va_copy(__strbuf_ap, (ap)); \
+            __strbuf_vsprintf(sb, (fmt), __strbuf_ap); \
+            va_end(__strbuf_ap); \
+        } while (0)
+
 strbuf __strbuf_reset(strbuf sb);
 strbuf __strbuf_init(strbuf sb, char *buffer, ssize_t size);
 strbuf __strbuf_puts(strbuf sb, const char *text);
 strbuf __strbuf_putc(strbuf sb, char ch);
 int __strbuf_sprintf(strbuf sb, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 strbuf __strbuf_trunc(strbuf sb, int offset);
+int __strbuf_vsprintf(strbuf sb, const char *fmt, va_list ap);
 
 int __strbuf_overrun(const_strbuf sb);
 char *__strbuf_str(const_strbuf sb);
 size_t __strbuf_count(const_strbuf sb);
+size_t __strbuf_len(const_strbuf sb);
+char *__strbuf_end(const_strbuf sb);
 
 #endif
