@@ -10,14 +10,14 @@ CHECK_INCLUDE_FILES (sys/socket.h HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h)
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/extern/config.h)
+# CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/extern/config.h)
 
 SET(PLUGIN_NAME serval-dna)
 SET(PLUGINSRC serval-dna.c crypto.c)
 SET(CLIENT_NAME serval-client)
 SET(CLIENTSRC serval-client.c crypto.c)
 SET(SAS_NAME serval-sas)
-SET(SASSRC sas_request.c extern/mdp_client.c extern/net.c extern/socket.c extern/strbuf_helpers.c extern/strbuf.c extern/str.c)
+SET(SASSRC sas_request.c)
 
 INCLUDE_DIRECTORIES(${COMMON_INCLUDES})
 INCLUDE_DIRECTORIES("/usr/include/serval")
@@ -31,7 +31,7 @@ ADD_LIBRARY(${SAS_NAME} SHARED ${SASSRC})
 
 TARGET_LINK_LIBRARIES(${PLUGIN_NAME} serval commotion)
 TARGET_LINK_LIBRARIES(${CLIENT_NAME} serval commotion)
-TARGET_LINK_LIBRARIES(${SAS_NAME} commotion)
+TARGET_LINK_LIBRARIES(${SAS_NAME} mdpclient commotion)
 
 SET_TARGET_PROPERTIES(${PLUGIN_NAME} PROPERTIES OUTPUT_NAME commotion_${PLUGIN_NAME})
 SET_TARGET_PROPERTIES(${SAS_NAME} PROPERTIES OUTPUT_NAME commotion_${SAS_NAME})

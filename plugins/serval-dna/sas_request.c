@@ -103,7 +103,7 @@ int keyring_send_sas_request_client(const char *sid_str,
   sid_t srcsid;
   unsigned char dstsid[SID_SIZE] = {0};
   unsigned char signature[siglen];
-  time_ms_t now = __gettime_ms();
+  time_ms_t now = gettime_ms();
   
   CHECK_MEM(sas_buf);
   CHECK(sas_buf_len >= 2 * SAS_SIZE + 1, "Insufficient SAS buffer");
@@ -111,12 +111,12 @@ int keyring_send_sas_request_client(const char *sid_str,
   CHECK(sid_len == 2 * SID_SIZE && __fromhexstr(dstsid, sid_str, SID_SIZE) == 0,
 	"Invalid SID");
   
-  CHECK((mdp_sockfd = __overlay_mdp_client_socket()) >= 0,"Cannot create MDP socket");
+  CHECK((mdp_sockfd = overlay_mdp_client_socket()) >= 0,"Cannot create MDP socket");
   
-  CHECK(__overlay_mdp_getmyaddr(mdp_sockfd, 0, &srcsid) == 0, "Could not get local address");
+  CHECK(overlay_mdp_getmyaddr(mdp_sockfd, 0, &srcsid) == 0, "Could not get local address");
   
   int client_port = 32768 + (random() & 32767);
-  CHECK(__overlay_mdp_bind(mdp_sockfd, &srcsid, client_port) == 0,
+  CHECK(overlay_mdp_bind(mdp_sockfd, &srcsid, client_port) == 0,
 	"Failed to bind to client socket");
   
   /* request mapping (send request auth-crypted). */
@@ -132,7 +132,7 @@ int keyring_send_sas_request_client(const char *sid_str,
   mdp.out.payload_length=1;
   mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
   
-  sent = __overlay_mdp_send(mdp_sockfd, &mdp, 0,0);
+  sent = overlay_mdp_send(mdp_sockfd, &mdp, 0,0);
   if (sent) {
     DEBUG("Failed to send SAS resolution request: %d", sent);
     CHECK(mdp.packetTypeAndFlags != MDP_ERROR,"MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
@@ -141,12 +141,12 @@ int keyring_send_sas_request_client(const char *sid_str,
   time_ms_t timeout = now + 5000;
   
   while(now<timeout) {
-    time_ms_t timeout_ms = timeout - __gettime_ms();
-    int result = __overlay_mdp_client_poll(mdp_sockfd, timeout_ms);
+    time_ms_t timeout_ms = timeout - gettime_ms();
+    int result = overlay_mdp_client_poll(mdp_sockfd, timeout_ms);
     
     if (result>0) {
       int ttl=-1;
-      if (__overlay_mdp_recv(mdp_sockfd, &mdp, client_port, &ttl)==0) {
+      if (overlay_mdp_recv(mdp_sockfd, &mdp, client_port, &ttl)==0) {
 	switch(mdp.packetTypeAndFlags&MDP_TYPE_MASK) {
 	  case MDP_ERROR:
 	    ERROR("overlay_mdp_recv: %s (code %d)", mdp.error.message, mdp.error.error);
@@ -165,7 +165,7 @@ int keyring_send_sas_request_client(const char *sid_str,
 	if (found) break;
       }
     }
-    now=__gettime_ms();
+    now=gettime_ms();
   }
   
   unsigned keytype = mdp.out.payload[0];
@@ -188,6 +188,6 @@ int keyring_send_sas_request_client(const char *sid_str,
   
 error:
   if (mdp_sockfd != -1)
-    __overlay_mdp_client_close(mdp_sockfd);
+    overlay_mdp_client_close(mdp_sockfd);
   return ret;
 }
