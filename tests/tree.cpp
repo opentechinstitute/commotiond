@@ -68,6 +68,9 @@ class TreeTest : public ::testing::Test
       TestString2 = co_str8_create("2TESTVALUE2", 12, 0);
       
       ReplaceString1 = co_str8_create("REPLACE", 9, 0);
+      
+      ret = 0;
+      ptr = NULL;
     }
 
     virtual void SetUp()
