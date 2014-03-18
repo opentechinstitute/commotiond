@@ -218,7 +218,11 @@ void ListTest::Retrieval()
   
   ret = co_list_append(List16, TestString3);
   ASSERT_EQ(1, ret);
-
+  
+  // get list size
+  ret = co_list_length(List16);
+  ASSERT_EQ(3, ret);
+  
   // get first node
   ptr = co_list_get_first(List16);
   ASSERT_EQ(TestString1, ptr);
@@ -244,6 +248,10 @@ void ListTest::Retrieval()
   
   ret = co_list_append(List32, TestString3);
   ASSERT_EQ(1, ret);
+  
+  // get list size
+  ret = co_list_length(List32);
+  ASSERT_EQ(3, ret);
 
   // get first node
   ptr = co_list_get_first(List32);
