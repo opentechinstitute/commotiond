@@ -185,7 +185,10 @@ void TreeTest::UpdateObj()
   ptr = co_tree_find(Tree16, "1TESTKEY1", 10);
   ASSERT_EQ(0, co_str_cmp(ptr, ReplaceString1));
     
-  /*
+  
+  // reinitialize TestString1 since it was freed by co_tree_insert_force()
+  TestString1 = co_str8_create("1TESTVALUE1", 12, 0);
+  
   // repeat for Tree32
   ret = co_tree_insert(Tree32, "1TESTKEY1", 10, TestString1);
   ASSERT_EQ(1, ret);
@@ -195,14 +198,13 @@ void TreeTest::UpdateObj()
     
   ptr = co_tree_find(Tree32, "1TESTKEY1", 10);
   ASSERT_EQ(0, co_str_cmp(ptr, ReplaceString1));
-  */
+  
 }
 
 TEST_F(TreeTest, TreeInsertTest)
 {
   InsertObj();
 } 
-
 
 TEST_F(TreeTest, TreeDeleteTest)
 {
