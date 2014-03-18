@@ -117,6 +117,14 @@ void ListTest::DeleteObj()
   ptr = co_list_delete(List16, TestString2);
   ASSERT_EQ(TestString2, ptr);
   
+  // confirm deletions
+  ret = co_list_contains(List16, TestString1);
+  ASSERT_EQ(0, ret);
+  
+  ret = co_list_contains(List16, TestString1);
+  ASSERT_EQ(0, ret);
+  
+  
   // repeat for List32
   ret = co_list_append(List32, TestString1);
   ASSERT_EQ(1, ret);
@@ -129,6 +137,13 @@ void ListTest::DeleteObj()
   
   ptr = co_list_delete(List32, TestString2);
   ASSERT_EQ(TestString2, ptr);
+  
+  // confirm deletions
+  ret = co_list_contains(List32, TestString1);
+  ASSERT_EQ(0, ret);
+  
+  ret = co_list_contains(List32, TestString1);
+  ASSERT_EQ(0, ret);
 }
 
   
