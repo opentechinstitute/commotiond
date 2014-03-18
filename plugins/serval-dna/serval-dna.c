@@ -399,6 +399,8 @@ int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 
 static int serval_load_config(void) {
   CHECK(co_profile_get_str(co_profile_global(),&serval_path,"serval_path",sizeof("serval_path")) < PATH_MAX - 16,"serval_path config parameter too long");
+  if (serval_path[strlen(serval_path) - 1] == '/')
+    serval_path[strlen(serval_path) - 1] = '\0'; // remove trailing slash
   CHECK(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   DEBUG("serval_path: %s",serval_path);
   return 1;
