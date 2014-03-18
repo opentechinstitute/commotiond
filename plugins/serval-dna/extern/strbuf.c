@@ -54,7 +54,7 @@ strbuf __strbuf_init(strbuf sb, char *buffer, ssize_t size)
 {
   sb->start = buffer;
   sb->end = size >= 0 ? sb->start + size - 1 : NULL;
-  return strbuf_reset(sb);
+  return __strbuf_reset(sb);
 }
 
 strbuf __strbuf_reset(strbuf sb)
@@ -104,6 +104,21 @@ int __strbuf_sprintf(strbuf sb, const char *fmt, ...)
   int n = __strbuf_vsprintf(sb, fmt, ap);
   va_end(ap);
   return n;
+}
+
+strbuf __strbuf_trunc(strbuf sb, int offset)
+{
+  if (offset < 0) {
+    char *e = __strbuf_end(sb);
+    sb->current = offset <= sb->start - e ? sb->start : e + offset;
+  } else {
+    char *s = sb->start + offset;
+    if (s < sb->current)
+      sb->current = s;
+  }
+  if (sb->start && (!sb->end || sb->current < sb->end))
+    *sb->current = '\0';
+  return sb;
 }
 
 int __strbuf_vsprintf(strbuf sb, const char *fmt, va_list ap)
