@@ -52,8 +52,5 @@
 
 int __set_block(int fd);
 int __set_nonblock(int fd);
-ssize_t __recvwithttl(int sock,unsigned char *buffer, size_t bufferlen,int *ttl,
-		    struct sockaddr *recvaddr, socklen_t *recvaddrlen);
-
 
 #endif // __NET_H

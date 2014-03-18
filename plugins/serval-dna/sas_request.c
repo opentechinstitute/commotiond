@@ -41,16 +41,19 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include "config.h"
 #include <serval.h>
 #include <serval/conf.h>
 #include <serval/rhizome.h>
 #include <serval/crypto.h>
 #include <serval/str.h>
 #include <serval/overlay_address.h>
+#include <serval/mdp_client.h>
+#include <serval/keyring.h>
 
 #include "sas_request.h"
 #include "debug.h"
-#include "mdp_client.h"
+#include "extern/mdp_client.h"
 
 static const char __hexdigit[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
@@ -65,7 +68,7 @@ static char *__tohex(char *dstHex, const unsigned char *srcBinary, size_t bytes)
   return dstHex;
 }
 
-__STR_INLINE static int __hexvalue(char c)
+inline static int __hexvalue(char c)
 {
   if (c >= '0' && c <= '9') return c - '0';
   if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -95,21 +98,26 @@ int keyring_send_sas_request_client(const char *sid_str,
 				     const size_t sid_len,
 				     char *sas_buf,
 				     const size_t sas_buf_len){
-  int sent, client_port, found = 0, ret = 0;
+  int sent, found = 0, ret = 0, mdp_sockfd = -1;
   int siglen=SID_SIZE+crypto_sign_edwards25519sha512batch_BYTES;
-  unsigned char *srcsid[SID_SIZE] = {0};
+  sid_t srcsid;
   unsigned char dstsid[SID_SIZE] = {0};
   unsigned char signature[siglen];
   time_ms_t now = __gettime_ms();
   
   CHECK_MEM(sas_buf);
-  CHECK(sas_buf_len >= 2*SAS_SIZE + 1,"Insufficient SAS buffer");
+  CHECK(sas_buf_len >= 2 * SAS_SIZE + 1, "Insufficient SAS buffer");
   
-  CHECK(sid_len == 2*SID_SIZE && __fromhexstr(dstsid,sid_str,SID_SIZE) == 0,"Invalid SID");
+  CHECK(sid_len == 2 * SID_SIZE && __fromhexstr(dstsid, sid_str, SID_SIZE) == 0,
+	"Invalid SID");
   
-  CHECK(__overlay_mdp_getmyaddr(0,(sid_t *)srcsid) == 0,"Could not get local address");
+  CHECK((mdp_sockfd = __overlay_mdp_client_socket()) >= 0,"Cannot create MDP socket");
   
-  CHECK(__overlay_mdp_bind((sid_t *)srcsid,(client_port=32768+(random()&32767))) == 0,"Failed to bind to client socket");
+  CHECK(__overlay_mdp_getmyaddr(mdp_sockfd, 0, &srcsid) == 0, "Could not get local address");
+  
+  int client_port = 32768 + (random() & 32767);
+  CHECK(__overlay_mdp_bind(mdp_sockfd, &srcsid, client_port) == 0,
+	"Failed to bind to client socket");
   
   /* request mapping (send request auth-crypted). */
   overlay_mdp_frame mdp;
@@ -117,14 +125,14 @@ int keyring_send_sas_request_client(const char *sid_str,
   
   mdp.packetTypeAndFlags=MDP_TX;
   mdp.out.queue=OQ_MESH_MANAGEMENT;
-  memmove(mdp.out.dst.sid,dstsid,SID_SIZE);
+  memmove(mdp.out.dst.sid.binary,dstsid,SID_SIZE);
   mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
   mdp.out.src.port=client_port;
-  memmove(mdp.out.src.sid,srcsid,SID_SIZE);
+  memmove(mdp.out.src.sid.binary,srcsid.binary,SID_SIZE);
   mdp.out.payload_length=1;
   mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
   
-  sent = __overlay_mdp_send(&mdp, 0,0);
+  sent = __overlay_mdp_send(mdp_sockfd, &mdp, 0,0);
   if (sent) {
     DEBUG("Failed to send SAS resolution request: %d", sent);
     CHECK(mdp.packetTypeAndFlags != MDP_ERROR,"MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
@@ -134,11 +142,11 @@ int keyring_send_sas_request_client(const char *sid_str,
   
   while(now<timeout) {
     time_ms_t timeout_ms = timeout - __gettime_ms();
-    int result = __overlay_mdp_client_poll(timeout_ms);
+    int result = __overlay_mdp_client_poll(mdp_sockfd, timeout_ms);
     
     if (result>0) {
       int ttl=-1;
-      if (__overlay_mdp_recv(&mdp, client_port, &ttl)==0) {
+      if (__overlay_mdp_recv(mdp_sockfd, &mdp, client_port, &ttl)==0) {
 	switch(mdp.packetTypeAndFlags&MDP_TYPE_MASK) {
 	  case MDP_ERROR:
 	    ERROR("overlay_mdp_recv: %s (code %d)", mdp.error.message, mdp.error.error);
@@ -171,7 +179,7 @@ int keyring_send_sas_request_client(const char *sid_str,
   
   /* reconstitute signed SID for verification */
   memmove(&signature[0],&compactsignature[0],64);
-  memmove(&signature[64],&mdp.out.src.sid[0],SID_SIZE);
+  memmove(&signature[64],&mdp.out.src.sid.binary[0],SID_SIZE);
   
   CHECK(__tohex(sas_buf,sas_public,SAS_SIZE),"Failed to convert signing key");
   sas_buf[2*SAS_SIZE] = '\0';
@@ -179,5 +187,7 @@ int keyring_send_sas_request_client(const char *sid_str,
   ret = 1;
   
 error:
+  if (mdp_sockfd != -1)
+    __overlay_mdp_client_close(mdp_sockfd);
   return ret;
 }

@@ -50,7 +50,38 @@
 #ifndef __CO_SERVAL_MDP_CLIENT_H
 #define __CO_SERVAL_MDP_CLIENT_H
 
+#include "config.h"
 #include <serval.h>
+#include <serval/mdp_client.h>
+
+#include "debug.h"
+
+#undef WHY
+#define WHY(J) (ERROR("%s",J), -1)
+
+#undef WHY_perror
+#define WHY_perror(J) (ERROR("%s",J), -1)
+
+#undef WHYF
+#define WHYF(F,...) (ERROR(F, ##__VA_ARGS__), -1)
+
+#undef WHYF_perror
+#define WHYF_perror(F,...) (ERROR(F, ##__VA_ARGS__), -1)
+
+#undef DEBUGF
+#define DEBUGF(F,...) DEBUG(F, ##__VA_ARGS__)
+
+#undef WARNF
+#define WARNF(F,...) (WARN(F, ##__VA_ARGS__), -1)
+
+#undef FATALF
+#define FATALF(F,...)       do { ERROR(F, ##__VA_ARGS__); abort(); exit(-1); } while (1)
+
+#undef WARN_perror
+#define WARN_perror(X)      WARNF("%s", (X))
+
+#undef INFOF
+#define INFOF(F,...)        INFO(F, ##__VA_ARGS__)
 
 struct __overlay_mdp_scan{
   struct in_addr addr;
@@ -59,15 +90,13 @@ struct __overlay_mdp_scan{
 time_ms_t __gettime_ms();
 
 /* Client-side MDP function */
-extern int __mdp_client_socket;
-int __overlay_mdp_client_init();
-int __overlay_mdp_client_done();
-int __overlay_mdp_client_poll(time_ms_t timeout_ms);
-int __overlay_mdp_recv(overlay_mdp_frame *mdp, int port, int *ttl);
-int __overlay_mdp_send(overlay_mdp_frame *mdp,int flags,int timeout_ms);
-int __overlay_mdp_relevant_bytes(overlay_mdp_frame *mdp);
-
-int __overlay_mdp_getmyaddr(unsigned index, sid_t *sid);
-int __overlay_mdp_bind(const sid_t *localaddr, int port);
+int __overlay_mdp_client_socket(void);
+int __overlay_mdp_client_close(int mdp_sockfd);
+int __overlay_mdp_client_poll(int mdp_sockfd, time_ms_t timeout_ms);
+int __overlay_mdp_getmyaddr(int mpd_sockfd, unsigned index, sid_t *sid);
+int __overlay_mdp_bind(int mdp_sockfd, const sid_t *localaddr, mdp_port_t port) ;
+int __overlay_mdp_recv(int mdp_sockfd, overlay_mdp_frame *mdp, mdp_port_t port, int *ttl);
+int __overlay_mdp_send(int mdp_sockfd, overlay_mdp_frame *mdp, int flags, int timeout_ms);
+ssize_t __overlay_mdp_relevant_bytes(overlay_mdp_frame *mdp);
 
 #endif
