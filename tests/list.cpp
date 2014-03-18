@@ -49,6 +49,7 @@ class ListTest : public ::testing::Test
     
     int ret;
     co_obj_t *ptr;
+    static int statint;
     
     ListTest()
     {
@@ -88,6 +89,14 @@ void ListTest::InsertObj()
   ret = co_list_contains(List16, TestString2);
   ASSERT_EQ(1, ret);
   
+  // insert before
+  ret = co_list_insert_before(List16, TestString3, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_get_first(List16);
+  ASSERT_EQ(ptr, TestString3);
+  
+ 
   
   // repeat for List32
   ret = co_list_append(List32, TestString1);
@@ -102,6 +111,12 @@ void ListTest::InsertObj()
   ret = co_list_contains(List32, TestString2);
   ASSERT_EQ(1, ret);
   
+  // insert before
+  ret = co_list_insert_before(List32, TestString3, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_get_first(List32);
+  ASSERT_EQ(ptr, TestString3);
 }
 
 void ListTest::DeleteObj()
