@@ -57,31 +57,43 @@
 #include "debug.h"
 
 #undef WHY
-#define WHY(J) (ERROR("%s",J), -1)
+#define WHY(J)              (ERROR("%s",J), -1)
 
 #undef WHY_perror
-#define WHY_perror(J) (ERROR("%s",J), -1)
+#define WHY_perror(J)       (ERROR("%s",J), -1)
 
 #undef WHYF
-#define WHYF(F,...) (ERROR(F, ##__VA_ARGS__), -1)
+#define WHYF(F,...)         (ERROR(F, ##__VA_ARGS__), -1)
 
 #undef WHYF_perror
-#define WHYF_perror(F,...) (ERROR(F, ##__VA_ARGS__), -1)
+#define WHYF_perror(F,...)  (ERROR(F, ##__VA_ARGS__), -1)
 
 #undef DEBUGF
-#define DEBUGF(F,...) DEBUG(F, ##__VA_ARGS__)
+#define DEBUGF(F,...)        DEBUG(F, ##__VA_ARGS__)
 
 #undef WARNF
-#define WARNF(F,...) (WARN(F, ##__VA_ARGS__), -1)
+#define WARNF(F,...)         WARN(F, ##__VA_ARGS__)
 
-#undef FATALF
-#define FATALF(F,...)       do { ERROR(F, ##__VA_ARGS__); abort(); exit(-1); } while (1)
+#undef WARNF_perror
+#define WARNF_perror(F,...)  WARNF(F ": %s [errno=%d]", ##__VA_ARGS__, strerror(errno), errno)
 
 #undef WARN_perror
-#define WARN_perror(X)      WARNF("%s", (X))
+#define WARN_perror(X)       WARNF_perror("%s", (X))
+
+#undef FATALF
+#define FATALF(F,...)        do { ERROR(F, ##__VA_ARGS__); abort(); exit(-1); } while (1)
+
+#undef FATAL
+#define FATAL(J)             FATALF("%s", (J))
+
+#undef FATALF_perror
+#define FATALF_perror(F,...) FATALF(F ": %s [errno=%d]", ##__VA_ARGS__, strerror(errno), errno)
+
+#undef FATAL_perror
+#define FATAL_perror(J)      FATALF_perror("%s", (J))
 
 #undef INFOF
-#define INFOF(F,...)        INFO(F, ##__VA_ARGS__)
+#define INFOF(F,...)         INFO(F, ##__VA_ARGS__)
 
 struct __overlay_mdp_scan{
   struct in_addr addr;
