@@ -46,10 +46,10 @@ class ListTest : public ::testing::Test
     co_obj_t *TestString1;
     co_obj_t *TestString2;
     co_obj_t *TestString3;
+    co_obj_t *TestString4;
     
     int ret;
     co_obj_t *ptr;
-    static int statint;
     
     ListTest()
     {
@@ -59,6 +59,7 @@ class ListTest : public ::testing::Test
       TestString1 = co_bin8_create("1TESTVALUE1", 12, 0);
       TestString2 = co_bin8_create("2TESTVALUE2", 12, 0);
       TestString3 = co_bin8_create("3TESTVALUE3", 12, 0);
+      TestString4 = co_bin8_create("4TESTVALUE4", 12, 0);
       
       ret = 0;
       ptr = NULL;
@@ -96,6 +97,14 @@ void ListTest::InsertObj()
   ptr = co_list_get_first(List16);
   ASSERT_EQ(ptr, TestString3);
   
+  // insert after
+  ret = co_list_insert_after(List16, TestString4, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_contains(List16, TestString4);
+  ASSERT_EQ(1, ret);
+  
+  
  
   
   // repeat for List32
@@ -117,6 +126,13 @@ void ListTest::InsertObj()
   
   ptr = co_list_get_first(List32);
   ASSERT_EQ(ptr, TestString3);
+  
+  // insert after
+  ret = co_list_insert_after(List16, TestString4, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_contains(List16, TestString4);
+  ASSERT_EQ(1, ret);
 }
 
 void ListTest::DeleteObj()
