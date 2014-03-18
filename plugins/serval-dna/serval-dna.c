@@ -34,8 +34,10 @@
 #include <stdbool.h>
 #include <poll.h>
 
+#include "config.h"
 #include <serval.h>
 #include <serval/conf.h>
+#include <serval/overlay_interface.h>
 
 #include "debug.h"
 #include "plugin.h"
@@ -165,10 +167,13 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   
   time_ms_t now = gettime_ms();
   
+  if (alarm->alarm == TIME_NEVER_WILL)
+    return 0;
+  
   if (alarm->deadline < alarm->alarm)
     alarm->deadline = alarm->alarm;
   
-  CHECK(now - alarm->alarm <= 1000,"Alarm tried to schedule a deadline %lldms ago, from %s() %s:%d",
+  CHECK(now - alarm->alarm <= 1000,"Alarm tried to schedule a deadline %ldms ago, from %s() %s:%d",
 	 (now - alarm->deadline),
 	 __whence.function,__whence.file,__whence.line);
   
@@ -311,6 +316,13 @@ static void setup_sockets(void) {
   DEBUG("Setup MONITOR sockets");
   monitor_setup_sockets();
   
+  // start the HTTP server if enabled
+  DEBUG("HTTP server start");
+  httpd_server_start(HTTPD_PORT, HTTPD_PORT_MAX);  
+  
+  DEBUG("Bind internal services");
+  overlay_mdp_bind_internal_services();
+  
   DEBUG("Setup OLSR sockets");
   olsr_init_socket();
   
@@ -320,12 +332,13 @@ static void setup_sockets(void) {
   if (is_rhizome_enabled())
     rhizome_opendb();
   
-  /* Rhizome http server needs to know which callback to attach
-   *  t o client sockets, so pro*vide it here, along with the name to
-   *  appear in time accounting statistics. */
-  rhizome_http_server_start(rhizome_server_parse_http_request,
-			    "rhizome_server_parse_http_request",
-			    RHIZOME_HTTP_PORT,RHIZOME_HTTP_PORT_MAX);    
+  /* Get rhizome server started BEFORE populating fd list so that
+   *  the server's listen socket is in the list for poll() */
+  if (is_rhizome_enabled()){
+    rhizome_opendb();
+    if (config.rhizome.clean_on_start && !config.rhizome.clean_on_open)
+      rhizome_cleanup(NULL);
+  }
   
   DEBUG("Setup DNA HELPER");
   // start the dna helper if configured

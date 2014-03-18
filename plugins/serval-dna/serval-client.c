@@ -38,11 +38,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "config.h"
 #include <serval.h>
 #include <serval/conf.h>
 #include <serval/mdp_client.h>
 #include <serval/rhizome.h>
 #include <serval/crypto.h>
+#include <serval/dataformats.h>
+#include <serval/overlay_address.h>
 
 #include "debug.h"
 #include "util.h"
@@ -58,7 +61,7 @@ typedef enum {
   SERVAL_CRYPTO = 2
 } serval_client_cmd;
 
-#define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
+#define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, struct cli_context *context);
 _DECLARE_SERVAL(commandline_usage);
 _DECLARE_SERVAL(app_echo);
 _DECLARE_SERVAL(app_log);
@@ -320,8 +323,8 @@ int main(int argc, char *argv[]) {
   }
   
   /* clean up after ourselves */
-  overlay_mdp_client_done();
   rhizome_close_db();
+  free_subscribers();
   
   ret = 0;
 error:
