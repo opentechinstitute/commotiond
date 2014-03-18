@@ -59,13 +59,11 @@
 #include <serval/overlay_packet.h>
 #include <serval/mdp_client.h>
 
-#include "mdp_client.h"
 #include "net.h"
 #include "socket.h"
 #include "strbuf_helpers.h"
 #include "debug.h"
-
-// #include "serval/log.h"
+#include "mdp_client.h"
 
 #undef FORM_SERVAL_INSTANCE_PATH
 #define FORM_SERVAL_INSTANCE_PATH(A,B) ({ strcpy(A,"/var/serval-node/"); strcat(A,B); A; })
@@ -124,7 +122,7 @@ int __overlay_mdp_client_socket(void)
   uint32_t random_value;
   if (__urandombytes((unsigned char *)&random_value, sizeof random_value) == -1)
     return WHY("urandombytes() failed");
-  if (make_local_sockaddr(&addr, "mdp.client.%u.%08lx.socket", getpid(), (unsigned long)random_value) == -1)
+  if (__make_local_sockaddr(&addr, "mdp.client.%u.%08lx.socket", getpid(), (unsigned long)random_value) == -1)
     return -1;
   if ((mdp_sockfd = __esocket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
     return -1;

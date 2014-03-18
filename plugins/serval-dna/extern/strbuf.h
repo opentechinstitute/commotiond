@@ -64,6 +64,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "serval/strbuf.h"
 
 #define __strbuf_local(buf,len) __strbuf_init(alloca(SIZEOF_STRBUF), (buf), (len))
+#define __strbuf_alloca(size) __strbuf_make(alloca(SIZEOF_STRBUF + (size)), SIZEOF_STRBUF + (size))
 
 #define __strbuf_va_vprintf(sb,fmt,ap) do { \
             va_list __strbuf_ap; \
@@ -85,5 +86,6 @@ char *__strbuf_str(const_strbuf sb);
 size_t __strbuf_count(const_strbuf sb);
 size_t __strbuf_len(const_strbuf sb);
 char *__strbuf_end(const_strbuf sb);
+strbuf __strbuf_make(char *buffer, size_t size);
 
 #endif

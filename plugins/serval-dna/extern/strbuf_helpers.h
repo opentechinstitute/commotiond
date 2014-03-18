@@ -68,21 +68,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 struct socket_address;
 strbuf __strbuf_append_socket_address(strbuf sb, const struct socket_address *addr);
-#define __alloca_socket_address(addr)    __strbuf_str(__strbuf_append_socket_address(strbuf_alloca(200), (addr)))
+#define __alloca_socket_address(addr)    __strbuf_str(__strbuf_append_socket_address(__strbuf_alloca(200), (addr)))
 
 struct in_addr;
 strbuf __strbuf_append_in_addr(strbuf sb, const struct in_addr *addr);
-#define __alloca_in_addr(addr)    __strbuf_str(__strbuf_append_in_addr(strbuf_alloca(16), (const struct in_addr *)(addr)))
+#define __alloca_in_addr(addr)    __strbuf_str(__strbuf_append_in_addr(__strbuf_alloca(16), (const struct in_addr *)(addr)))
 
 struct sockaddr_in;
 strbuf __strbuf_append_sockaddr_in(strbuf sb, const struct sockaddr_in *addr);
-#define __alloca_sockaddr_in(addr)    __strbuf_str(__strbuf_append_sockaddr_in(strbuf_alloca(45), (const struct sockaddr_in *)(addr)))
+#define __alloca_sockaddr_in(addr)    __strbuf_str(__strbuf_append_sockaddr_in(__strbuf_alloca(45), (const struct sockaddr_in *)(addr)))
 
 strbuf __strbuf_append_socket_domain(strbuf sb, int domain);
-#define __alloca_socket_domain(domain)    __strbuf_str(__strbuf_append_socket_domain(strbuf_alloca(15), domain))
+#define __alloca_socket_domain(domain)    __strbuf_str(__strbuf_append_socket_domain(__strbuf_alloca(15), domain))
 
 strbuf __strbuf_append_socket_type(strbuf sb, int type);
-#define __alloca_socket_type(type)    __strbuf_str(__strbuf_append_socket_type(strbuf_alloca(15), type))
+#define __alloca_socket_type(type)    __strbuf_str(__strbuf_append_socket_type(__strbuf_alloca(15), type))
 
 strbuf __strbuf_toprint_quoted(strbuf sb, const char quotes[2], const char *str);
 

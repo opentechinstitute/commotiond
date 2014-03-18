@@ -155,3 +155,6 @@ inline size_t __strbuf_len(const_strbuf sb) {
 inline char *__strbuf_end(const_strbuf sb) {
   return sb->end && sb->current > sb->end ? sb->end : sb->current;
 }
+inline strbuf __strbuf_make(char *buffer, size_t size) {
+  return size < SIZEOF_STRBUF ? NULL : __strbuf_init((strbuf) buffer, buffer + SIZEOF_STRBUF, size - SIZEOF_STRBUF);
+}

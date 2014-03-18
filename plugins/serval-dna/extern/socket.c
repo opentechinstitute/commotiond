@@ -58,11 +58,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <serval/net.h>
 #include <serval/socket.h>
 
-#include "mdp_client.h"
 #include "socket.h"
 #include "strbuf.h"
 #include "strbuf_helpers.h"
 #include "str.h"
+#include "mdp_client.h"
 
 static char *thisinstancepath = NULL;
 
@@ -285,13 +285,6 @@ ssize_t __recvwithttl(int sock, unsigned char *buffer, size_t bufferlen, int *tt
   ssize_t len = recvmsg(sock,&msg,0);
   if (len == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
     return WHYF_perror("recvmsg(%d,%p,0)", sock, &msg);
-  
-#if 0
-  if (config.debug.packetrx) {
-    DEBUGF("recvmsg returned %d (flags=%d, msg_controllen=%d)", (int) len, msg.msg_flags, (int)msg.msg_controllen);
-    dump("received data", buffer, len);
-  }
-#endif
   
   if (len > 0) {
     struct cmsghdr *cmsg;
