@@ -42,6 +42,7 @@ class ListTest : public ::testing::Test
     co_obj_t *List32;
     void InsertObj();
     void DeleteObj();
+    void FirstLast();
     co_obj_t *TestString1;
     co_obj_t *TestString2;
     co_obj_t *TestString3;
@@ -146,6 +147,47 @@ void ListTest::DeleteObj()
   ASSERT_EQ(0, ret);
 }
 
+void ListTest::FirstLast()
+{
+  ret = co_list_append(List16, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_append(List16, TestString2);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_append(List16, TestString3);
+  ASSERT_EQ(1, ret);
+
+  // get first node
+  ptr = co_list_get_first(List16);
+  ASSERT_EQ(TestString1, ptr);
+  
+  // get last node
+  ptr = co_list_get_last(List16);
+  ASSERT_EQ(TestString3, ptr);
+  
+  
+  // repeat for List32
+  ret = co_list_append(List32, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_append(List32, TestString2);
+  ASSERT_EQ(1, ret);
+  
+  ret = co_list_append(List32, TestString3);
+  ASSERT_EQ(1, ret);
+
+  // get first node
+  ptr = co_list_get_first(List32);
+  ASSERT_EQ(TestString1, ptr);
+  
+  // get last node
+  ptr = co_list_get_last(List32);
+  ASSERT_EQ(TestString3, ptr);
+}
+  
+  
+
   
 TEST_F(ListTest, ListInsertTest)
 {
@@ -155,4 +197,9 @@ TEST_F(ListTest, ListInsertTest)
 TEST_F(ListTest, ListDeleteTest)
 {
   DeleteObj();
+}
+
+TEST_F(ListTest, FirstLast)
+{
+  FirstLast();
 }
