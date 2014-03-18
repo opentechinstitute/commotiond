@@ -47,6 +47,8 @@ class ListTest : public ::testing::Test
     co_obj_t *TestString2;
     co_obj_t *TestString3;
     co_obj_t *TestString4;
+    co_obj_t *TestString5;
+    co_obj_t *TestString6;
     
     int ret;
     co_obj_t *ptr;
@@ -60,6 +62,8 @@ class ListTest : public ::testing::Test
       TestString2 = co_bin8_create("2TESTVALUE2", 12, 0);
       TestString3 = co_bin8_create("3TESTVALUE3", 12, 0);
       TestString4 = co_bin8_create("4TESTVALUE4", 12, 0);
+      TestString5 = co_bin8_create("5TESTVALUE5", 12, 0);
+      TestString6 = co_bin8_create("6TESTVALUE6", 12, 0);
       
       ret = 0;
       ptr = NULL;
@@ -104,8 +108,20 @@ void ListTest::InsertObj()
   ret = co_list_contains(List16, TestString4);
   ASSERT_EQ(1, ret);
   
+  // append
+  ret = co_list_append(List16, TestString5);
+  ASSERT_EQ(1, ret);
   
- 
+  ptr = co_list_get_last(List16);
+  ASSERT_EQ(ptr, TestString5);
+  
+  // prepend
+  ret = co_list_prepend(List16, TestString6);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_get_first(List16);
+  ASSERT_EQ(ptr, TestString6);
+  
   
   // repeat for List32
   ret = co_list_append(List32, TestString1);
@@ -128,11 +144,25 @@ void ListTest::InsertObj()
   ASSERT_EQ(ptr, TestString3);
   
   // insert after
-  ret = co_list_insert_after(List16, TestString4, TestString1);
+  ret = co_list_insert_after(List32, TestString4, TestString1);
   ASSERT_EQ(1, ret);
   
-  ret = co_list_contains(List16, TestString4);
+  ret = co_list_contains(List32, TestString4);
   ASSERT_EQ(1, ret);
+  
+  // append
+  ret = co_list_append(List32, TestString5);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_get_last(List32);
+  ASSERT_EQ(ptr, TestString5);
+  
+  // prepend
+  ret = co_list_prepend(List32, TestString6);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_get_first(List32);
+  ASSERT_EQ(ptr, TestString6);
 }
 
 void ListTest::DeleteObj()
