@@ -227,6 +227,13 @@ void ListTest::FirstLast()
   ptr = co_list_get_last(List16);
   ASSERT_EQ(TestString3, ptr);
   
+  // get specific nodes
+  ptr = co_list_element(List16, 1);
+  ASSERT_EQ(TestString2, ptr);
+  
+  ptr = co_list_element(List16, 2);
+  ASSERT_EQ(TestString3, ptr);
+  
   
   // repeat for List32
   ret = co_list_append(List32, TestString1);
@@ -244,6 +251,13 @@ void ListTest::FirstLast()
   
   // get last node
   ptr = co_list_get_last(List32);
+  ASSERT_EQ(TestString3, ptr);
+  
+  // get specific nodes
+  ptr = co_list_element(List32, 1);
+  ASSERT_EQ(TestString2, ptr);
+  
+  ptr = co_list_element(List32, 2);
   ASSERT_EQ(TestString3, ptr);
 }
   
