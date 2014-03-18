@@ -46,6 +46,9 @@ class ListTest : public ::testing::Test
     co_obj_t *TestString2;
     co_obj_t *TestString3;
     
+    int ret;
+    co_obj_t *ptr;
+    
     ListTest()
     {
       List16 = co_list16_create();
@@ -54,6 +57,9 @@ class ListTest : public ::testing::Test
       TestString1 = co_bin8_create("1TESTVALUE1", 12, 0);
       TestString2 = co_bin8_create("2TESTVALUE2", 12, 0);
       TestString3 = co_bin8_create("3TESTVALUE3", 12, 0);
+      
+      ret = 0;
+      ptr = NULL;
     }
 
     virtual void SetUp()
@@ -69,7 +75,7 @@ class ListTest : public ::testing::Test
 
 void ListTest::InsertObj()
 {
-  int ret = co_list_append(List16, TestString1);
+  ret = co_list_append(List16, TestString1);
   ASSERT_EQ(1, ret);
   
   ret = co_list_contains(List16, TestString1);
@@ -99,7 +105,7 @@ void ListTest::InsertObj()
 
 void ListTest::DeleteObj()
 {
-  int ret = co_list_append(List16, TestString1);
+  ret = co_list_append(List16, TestString1);
   ASSERT_EQ(1, ret);
   
   co_obj_t *ptr = co_list_delete(List16, TestString1);
@@ -109,6 +115,19 @@ void ListTest::DeleteObj()
   ASSERT_EQ(1, ret);
   
   ptr = co_list_delete(List16, TestString2);
+  ASSERT_EQ(TestString2, ptr);
+  
+  // repeat for List32
+  ret = co_list_append(List32, TestString1);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_delete(List32, TestString1);
+  ASSERT_EQ(TestString1, ptr);
+  
+  ret = co_list_append(List32, TestString2);
+  ASSERT_EQ(1, ret);
+  
+  ptr = co_list_delete(List32, TestString2);
   ASSERT_EQ(TestString2, ptr);
 }
 
