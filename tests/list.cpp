@@ -42,7 +42,7 @@ class ListTest : public ::testing::Test
     co_obj_t *List32;
     void InsertObj();
     void DeleteObj();
-    void FirstLast();
+    void Retrieval();
     co_obj_t *TestString1;
     co_obj_t *TestString2;
     co_obj_t *TestString3;
@@ -208,7 +208,7 @@ void ListTest::DeleteObj()
   ASSERT_EQ(0, ret);
 }
 
-void ListTest::FirstLast()
+void ListTest::Retrieval()
 {
   ret = co_list_append(List16, TestString1);
   ASSERT_EQ(1, ret);
@@ -274,7 +274,7 @@ TEST_F(ListTest, ListDeleteTest)
   DeleteObj();
 }
 
-TEST_F(ListTest, FirstLast)
+TEST_F(ListTest, Retrieval)
 {
-  FirstLast();
+  Retrieval();
 }
