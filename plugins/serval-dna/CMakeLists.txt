@@ -10,7 +10,6 @@ CHECK_INCLUDE_FILES (sys/socket.h HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h)
-# CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/extern/config.h)
 
 SET(PLUGIN_NAME serval-dna)
 SET(PLUGINSRC serval-dna.c crypto.c)

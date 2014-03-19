@@ -48,11 +48,10 @@
 #include <serval/crypto.h>
 #include <serval/str.h>
 #include <serval/overlay_address.h>
-// #include <serval/mdp_client.h>
+#include <serval/mdp_client.h>
 #include <serval/keyring.h>
 
 #include "sas_request.h"
-#include "extern/mdp_client.h"
 #include "debug.h"
 
 static const char __hexdigit[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
