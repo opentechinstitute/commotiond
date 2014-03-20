@@ -26,30 +26,10 @@ bool timer1_success = false;
 bool timer2_success = false;
 bool timer3_success = false;
 
-// callback functions
-int timer1_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  timer1_success = true;
-  return 1;
-}
-
-int timer2_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  timer2_success = true;
-  return 1;
-}
-
-int timer3_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  timer3_success = true;
-  return 1;
-}
-
-// loop stop function (currently unused)
-int loop_stop_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  co_loop_stop(); // breaks loop without returning
-}
+int timer1_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+int timer2_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+int timer3_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+int loop_stop_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
 class LoopTest : public ::testing::Test
 {
@@ -77,8 +57,6 @@ class LoopTest : public ::testing::Test
     {
       ret = co_loop_create();
       // CHECK((poll_fd = epoll_create1(EPOLL_CLOEXEC)) != -1, "Failed to create epoll event.");
-      
-      // could add a test with an extra co_loop_create call that is expected to fail
     }
     
   virtual void SetUp()
@@ -126,3 +104,27 @@ TEST_F(LoopTest, Timer)
 }
   
   
+// callback functions
+  int timer1_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  timer1_success = true;
+  return 1;
+}
+
+int timer2_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  timer2_success = true;
+  return 1;
+}
+
+int timer3_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  timer3_success = true;
+  return 1;
+}
+
+// loop stop function (currently unused)
+int loop_stop_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
+{
+  co_loop_stop(); // breaks loop without returning
+}
