@@ -41,7 +41,6 @@ class LoopTest : public ::testing::Test
     co_obj_t *context1;
     co_obj_t *context2;
     co_obj_t *context3;
-    co_obj_t *context4;
     co_obj_t *stop;
     
     // time values
@@ -49,7 +48,6 @@ class LoopTest : public ::testing::Test
     struct timeval timeval2;
     struct timeval timeval3;
     struct timeval tv_stop;
-    
     
     // tests
     void Timer();
@@ -102,8 +100,6 @@ void LoopTest::Timer()
 
 void LoopTest::Socket()
 {
-  // NOTE: co_socket_init is not used right now
-  
   // initialize socket and register it with the event loop
   co_socket_t *socket1 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
   socket1->register_cb = co_loop_add_socket;
@@ -116,8 +112,6 @@ void LoopTest::Socket()
   // destroy socket
   ret = co_socket_destroy((co_obj_t *)socket1);
   ASSERT_EQ(1, ret);
-  
-
 }
 
 TEST_F(LoopTest, Timer)
