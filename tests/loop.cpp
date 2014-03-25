@@ -103,21 +103,21 @@ void LoopTest::Timer()
 void LoopTest::Socket()
 {
   // NOTE: co_socket_init is not used right now
-  // NOTE: co_socket_destroy causes a crash
   
   // initialize socket and register it with the event loop
   co_socket_t *socket1 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
   socket1->register_cb = co_loop_add_socket;
   socket1->bind((co_obj_t*)socket1, "commotiontest.sock");
   
-//   ret = co_loop_add_socket((co_obj_t *)socket1, NULL);
-//   ASSERT_EQ(1, ret);
+  // remove socket from loop
+  ret = co_loop_remove_socket((co_obj_t *)socket1, NULL);
+  ASSERT_EQ(1, ret);
   
-  //ret = co_socket_destroy((co_obj_t *)socket1);
-  //ASSERT_EQ(1, ret);
+  // destroy socket
+  ret = co_socket_destroy((co_obj_t *)socket1);
+  ASSERT_EQ(1, ret);
   
-//   ret = co_loop_remove_socket((co_obj_t *)socket1, NULL);
-//   ASSERT_EQ(1, ret);
+
 }
 
 TEST_F(LoopTest, Timer)
