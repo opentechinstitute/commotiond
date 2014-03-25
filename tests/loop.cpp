@@ -21,6 +21,7 @@ extern "C" {
 }
 #include "gtest/gtest.h"
 
+extern co_socket_t unix_socket_proto;
 
 bool timer1_success = false;
 bool timer2_success = false;
@@ -40,6 +41,7 @@ class LoopTest : public ::testing::Test
     co_obj_t *context1;
     co_obj_t *context2;
     co_obj_t *context3;
+    co_obj_t *context4;
     co_obj_t *stop;
     
     // time values
@@ -48,10 +50,10 @@ class LoopTest : public ::testing::Test
     struct timeval timeval3;
     struct timeval tv_stop;
     
+    
     // tests
     void Timer();
     void Socket();
-    
     
     LoopTest()
     {
@@ -98,9 +100,34 @@ void LoopTest::Timer()
   EXPECT_TRUE(timer3_success);
 }
 
+void LoopTest::Socket()
+{
+  // NOTE: co_socket_init is not used right now
+  // NOTE: co_socket_destroy causes a crash
+  
+  // initialize socket and register it with the event loop
+  co_socket_t *socket1 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
+  socket1->register_cb = co_loop_add_socket;
+  socket1->bind((co_obj_t*)socket1, "commotiontest.sock");
+  
+//   ret = co_loop_add_socket((co_obj_t *)socket1, NULL);
+//   ASSERT_EQ(1, ret);
+  
+  //ret = co_socket_destroy((co_obj_t *)socket1);
+  //ASSERT_EQ(1, ret);
+  
+//   ret = co_loop_remove_socket((co_obj_t *)socket1, NULL);
+//   ASSERT_EQ(1, ret);
+}
+
 TEST_F(LoopTest, Timer)
 {
   Timer();
+}
+
+TEST_F(LoopTest, Socket)
+{
+  Socket();
 }
   
   
@@ -127,4 +154,5 @@ int timer3_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 int loop_stop_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 {
   co_loop_stop(); // breaks loop without returning
+  return 1;
 }
