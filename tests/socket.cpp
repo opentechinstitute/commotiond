@@ -84,14 +84,14 @@ protected:
   
 void SocketTest::SendReceive()
 {
-  char buffer[14];
-  int length = 14;
+  char buffer[13];
+  int length = 13;
   int received = 0;
   
-  char *test_message = "test message";
+  char test_message[13] = "test message";
   
-  ret = co_socket_send((co_obj_t *)socket2->fd, "test message", sizeof("test message"));
-  ASSERT_EQ(sizeof("test message"), ret);
+  ret = co_socket_send((co_obj_t *)socket2->fd, test_message, sizeof(test_message));
+  ASSERT_EQ(sizeof(test_message), ret);
 
   received = co_socket_receive((co_obj_t *)socket1, (co_obj_t *)socket1->fd, buffer, length);
   
@@ -101,8 +101,6 @@ void SocketTest::SendReceive()
   DEBUG("\n\nReceived %d bytes.\n", received);
   
   ASSERT_STREQ(test_message, buffer);
-  
-  co_socket_hangup
 }
 
 TEST_F(SocketTest, SendReceive)
