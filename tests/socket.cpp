@@ -29,6 +29,7 @@ class SocketTest : public ::testing::Test
 protected:
   int ret;
   
+  void Create();
   void SendReceive();
   
   co_socket_t *socket1;
@@ -57,6 +58,12 @@ protected:
   
 
 };
+
+void SocketTest::Create()
+{
+  ASSERT_TRUE(socket1);
+  ASSERT_TRUE(socket2);
+}
   
 void SocketTest::SendReceive()
 {
@@ -77,6 +84,11 @@ void SocketTest::SendReceive()
   DEBUG("\n\nReceived %d bytes.\n", received);
   
   ASSERT_STREQ(test_message, buffer);
+}
+
+TEST_F(SocketTest, Create)
+{
+  Create();
 }
 
 TEST_F(SocketTest, SendReceive)
