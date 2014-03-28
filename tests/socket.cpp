@@ -29,10 +29,6 @@ class SocketTest : public ::testing::Test
 protected:
   int ret;
   
-  #define MAX_MESSAGE 100
-  
-  char message1[MAX_MESSAGE];
-  
   void SendReceive();
   
   co_socket_t *socket1;
