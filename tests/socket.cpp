@@ -24,26 +24,6 @@ extern "C" {
 
 extern co_socket_t unix_socket_proto;
 
-
-/*
- * POA
- * * List socket functions that need testing @
- * * Come up with general order of testing @ 
- * * Determine set up variables and functions
- * * Determine tear down process
- * 
- * 
- * Functions to test:
- * co_obj_t *co_socket_create(size_t size, co_socket_t proto);
- * int co_socket_send(co_obj_t *self, char *outgoing, size_t length);
- * int co_socket_receive(co_obj_t * self, co_obj_t *fd, char *incoming, size_t length);
- * int co_socket_hangup(co_obj_t *self, co_obj_t *context); 
- * int co_socket_destroy(co_obj_t *self);
- * 
- * 
- */
-
-
 class SocketTest : public ::testing::Test
 {
 protected:
