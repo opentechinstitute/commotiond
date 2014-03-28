@@ -18,6 +18,7 @@ extern "C" {
   #include "msg.h"
   #include "iface.h"
   #include "id.h"
+  #include "list.h"
 }
 #include "gtest/gtest.h"
 
@@ -48,15 +49,25 @@ class SocketTest : public ::testing::Test
 protected:
   int ret;
   
-  void Send();
+  #define MAX_MESSAGE 100
+  
+  char message1[MAX_MESSAGE];
+  
+  void SendReceive();
   
   co_socket_t *socket1;
+  co_socket_t *socket2;
   
   SocketTest()
   {
     socket1 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
     // socket1->register_cb = co_loop_add_socket;
-    socket1->bind((co_obj_t*)socket1, "commotiontest2.sock");
+    socket1->bind((co_obj_t*)socket1, "commotiontest.sock");
+    
+    socket2 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
+    socket2->connect((co_obj_t*)socket2, "commotiontest.sock");
+    // socket1->register_cb = co_loop_add_socket;
+    // socket2->bind((co_obj_t*)socket2, "commotiontest.sock");
   }
   
   virtual void SetUp()
@@ -71,13 +82,30 @@ protected:
 
 };
   
-void SocketTest::Send()
+void SocketTest::SendReceive()
 {
+  char buffer[14];
+  int length = 14;
+  int received = 0;
   
-  ASSERT_EQ(1, 1);
+  char *test_message = "test message";
+  
+  ret = co_socket_send((co_obj_t *)socket2->fd, "test message", sizeof("test message"));
+  ASSERT_EQ(sizeof("test message"), ret);
+
+  received = co_socket_receive((co_obj_t *)socket1, (co_obj_t *)socket1->fd, buffer, length);
+  
+  received = co_socket_receive((co_obj_t *)socket1, (co_obj_t *)co_list_get_first(socket1->rfd_lst), buffer, length);
+  
+  DEBUG("\n\nSent %d bytes.\n", ret);
+  DEBUG("\n\nReceived %d bytes.\n", received);
+  
+  ASSERT_STREQ(test_message, buffer);
+  
+  co_socket_hangup
 }
 
-TEST_F(SocketTest, Send)
+TEST_F(SocketTest, SendReceive)
 {
-  Send();
+  SendReceive();
 }
