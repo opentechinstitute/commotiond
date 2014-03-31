@@ -8,10 +8,10 @@
 
 /**
  * Functions to test:
- * int co_profiles_create(const size_t index_size);
- * int co_profiles_init(const size_t index_size);
- * co_obj_t *co_profile_find(co_obj_t *name);
- * int co_profile_add(const char *name, const size_t nlen);
+ * int co_profiles_create(const size_t index_size); +
+ * int co_profiles_init(const size_t index_size); +
+ * co_obj_t *co_profile_find(co_obj_t *name); + 
+ * int co_profile_add(const char *name, const size_t nlen); +
  * int co_profile_remove(const char *name, const size_t nlen);
  * co_obj_t *co_profile_get(co_obj_t *profile, const co_obj_t *key);
  * size_t co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen);
@@ -62,9 +62,12 @@ protected:
   void Init();
   void Add();
   void Retrieve();
+  void Remove();
   
   // variables
   int ret;
+  co_obj_t *profile1 = co_str8_create("profile1", 9, 0);
+  co_obj_t *profile2 = co_str8_create("profile2", 9, 0);
   
   // constructor
   ProfileTest()
@@ -97,11 +100,38 @@ void ProfileTest::Retrieve()
   ret = co_profile_add("profile1", 9);
   ASSERT_EQ(1, ret);
 
-  co_obj_t *p = co_str8_create("profile1", 9, 0);
-  ASSERT_TRUE(NULL != p);
-  
-  co_obj_t *found = co_profile_find(p);
+  ret = co_profile_add("profile2", 9);
+  ASSERT_EQ(1, ret);
+
+  co_obj_t *found = co_profile_find(profile1);
   ASSERT_TRUE(NULL != found);
+  
+  found = co_profile_find(profile2);
+  ASSERT_TRUE(NULL != found);
+}
+
+void ProfileTest::Remove()
+{
+  ret = co_profile_add("profile1", 9);
+  ASSERT_EQ(1, ret);
+
+  ret = co_profile_add("profile2", 9);
+  ASSERT_EQ(1, ret);
+
+  ret = co_profile_remove("profile1", 9);
+  ASSERT_EQ(1, ret);
+  
+  // confirm removal
+  co_obj_t *found = co_profile_find(profile1);
+  ASSERT_TRUE(NULL == found);
+  
+  ret = co_profile_remove("profile2", 9);
+  ASSERT_EQ(1, ret);
+  
+  found = co_profile_find(profile2);
+  ASSERT_TRUE(NULL == found);
+  
+  
 }
 
 TEST_F(ProfileTest, Init)
@@ -117,4 +147,9 @@ TEST_F(ProfileTest, Add)
 TEST_F(ProfileTest, Retrieve)
 {
   Retrieve();
+}
+
+TEST_F(ProfileTest, Remove)
+{
+  Remove();
 }
