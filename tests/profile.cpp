@@ -132,10 +132,12 @@ void ProfileTest::Remove()
 
 void ProfileTest::Get()
 {
+    
   SCHEMA_REGISTER(default);
-  
+    
   ret = co_profile_add("profile1", 9);
   ASSERT_EQ(1, ret);
+
   
   found = co_profile_find(profile1);
   ASSERT_TRUE(NULL != found);
@@ -143,8 +145,10 @@ void ProfileTest::Get()
   ret = co_profile_set_str((co_obj_t *)found, "ip", sizeof("ip"), "192.168.1.254", sizeof("192.168.1.254"));
   ASSERT_EQ(1, ret);
   
-//   ret = co_profile_get_str(profile1, &ip, "ip", sizeof("ip");
-//   ASSERT_TRUE(NULL != ret);
+  char *ip;
+  
+  ret = co_profile_get_str(found, &ip, "ip", sizeof("ip"));
+  ASSERT_STREQ("192.168.1.254", ip);
 }
 
 
