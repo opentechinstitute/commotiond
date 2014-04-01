@@ -71,7 +71,11 @@ proto_commotion_setup() {
 	json_get_vars profile type class ipaddr netmask dns domain announce lease_zone nolease_zone
 
 	logger -t commotion.proto "Running protocol handler."
-	[ "$class" == "mesh" ] && commotion_up "$iface" $(uci_get network $config profile)
+	[ "$class" == "mesh" ] && {
+		logger -t commotion.proto "Restarting commotiond."
+		/etc/init.d/commotiond restart	
+		commotion_up "$iface" $(uci_get network $config profile)
+	}
 	case "$class" in
  	"mesh")
 		logger -t "commotion.proto" "Class: $class"
