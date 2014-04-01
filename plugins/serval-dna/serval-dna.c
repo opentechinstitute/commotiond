@@ -29,10 +29,7 @@
  * =====================================================================================
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <poll.h>
 
 #include "config.h"
 #include <serval.h>
@@ -49,8 +46,10 @@
 #include "profile.h"
 #include "cmd.h"
 
-#include "serval-dna.h"
 #include "crypto.h"
+#include "keyring.h"
+#include "commands.h"
+#include "serval-dna.h"
 
 // Types & constructors
 
@@ -82,13 +81,15 @@ error:
 
 extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
+extern co_obj_t *err_msg;
+
 co_socket_t co_socket_proto = {};
 
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
 bool serval_registered = false;
 bool daemon_started = false;
-extern co_obj_t *err_msg;
+svl_crypto_ctx *serval_dna_ctx = NULL;
 
 // Private functions
 
@@ -410,7 +411,6 @@ error:
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   char *enabled = NULL;
-  svl_crypto_ctx *ctx = NULL;
   co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
   if (strcmp(enabled,"disabled") == 0) return 1;
 
@@ -419,16 +419,15 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   srandomdev();
   
   CHECK(serval_load_config(),"Failed to load Serval config parameters");
-  ctx = svl_crypto_ctx_new();
-  CHECK(serval_open_keyring(ctx),"Failed to open keyring");
-  keyring = ctx->keyring_file;
+  serval_dna_ctx = svl_crypto_ctx_new();
+  CHECK(serval_open_keyring(serval_dna_ctx, NULL),"Failed to open keyring");
+  keyring = serval_get_keyring_file(serval_dna_ctx);
   
   if (!serval_registered) {
 //     CHECK(serval_register(),"Failed to register Serval commands");
     CHECK(serval_daemon_register(),"Failed to register Serval daemon commands");
     CHECK(serval_crypto_register(),"Failed to register Serval-crypto commands");
     CHECK(olsrd_mdp_register(),"Failed to register OLSRd-mdp commands");
-    CHECK(olsrd_mdp_sign_register(),"Failed to register OLSRd-mdp commands");
   }
   
   CHECK(cf_init() == 0, "Failed to initialize config");
@@ -451,8 +450,6 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   return 1;
 error:
-  if (ctx)
-    svl_crypto_ctx_free(ctx);
   return 0;
 }
 
@@ -481,7 +478,7 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 //   co_list_parse(timer_alarms,destroy_alarms,NULL);
   co_obj_free(timer_alarms); // halloc will free list items
   
-  keyring_free(keyring);
+  svl_crypto_ctx_free(serval_dna_ctx);
   
   daemon_started = false;
   
@@ -508,8 +505,6 @@ error:
 }
 
 int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  svl_crypto_ctx *ctx = NULL;
-  
   CLEAR_ERR();
   
   CHECK_ERR(IS_LIST(params) && co_list_length(params) == 1,"Invalid parameters");
@@ -521,18 +516,14 @@ int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     CHECK_ERR(daemon_started == true,"Daemon is already stopped");
     CHECK_ERR(co_plugin_shutdown(NULL,NULL,NULL),"Failed to stop daemon");
   } else*/ if (co_str_cmp_str(co_list_element(params,0),"reload") == 0) {
-    keyring_free(keyring);
-    ctx = svl_crypto_ctx_new();
-    CHECK_ERR(serval_open_keyring(ctx),"Failed to open keyring");
-    keyring = ctx->keyring_file;
+    CHECK(serval_reload_keyring(serval_dna_ctx), "Failed to reload keyring");
+    keyring = serval_get_keyring_file(serval_dna_ctx);
   }
   
   CMD_OUTPUT("result",co_str8_create("success",sizeof("success"),0));
   
   return 1;
 error:
-  if (ctx)
-    svl_crypto_ctx_free(ctx);
   INS_ERROR();
   return 0;
 }

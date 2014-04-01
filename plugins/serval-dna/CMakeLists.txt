@@ -12,9 +12,9 @@ CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/config.h)
 
 SET(PLUGIN_NAME serval-dna)
-SET(PLUGINSRC serval-dna.c crypto.c)
+SET(PLUGINSRC serval-dna.c crypto.c commands.c keyring.c olsr_mdp.c)
 SET(CLIENT_NAME serval-client)
-SET(CLIENTSRC serval-client.c crypto.c)
+SET(CLIENTSRC serval-client.c crypto.c keyring.c)
 SET(SAS_NAME serval-sas)
 SET(SASSRC sas_request.c)
 

@@ -1,5 +1,5 @@
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef __CO_SERVAL_CONFIG_H
+#define __CO_SERVAL_CONFIG_H
 
 #define HAVE_BCOPY ${HAVE_BCOPY}
 #define HAVE_BZERO ${HAVE_BZERO}
