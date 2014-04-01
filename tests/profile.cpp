@@ -1,25 +1,3 @@
-/**
- * Plan of Attack
- * * identify functions to test
- * * plan out test fixtures and structure
- * * set up test class
- * 
- */
-
-/**
- * Functions to test:
- * int co_profiles_create(const size_t index_size); +
- * int co_profiles_init(const size_t index_size); +
- * co_obj_t *co_profile_find(co_obj_t *name); + 
- * int co_profile_add(const char *name, const size_t nlen); +
- * int co_profile_remove(const char *name, const size_t nlen); +
- * co_obj_t *co_profile_get(co_obj_t *profile, const co_obj_t *key);
- * size_t co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen);
- * int co_profile_set_str(co_obj_t *profile, const char *key, const size_t klen, const char *value, const size_t vlen);
- * 
- * 
- */
-
 extern "C" {
 #include "../src/obj.h"
 #include "../src/list.h"
@@ -49,16 +27,15 @@ SCHEMA(default)
   return 1;
 }
 
-
 class ProfileTest : public ::testing::Test
 {
 protected:
   // test functions
   void Init();
   void Add();
-  void Retrieve();
+  void Find();
   void Remove();
-  void Get();
+  void SetGet();
   
   // variables
   int ret = 0;
@@ -92,7 +69,7 @@ void ProfileTest::Add()
   ASSERT_EQ(1, ret);
 }
 
-void ProfileTest::Retrieve()
+void ProfileTest::Find()
 {
   ret = co_profile_add("profile1", 9);
   ASSERT_EQ(1, ret);
@@ -130,14 +107,12 @@ void ProfileTest::Remove()
   ASSERT_TRUE(NULL == found);
 }
 
-void ProfileTest::Get()
+void ProfileTest::SetGet()
 {
-    
   SCHEMA_REGISTER(default);
     
   ret = co_profile_add("profile1", 9);
   ASSERT_EQ(1, ret);
-
   
   found = co_profile_find(profile1);
   ASSERT_TRUE(NULL != found);
@@ -151,8 +126,6 @@ void ProfileTest::Get()
   ASSERT_STREQ("192.168.1.254", ip);
 }
 
-
-
 TEST_F(ProfileTest, Init)
 {
   Init();
@@ -163,9 +136,9 @@ TEST_F(ProfileTest, Add)
   Add();
 }
 
-TEST_F(ProfileTest, Retrieve)
+TEST_F(ProfileTest, Find)
 {
-  Retrieve();
+  Find();
 }
 
 TEST_F(ProfileTest, Remove)
@@ -173,7 +146,7 @@ TEST_F(ProfileTest, Remove)
   Remove();
 }
 
-TEST_F(ProfileTest, Get)
+TEST_F(ProfileTest, SetGet)
 {
-  Get();
+  SetGet();
 }
