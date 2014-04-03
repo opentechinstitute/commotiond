@@ -72,8 +72,6 @@ proto_commotion_setup() {
 
 	logger -t commotion.proto "Running protocol handler."
 	[ "$class" == "mesh" ] && {
-		logger -t commotion.proto "Restarting commotiond."
-		/etc/init.d/commotiond restart	
 		commotion_up "$iface" $(uci_get network $config profile)
 	}
 	case "$class" in
