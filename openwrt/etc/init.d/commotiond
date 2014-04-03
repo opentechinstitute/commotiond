@@ -1,13 +1,19 @@
 #!/bin/sh /etc/rc.common
 
 . /lib/functions/commotion.sh
+. /lib/functions/network.sh
 . /lib/config/uci.sh
 
 #DEBUG=echo
 START=19
 STOP=91
+EXTRA_COMMANDS="cron"
+EXTRA_HELP="	cron	Watchdog function meant to be called from cron"
+CRON_SERVICES="commotiond olsrd commotion-service-manager"
+CRON_THRESHOLD="180"
 
 boot() {
+  logger -t commotion.init "Called: boot"
   case "$(uci_get wireless @wifi-device[0] disabled 1)" in
     1)
       case "$(uci_get wireless @wifi-iface[0] ssid "OpenWrt")" in
@@ -33,6 +39,7 @@ boot() {
 }
 
 start() {
+  logger -t commotion.init "Called: start"
   local args bind profiles pid statedir id
 
   config_cb() {  
@@ -104,25 +111,21 @@ start() {
   }
   
   reset_cb
-  local aname
   config_cb() {  
     local type="$1"
     local name="$2"
-    aname=$name
     
-    [ "$type" = "interface" ] && {
-      	option_cb() {
-      	  local option="$1"
-      	  local value="$2"
-        
-          [ "$option" = "profile" ] && {
-              local ifname="$(uci_get network $aname ifname)" 
-              [ ! -z $ifname ] && {
-                commotion_up $(uci_get network $aname ifname) $value 
-                logger -s -t commotion-init "commotion_up $(uci_get network $aname ifname) $value"
-              }
-          }
+    [ "$type" == "interface" ] && {
+      local proto="$(uci_get network "$name" proto)"
+      local class="$(uci_get network "$name" class)"
+      [ "$proto" == "commotion" -a "$class" == "mesh" ] && { 
+        local profile="$(uci_get network "$name" profile)"
+        network_get_physdev physdev "$name"
+        [ ! -z "$physdev" ] && [ ! -z "$profile" ] && {
+          logger -t commotion.init "commotion_up "$physdev" "$profile""
+          commotion_up "$physdev" "$profile"
         }
+      }
     }
   }
   config_load network
@@ -130,5 +133,29 @@ start() {
 }
 
 stop() {
+  logger -t commotion.init "Called: stop"
   $DEBUG service_stop /usr/sbin/commotiond 
 }
+
+cron() {
+  logger -t commotion.init "Called: cron"
+
+  enabled && {
+    local uptime=$(awk -F . '{print $1}' /proc/uptime) 
+    [ $uptime -ge $CRON_THRESHOLD ] && [ "$(uci_get setup_wizard settings enabled 1)" == 0 ] && {
+      [ "$(uci_get_state commotiond @node[0] restarted 0)" == 0 ] && {
+        logger -t commotion.init "Restarting commotiond $CRON_THRESHOLD seconds after boot."
+        uci_set_state commotiond @node[0] restarted 1
+        restart
+        return 0
+      }
+
+      for s in $CRON_SERVICES
+      do
+        /etc/init.d/"$s" enabled && ! service_check "/usr/sbin/$s" && \
+          ( logger -t commotion.init "Restarting $s"; /etc/init.d/"$s" restart )
+      done
+    }
+  }
+}
+
