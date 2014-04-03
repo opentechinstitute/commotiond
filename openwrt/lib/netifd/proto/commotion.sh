@@ -228,6 +228,9 @@ proto_commotion_setup() {
 		local channel=$(uci_get wireless "$WIFI_DEVICE" channel)
 		uci_set wireless $WIFI_DEVICE channel ${channel:-$(commotion_get_channel $iface)}
     		uci_commit wireless
+		logger -t commotion.proto "Restarting commotiond."
+		/etc/init.d/commotiond restart	
+		commotion_up "$iface" $(uci_get network $config profile)
 	fi
 	logger -t "commotion.proto" "Sending update for $config"
 	proto_send_update "$config"
