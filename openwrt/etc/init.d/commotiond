@@ -9,7 +9,7 @@ START=19
 STOP=91
 EXTRA_COMMANDS="cron"
 EXTRA_HELP="	cron	Watchdog function meant to be called from cron"
-CRON_SERVICES="commotiond olsrd commotion-service-manager"
+CRON_SERVICES="commotiond olsrd commotion-service-manager dnsmasq"
 CRON_THRESHOLD="180"
 
 boot() {
