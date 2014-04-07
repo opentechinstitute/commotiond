@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "config.h"
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/keyring.h>
 #include <serval/crypto.h>
@@ -64,6 +64,7 @@ typedef struct svl_crypto_ctx {
 svl_crypto_ctx *svl_crypto_ctx_new(void);
 void svl_crypto_ctx_free(svl_crypto_ctx *ctx);
 
+int iszero(unsigned char *buf, size_t len);
 void stowSid(unsigned char *packet, int ofs, const char *sid);
 
 int serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params);

@@ -19,6 +19,7 @@
 # CMake
 build
 config.h
+serval-config.h
 
 # Vim
 Session.vim

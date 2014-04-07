@@ -29,7 +29,7 @@
  * ============================================================================
  */
 
-#include "config.h"
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/crypto.h>
 #include <serval/overlay_address.h>
@@ -48,17 +48,6 @@
 
 /* libserval global for the primary keyring */
 extern keyring_file *keyring;
-
-#if 0
-/* 
- * libserval global identifying the subscriber corresponding
- * to the primary identity in the primary keyring
- */
-extern struct subscriber *my_subscriber;
-#endif
-
-extern co_obj_t *err_msg;
-// extern svl_crypto_ctx *serval_dna_ctx;
 
 /* file path for the serval state/conf/keyring directory */
 char *serval_path = NULL;
@@ -95,27 +84,28 @@ stowSid(unsigned char *packet, int ofs, const char *sid)
     fromhex(packet + ofs, sid, SID_SIZE);
 }
 
+inline int
+iszero(unsigned char *buf, size_t len) {
+  for (int i = 0; i < len; i++) {
+    if (buf[i])
+      return 0;
+  }
+  return 1;
+}
+
 int
 cmd_serval_sign(svl_crypto_ctx *ctx)
 {
-  CHECK_ERR(ctx && ctx->keyring && ctx->msg && ctx->msg_len,"Invalid ctx");
+  CHECK(ctx && ctx->keyring && ctx->msg && ctx->msg_len,"Invalid ctx");
   
-#if 0
-  if (ctx->keyring_path) {
-    CHECK(serval_open_keyring(ctx), "Failed to open Serval keyring");
-  } else {
-    // or just use the default keyring
-    ctx->keyring_file = keyring; // serval-dna global
-  }
-#endif
-
   /* If no SID is set, we need to add an identity */
-  if (!ctx->sid[0])
-    CHECK_ERR(serval_keyring_add_identity(ctx), "Failed to add Serval identity");
+  if (iszero(ctx->sid, SID_SIZE))
+    CHECK(serval_keyring_add_identity(ctx), "Failed to add Serval identity");
   
-  CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
+  if (iszero(ctx->sas_public,crypto_sign_PUBLICKEYBYTES) || iszero(ctx->sas_private,crypto_sign_SECRETKEYBYTES))
+    CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
-  CHECK_ERR(serval_create_signature(ctx),"Failed to create signature");
+  CHECK(serval_create_signature(ctx),"Failed to create signature");
   
   return 1;
 error:
@@ -127,7 +117,11 @@ cmd_serval_verify(svl_crypto_ctx *ctx)
 {
   int verdict = 0;
   
-  CHECK_ERR(ctx && ctx->msg && ctx->signature[0] && ctx->sas_public[0],"Invalid ctx");
+  CHECK(ctx
+	    && ctx->msg
+	    && !iszero(ctx->signature,SIGNATURE_BYTES)
+	    && !iszero(ctx->sas_public,crypto_sign_PUBLICKEYBYTES),
+	    "Invalid ctx");
   
   DEBUG("Message to verify:\n%s", ctx->msg);
   
@@ -155,7 +149,7 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   int list_len = co_list_length(params);
   int keypath = 0;
   
-  CHECK_ERR(IS_LIST(params) && list_len >= 2, "Invalid params");
+  CHECK(IS_LIST(params) && list_len >= 2, "Invalid params");
   
   if (!strncmp("--keyring=", co_obj_data_ptr(co_list_get_last(params)), 10)) {
     keypath = 1;
@@ -167,12 +161,12 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
   if (co_str_cmp_str(co_list_element(params, 0), "sign") == 0) {
     
-    CHECK_ERR(list_len == 2 || list_len == 3, "Invalid arguments");
+    CHECK(list_len == 2 || list_len == 3, "Invalid arguments");
     
     if (list_len == 3) {
       char *sid_str = _LIST_ELEMENT(params, 1);
       size_t sid_len = co_str_len(co_list_element(params, 1)) - 1;
-      CHECK_ERR(sid_len == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
+      CHECK(sid_len == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
 		"Invalid SID");
       stowSid(ctx->sid, 0, sid_str);
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 2);
@@ -180,10 +174,10 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
       if (keypath) {
 	ctx->keyring_path = _LIST_ELEMENT(params, 3) + 10;
 	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - 11;
-	CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
       }
       // if ctx->keyring_path is not set, opens default keyring
-      CHECK_ERR(serval_open_keyring(ctx, NULL), "Failed to open keyring");
+      CHECK(serval_open_keyring(ctx, NULL), "Failed to open keyring");
     
     } else if (list_len == 2) {
       
@@ -192,13 +186,13 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
       if (keypath) {
 	ctx->keyring_path = _LIST_ELEMENT(params, 2) + 10;
 	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - 11;
-	CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
       }
       // if ctx->keyring_path is not set, opens default keyring
-      CHECK_ERR(serval_open_keyring(ctx, NULL), "Failed to open keyring");
+      CHECK(serval_open_keyring(ctx, NULL), "Failed to open keyring");
 
     }
-    CHECK_ERR(cmd_serval_sign(ctx), "Failed to create signature");
+    CHECK(cmd_serval_sign(ctx), "Failed to create signature");
     
     // convert ctx->signature, ctx->sas_public, and ctx->sid to hex: 
     char sid_str[(2 * SID_SIZE) + 1] = {0};
@@ -213,11 +207,11 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     
   } else if (co_str_cmp_str(co_list_element(params, 0), "verify") == 0) {
     
-    CHECK_ERR(!keypath, "Keyring option not available for verification");
-    CHECK_ERR(list_len == 4, "Invalid arguments");
+    CHECK(!keypath, "Keyring option not available for verification");
+    CHECK(list_len == 4, "Invalid arguments");
     // convert SAS and signature from hex to bin
-    CHECK_ERR(fromhexstr(ctx->signature, _LIST_ELEMENT(params, 2), SIGNATURE_BYTES) == 0, "Invalid signature");
-    CHECK_ERR(fromhexstr(ctx->sas_public, _LIST_ELEMENT(params, 1), crypto_sign_PUBLICKEYBYTES) == 0, "Invalid SAS key");
+    CHECK(fromhexstr(ctx->signature, _LIST_ELEMENT(params, 2), SIGNATURE_BYTES) == 0, "Invalid signature");
+    CHECK(fromhexstr(ctx->sas_public, _LIST_ELEMENT(params, 1), crypto_sign_PUBLICKEYBYTES) == 0, "Invalid SAS key");
     ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 3);
     ctx->msg_len = co_str_len(co_list_element(params, 3)) - 1;
 
@@ -245,7 +239,11 @@ error:
 int
 serval_create_signature(svl_crypto_ctx *ctx)
 {
-  CHECK(ctx && ctx->sas_private[0] && ctx->msg && ctx->msg_len,"Invalid ctx");
+  CHECK(ctx
+	&& !iszero(ctx->sas_private,crypto_sign_SECRETKEYBYTES)
+	&& ctx->msg
+	&& ctx->msg_len,
+	"Invalid ctx");
   int sig_length = SIGNATURE_BYTES;
   unsigned char hash[crypto_hash_sha512_BYTES]; 
   

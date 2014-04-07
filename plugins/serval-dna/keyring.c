@@ -28,7 +28,7 @@
  * =====================================================================================
  */
 
-#include "config.h"
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/os.h>
 #include <serval/overlay_address.h>
@@ -48,7 +48,6 @@ typedef struct svl_keyring {
   svl_keyring *_next;
 } svl_keyring;
 
-extern co_obj_t *err_msg;
 extern char *serval_path;
 
 svl_keyring *keyring_list = NULL;
@@ -133,17 +132,18 @@ serval_open_keyring(svl_crypto_ctx *ctx, svl_keyring_update update)
 {
   svl_keyring *kr = NULL;
   
-  CHECK_ERR(ctx && !ctx->keyring_path,"Invalid ctx");
+  CHECK(ctx,"Invalid ctx");
+  
   if (ctx->keyring_len == 0) {
     // if no keyring specified, use default keyring
-    CHECK_ERR(serval_path,"Default Serval path not initialized");
+    CHECK(serval_path,"Default Serval path not initialized");
     char keyring_path_str[PATH_MAX] = {0};
     strcpy(keyring_path_str, serval_path);
     if (serval_path[strlen(serval_path) - 1] != '/')
       strcat(keyring_path_str, "/");
     strcat(keyring_path_str, "serval.keyring");
     // Fetching SAS keys requires setting the SERVALINSTANCE_PATH environment variable
-    CHECK_ERR(setenv("SERVALINSTANCE_PATH", serval_path, 1) == 0,
+    CHECK(setenv("SERVALINSTANCE_PATH", serval_path, 1) == 0,
 	      "Failed to set SERVALINSTANCE_PATH env variable");
     ctx->keyring_len = strlen(keyring_path_str);
     ctx->keyring_path = h_malloc(ctx->keyring_len + 1);
@@ -151,7 +151,7 @@ serval_open_keyring(svl_crypto_ctx *ctx, svl_keyring_update update)
     hattach(ctx->keyring_path,ctx);
   } else {
     // otherwise, use specified keyring (NOTE: if keyring does not exist, it will be created)
-    CHECK_ERR(ctx->keyring_len > 0 && ctx->keyring_len < PATH_MAX, "Invalid keyring length");
+    CHECK(ctx->keyring_len > 0 && ctx->keyring_len < PATH_MAX, "Invalid keyring length");
   }
   
   if ((kr = _svl_keyring_find(ctx->keyring_path))) {
@@ -165,12 +165,12 @@ serval_open_keyring(svl_crypto_ctx *ctx, svl_keyring_update update)
     kr->keyring_path = h_strdup(ctx->keyring_path);
     hattach(kr->keyring_path, kr);
     
-    CHECK_ERR(_svl_keyring_open(kr), "Failed to open keyring");
+    CHECK(_svl_keyring_open(kr), "Failed to open keyring");
     
     ctx->keyring = kr;
     
     // add to master keyring list
-    CHECK_ERR(_svl_keyring_add(&keyring_list, kr), "Failed to add new keyring to list");
+    CHECK(_svl_keyring_add(&keyring_list, kr), "Failed to add new keyring to list");
   }
   
   return 1;
@@ -184,25 +184,35 @@ int
 serval_keyring_add_identity(svl_crypto_ctx *ctx)
 {
   keyring_identity *new_ident = NULL;
-  CHECK_ERR(ctx && ctx->keyring,"Invalid ctx");
+  CHECK(ctx && ctx->keyring,"Invalid ctx");
   
   // cycle through the keyring contexts until we find one with room for another identity
-  for(int c = 0; c < (ctx->keyring->keyring_file)->context_count; c++) {
+  for(int i = 0; i < (ctx->keyring->keyring_file)->context_count; i++) {
     // create new Serval identity
     new_ident = keyring_create_identity(ctx->keyring->keyring_file,
-				        (ctx->keyring->keyring_file)->contexts[c],
+				        ctx->keyring->keyring_file->contexts[i],
 					KEYRING_PIN);
     if (new_ident)
       break;
   }
-  CHECK_ERR(new_ident, "Failed to create new SID");
+  
+  CHECK(new_ident, "Failed to create new SID");
+  
+  // Extract SAS keys
+  keypair *kp = keyring_find_sas_private(ctx->keyring->keyring_file, new_ident);
+  CHECK(kp, "Failed to get SAS keys from new identity");
+  memcpy(ctx->sas_private, kp->private_key, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->sas_public, kp->public_key, crypto_sign_PUBLICKEYBYTES);
+  
+  // Extract SID
+  sid_t *sid = NULL;
+  keyring_identity_extract(new_ident, (const sid_t**)&sid, NULL, NULL);
+  memcpy(ctx->sid,sid->binary,SID_SIZE);
   
   // need to commit keyring or else new identity won't be saved (needs permissions)
-  CHECK_ERR(keyring_commit(ctx->keyring->keyring_file) == 0, "Failed to save new SID into keyring");
+  CHECK(keyring_commit(ctx->keyring->keyring_file) == 0, "Failed to save new SID into keyring");
   
-  CHECK_ERR(ctx->keyring->update(ctx), "Failed to update keyring");
-  
-  memcpy(ctx->sid,new_ident->subscriber->sid.binary,SID_SIZE);
+  CHECK(ctx->keyring->update(ctx), "Failed to update keyring");
   
   return 1;
 error:
@@ -218,65 +228,42 @@ serval_get_keyring_file(svl_crypto_ctx *ctx)
   return krf;
 }
 
-#if 0
-int
-serval_init_keyring(svl_crypto_ctx *ctx)
-{
-  keyring_identity *new_ident;
-  
-  CHECK_ERR(ctx,"Invalid ctx");
-  
-  CHECK_ERR(serval_open_keyring(ctx), "Failed to open keyring");
-  
-  if (!ctx->sid[0]) { //create new sid
-    // cycle through the keyring contexts until we find one with room for another identity
-    for(int c = 0; c < (ctx->keyring_file)->context_count; c++) {
-      // create new Serval identity
-      new_ident = keyring_create_identity(ctx->keyring_file,
-					  (ctx->keyring_file)->contexts[c],
-					  KEYRING_PIN);
-      if (new_ident)
-	break;
-    }
-    CHECK_ERR(new_ident, "Failed to create new SID");
-    
-    // need to commit keyring or else new identity won't be saved (needs permissions)
-    CHECK_ERR(keyring_commit(ctx->keyring_file) == 0, "Failed to save new SID into keyring");
-    
-    memcpy(ctx->sid,new_ident->subscriber->sid.binary,SID_SIZE);
-  }
-  
-  return 1;
-error:
-  return 0;
-}
-#endif
-
 /** Requires use of serval-dna global keyring */
 int
 serval_extract_sas(svl_crypto_ctx *ctx)
 {
   CHECK(ctx,"Invalid ctx");
-  struct subscriber *sub = find_subscriber(ctx->sid, SID_SIZE, 0);  // uses global keyring; TODO use another function to get identity
-  CHECK(sub && sub->identity, "Could not find subscriber associated with SID");
+  
+  unsigned int cn=0, in=0, kp=0;
+  int ret = keyring_find_sid(ctx->keyring->keyring_file, &cn, &in, &kp, (sid_t*)ctx->sid);
+  CHECK(ret != 0, "Failed to find identity in keyring associated with SID");
+  
   // get SAS key associated with our SID
-  struct keypair *pair = keyring_find_sas_private(ctx->keyring->keyring_file, sub->identity);
+  kp = keyring_identity_find_keytype(ctx->keyring->keyring_file, cn, in, KEYTYPE_CRYPTOSIGN);
+  CHECK(kp != -1, "Failed to extract SAS from keyring associated with SID");
+  
+  struct keypair *pair = ctx->keyring->keyring_file->contexts[cn]->identities[in]->keypairs[kp];
   CHECK(pair, "Failed to fetch SAS keys");
-  CHECK(pair->private_key_len == crypto_sign_SECRETKEYBYTES &&
-  pair->public_key_len == crypto_sign_PUBLICKEYBYTES, "Invalid SAS keys");
+  CHECK(pair->private_key_len == crypto_sign_SECRETKEYBYTES
+	&& pair->public_key_len == crypto_sign_PUBLICKEYBYTES,
+	"Invalid SAS keys");
+  
   memcpy(ctx->sas_private, pair->private_key, crypto_sign_SECRETKEYBYTES);
   memcpy(ctx->sas_public, pair->public_key, crypto_sign_PUBLICKEYBYTES);
+  
   return 1;
 error:
   return 0;
 }
 
 int
-serval_reload_keyring(svl_crypto_ctx *ctx) {
-  CHECK_ERR(ctx && ctx->keyring && ctx->keyring->keyring_file, "Invalid ctx");
+serval_reload_keyring(svl_crypto_ctx *ctx)
+{
+  CHECK(ctx && ctx->keyring && ctx->keyring->keyring_file, "Invalid ctx");
   
   keyring_free(ctx->keyring->keyring_file);
-  CHECK_ERR(_svl_keyring_open(ctx->keyring), "Failed to open keyring");
+  ctx->keyring->keyring_file = NULL;
+  CHECK(_svl_keyring_open(ctx->keyring), "Failed to open keyring");
   
   return 1;
 error:

@@ -28,8 +28,8 @@
  * =====================================================================================
  */
 
-#include "config.h"
-#include "serval.h"
+#include "serval-config.h"
+#include <serval.h>
 #include <serval/os.h>
 #include <serval/dataformats.h>
 
@@ -42,8 +42,6 @@
 #include "crypto.h"
 #include "keyring.h"
 #include "olsr_mdp.h"
-
-extern co_obj_t *err_msg;
 
 int
 olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
@@ -62,7 +60,7 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
   ctx->keyring_path = _LIST_ELEMENT(params, 0);
   ctx->keyring_len = co_str_len(co_list_element(params, 0)) - 1;
-  CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+  CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
   
   CHECK(serval_open_keyring(ctx, NULL), "Failed to initialize Serval keyring");
   

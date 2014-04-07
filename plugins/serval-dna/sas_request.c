@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include "config.h"
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/conf.h>
 #include <serval/rhizome.h>

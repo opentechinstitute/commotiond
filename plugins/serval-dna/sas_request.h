@@ -29,6 +29,7 @@
  * =====================================================================================
  */
 
+#include "serval-config.h"
 #include <serval.h>
 
 #ifndef __CO_SERVAL_SAS_REQUEST_H

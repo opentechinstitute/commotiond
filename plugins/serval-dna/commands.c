@@ -28,17 +28,40 @@
  * =====================================================================================
  */
 
-#include "config.h"
+#include "serval-config.h"
 #include <serval.h>
 
 #include "cmd.h"
 
+#include "serval-dna.h"
 #include "crypto.h"
 #include "olsr_mdp.h"
 #include "commands.h"
 
 /* used to store error messages to pass in response to client commands */
 co_obj_t *err_msg = NULL;
+int collect_errors = 0;
+
+int
+serval_daemon_register(void)
+{
+  /**
+   * name: serval-daemon
+   * param[0] <required>: start|stop|reload (co_str8_t)
+   */
+  
+  const char name[] = "serval-daemon",
+//   usage[] = "serval-daemon start|stop|reload",
+//   desc[] =  "Start or stop the Serval daemon, or reload the keyring file";
+  usage[] = "serval-daemon reload",
+  desc[] =  "Reload the keyring file";
+  
+  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_daemon_handler),"Failed to register commands");
+  
+  return 1;
+error:
+  return 0;
+}
 
 int
 serval_crypto_register(void)

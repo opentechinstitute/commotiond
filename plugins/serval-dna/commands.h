@@ -31,6 +31,7 @@
 #ifndef __CO_SERVAL_COMMANDS_H
 #define __CO_SERVAL_COMMANDS_H
 
+int serval_daemon_register(void);
 int serval_crypto_register(void);
 int olsrd_mdp_register(void);
 
