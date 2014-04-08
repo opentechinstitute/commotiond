@@ -228,12 +228,11 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     
   }
   
-  return 1;
 error:
   INS_ERROR();
   if (ctx)
     svl_crypto_ctx_free(ctx);
-  return 0;
+  return 1;
 }
 
 int

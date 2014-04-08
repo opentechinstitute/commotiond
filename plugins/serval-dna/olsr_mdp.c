@@ -64,7 +64,6 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
   CHECK(serval_open_keyring(ctx, NULL), "Failed to initialize Serval keyring");
   
-  // TODO serval_extract_sas requires use of serval-dna global keyring, which we can't use here. need another way to extract sas
   CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
   CMD_OUTPUT("key", co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0));

@@ -539,8 +539,7 @@ int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   CMD_OUTPUT("result",co_str8_create("success",sizeof("success"),0));
   
-  return 1;
 error:
   INS_ERROR();
-  return 0;
+  return 1;
 }
