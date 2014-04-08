@@ -1,46 +1,3 @@
-/**
- * POA
- * 
- * OKAY, so "method" is actually just the name of the command you want to execute.
- * 
- * For example, I could send "help" as the method and in theory get back the
- * standard text from the help command
- * 
- * So what request does is pack a message buffer with the relevant information
- * for calling a function or command
- * This buffer is then unpacked on the other side
- * 
- * Likewise, response will send a response
- * 
- * Unless I want to fiddle around with setting up sockets and the like,
- * the best option seems to be packing a message buffer, importing it
- * as an object, then checking its members (it will be a list with 
- * a tree attached to it(for the params)) and seeing if they are 
- * correct.
- * --> check the list elements with this function:
- * co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
- * 
- * 
- * I could test it by packing up the buffer
- * 
- * co_object_import the buffer as a commotion object
- * --> this will be a list with certain elements with certain values
- * --> at the end will be a tree with the parameters I issued to the method
- * 
- * 
- * look up messagepack rpc to see how the messages are formatted
- * 
- * 
- * /**
- * @brief allocate request
- * @param output buffer for output
- * @param olen output buffer length
- * @param method name of method
- * @param param parameters to method
- * size_t co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj_t *param);
- * 
- */
-
 extern "C" {
 #include "../src/obj.h"
 #include "../src/list.h"
@@ -98,7 +55,6 @@ protected:
 
 void MessageTest::Request()
 {
-    
   char *method = "help";
   size_t mlen = strlen(method) + 1;
   co_obj_t *m = co_str8_create(method, mlen, 0);
@@ -124,24 +80,6 @@ void MessageTest::Request()
   ASSERT_EQ(0, *type);
   
   ASSERT_EQ(sizeof(uint32_t), co_obj_data((char **)&id, co_list_element(request, 1)));
-  
-  
-  
-  return; 
-  
-error:
-  DEBUG("\n\nSomething went wrong.\n\n");
-  return;
-  /*
-  importlen = co_list_import(imported, req, reqlen); 
-  ASSERT_EQ(importlen, reqlen);
-  */
-  
-  // now convert the buffer into an object (by importing it?)
-  // import it
-  // check the elements of the list are correct
-  // add parameters
-  // do it again and see if that works
 }
 
 TEST_F (MessageTest, Request)
