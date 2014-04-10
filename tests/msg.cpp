@@ -36,12 +36,18 @@ protected:
   size_t len = 0;
   char req[REQUEST_MAX];
   char resp[RESPONSE_MAX];
-
+  char *method = "help";
+  size_t mlen = strlen(method) + 1;
+  co_obj_t *m = co_str8_create(method, mlen, 0);
+  size_t reqlen = 0;
+  size_t importlen = 0;
+  co_obj_t *param = co_list16_create();
+  co_obj_t *request = NULL;
+  uint8_t *type = NULL;
+  uint32_t *id = NULL;
   
   // functions
   void Request();
-  
-//   void Response();
   
   MessageTest()
   {
@@ -55,27 +61,18 @@ protected:
 
 void MessageTest::Request()
 {
-  char *method = "help";
-  size_t mlen = strlen(method) + 1;
-  co_obj_t *m = co_str8_create(method, mlen, 0);
-  size_t reqlen = 0;
-  size_t importlen = 0;
-  co_obj_t *param = co_list16_create();
-  
+  // pack message
   reqlen = co_request_alloc(req, REQUEST_MAX, m, param);
   ASSERT_EQ(20, reqlen);
   
-  DEBUG("\n\nThe reqlen value is: %d\n\n", reqlen);
+  DEBUG("\n\nNumber of bytes packed: %d\n\n", reqlen);
   
-  co_obj_t *request = NULL;
-      
-  uint8_t *type = NULL;
-  uint32_t *id = NULL;
-  
+  // unpack message
   importlen = co_list_import(&request, req, reqlen);
   
-  DEBUG("\n\nThe importlen value is: %d\n\n", importlen);
+  DEBUG("\n\nNumber of byes unpacked: %d\n\n", importlen);
   
+  // check message contents
   co_obj_data((char **)&type, co_list_element(request, 0));
   ASSERT_EQ(0, *type);
   
@@ -86,12 +83,3 @@ TEST_F (MessageTest, Request)
 {
   Request();
 }
-  
-/*
-TEST_F (MessageTest, Response)
-{
-  Response();
-}
-
-*/
-
