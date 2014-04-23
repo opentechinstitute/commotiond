@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
-set(PROJECT_NAME_STR commotion)
+SET(PROJECT_NAME_STR commotion)
 PROJECT(${PROJECT_NAME_STR})
 SET(NO_OPTIMIZE ON CACHE BOOL "Disable optimization flags.")
 SET(DEBUG ON CACHE BOOL "Turn on debugging.")
@@ -47,27 +47,27 @@ IF(PLUGINS)
   ADD_SUBDIRECTORY(plugins)
 ENDIF()
 
-if(NOT OPENWRT)
-  find_package(Doxygen)
-  if(DOXYGEN_FOUND)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-    add_custom_target(doc ALL
+IF(NOT OPENWRT)
+  FIND_PACKAGE(Doxygen)
+  IF(DOXYGEN_FOUND)
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+    ADD_CUSTOM_TARGET(doc ALL
       ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
-  endif(DOXYGEN_FOUND)
-endif()
+  ENDIF(DOXYGEN_FOUND)
+ENDIF()
 
 INSTALL(FILES files/commotiond.conf DESTINATION /etc/commotion)
 INSTALL(DIRECTORY files/profiles.d DESTINATION /etc/commotion)
 
 # uninstall target
-configure_file(
+CONFIGURE_FILE(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
     IMMEDIATE @ONLY)
 
-add_custom_target(uninstall
+ADD_CUSTOM_TARGET(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
