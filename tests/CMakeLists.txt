@@ -15,18 +15,20 @@ ExternalProject_Add(googletest
 
 # Specify include dir
 ExternalProject_Get_Property(googletest source_dir)
-set(GTEST_INCLUDE_DIRS ${source_dir}/include)
+set(GTEST_INCLUDE_DIR ${source_dir}/include)
 
 # Specify MainTest's link libraries
 ExternalProject_Get_Property(googletest binary_dir)
-set(GTEST_LIBS_DIR ${binary_dir})
+set(GTEST_LIBRARY ${binary_dir}/libgtest.a)
+set(GTEST_MAIN_LIBRARY ${binary_dir}/libgtest_main.a)
 
 #-------------------
 # Test
 #-------------------
 enable_testing()
+include(FindGTest QUIETLY)
 set(PROJECT_TEST_NAME ${PROJECT_NAME_STR}_test)
-include_directories(${GTEST_INCLUDE_DIRS} ${COMMON_INCLUDES})
+include_directories(${GTEST_INCLUDE_DIR} ${COMMON_INCLUDES})
 
 file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
@@ -34,11 +36,13 @@ add_dependencies(${PROJECT_TEST_NAME} googletest)
 
 target_link_libraries(${PROJECT_TEST_NAME} commotion)
 target_link_libraries(${PROJECT_TEST_NAME}
-	${GTEST_LIBS_DIR}/libgtest.a
-	${GTEST_LIBS_DIR}/libgtest_main.a)
+	${GTEST_LIBRARY}
+	${GTEST_MAIN_LIBRARY})
 target_link_libraries(${PROJECT_TEST_NAME} pthread)
 
-add_test(test1 ${PROJECT_TEST_NAME})
+GTEST_ADD_TESTS(${PROJECT_TEST_NAME} "" ${TEST_SRC_FILES})
+
+add_custom_command(TARGET ${PROJECT_TEST_NAME} POST_BUILD COMMAND ${PROJECT_TEST_NAME})
 
 #get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})
