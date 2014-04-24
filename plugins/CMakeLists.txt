@@ -1,4 +1,4 @@
-SET(PLUGINS serval-dna demo)
+SET(PLUGINS serval-dna)
 
 FOREACH(PLUGIN ${PLUGINS})
   ADD_SUBDIRECTORY(${PLUGIN})
