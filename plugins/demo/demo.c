@@ -3,6 +3,7 @@
 #include "list.h"
 #include "profile.h"
 #include "cmd.h"
+#include "tree.h"
 
 #include "demo.h"
 
@@ -13,13 +14,14 @@ int echo_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   char *data;
   co_obj_t *input;
   co_obj_t *echo;
-  size_t size; 
+  int ret;
   
   // get list element
   input = co_list_element(params, 0);
   
   // copy input object data
-  size = co_obj_data(&data, input);
+  ret = co_obj_data(&data, input);
+  CHECK(ret, "Failed to retrieve data.");
   
   // create new object with same string
   echo = co_str8_create(data, strlen(data) + 1, 0);
@@ -30,6 +32,12 @@ int echo_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   return 1;
 error:
   return 0;
+}
+
+
+SCHEMA(demo) {
+  SCHEMA_ADD("demo","enabled");
+  return 1;
 }
 
 int demo_register(void)
