@@ -105,6 +105,8 @@ void LoopTest::Socket()
   socket1->register_cb = co_loop_add_socket;
   socket1->bind((co_obj_t*)socket1, "commotiontest.sock");
   
+  co_obj_t *co_fd_create(co_obj_t *parent, int fd);
+  
   // remove socket from loop
   ret = co_loop_remove_socket((co_obj_t *)socket1, NULL);
   ASSERT_EQ(1, ret);
