@@ -55,8 +55,6 @@ protected:
   {
     co_socket_destroy((co_obj_t *)socket1);
   }
-  
-
 };
 
 void SocketTest::Create()
