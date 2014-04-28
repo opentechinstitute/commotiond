@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 2.8.8)
 project(gtest_builder C CXX)
 include(ExternalProject)
 
+SET(DEMO demo)
+
+FOREACH(DEMO ${DEMO})
+  ADD_SUBDIRECTORY(${DEMO})
+ENDFOREACH(DEMO)
+
 ExternalProject_Add(googletest
     SVN_REPOSITORY http://googletest.googlecode.com/svn/trunk
     CMAKE_ARGS -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=DebugLibs
