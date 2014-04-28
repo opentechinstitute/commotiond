@@ -1,27 +1,3 @@
-/**
- * POA
- * * Mimic commotiond functionality
- * *** Identify what pieces I need (eg. event loop, socket, etc.)
- * *** Get those up and running
- * 
- * * Copy in sample demo functions
- * 
- * * Check that sample functions execute correctly
- * 
- * 
- * make demo plugin directory in unit tests
- * --> set it to build
- * --> pass that in to co_plugins_load
- * 
- * 
- * daemon functions:
- * co_plugins_init(16);
- * co_plugins_load(_plugins)
- * co_plugins_start();
- * 
- * 
- */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -53,7 +29,7 @@ class PluginTest : public ::testing::Test
 {
 protected:
   // variables
-  int ret = 0;
+  int ret;
 
   // functions
   
