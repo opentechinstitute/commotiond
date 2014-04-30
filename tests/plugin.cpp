@@ -31,20 +31,19 @@ void PluginTest::Load()
   ret = co_plugins_load(_plugindir);
   ASSERT_EQ(1, ret);
 }
-/*
+
 void PluginTest::Start()
 {
   ret = co_plugins_start();
-  
+  ASSERT_EQ(1, ret);
 }
-*/
+
 TEST_F(PluginTest, Load)
 {
   Load();
 }
-/*
+
 TEST_F(PluginTest, Start)
 {
   Start();
 }
-*/
