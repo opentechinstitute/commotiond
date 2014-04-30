@@ -34,12 +34,12 @@ error:
   return 0;
 }
 
-
+/* // disabled for testing
 SCHEMA(demo) {
   SCHEMA_ADD("demo","enabled");
   return 1;
 }
-
+*/
 int demo_register(void)
 {
   const char name[] = "echo", 
@@ -52,7 +52,8 @@ int demo_register(void)
 error:
   return 0;
 }
-/*
+
+/* // disabled for testing
 int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   DEBUG("Loading demo schema.");
   SCHEMA_GLOBAL(demo); // adds to global commotion.conf file
