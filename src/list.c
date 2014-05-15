@@ -183,34 +183,34 @@ error:
   return 0;
 }
 
-static size_t  /* Done */
+static ssize_t  /* Done */
 _co_list_change_length(co_obj_t *list, const int delta)
 { 
   if(CO_TYPE(list) == _list16)
   {
     ((co_list16_t *)list)->_len += delta;
-    return (size_t)(((co_list16_t *)list)->_len);
+    return (ssize_t)(((co_list16_t *)list)->_len);
   } else if(CO_TYPE(list) == _list32) {
     ((co_list32_t *)list)->_len += delta;
-    return (size_t)(((co_list32_t *)list)->_len);
+    return (ssize_t)(((co_list32_t *)list)->_len);
   }
   ERROR("Not a list object.");
   return -1;
 }
 
-static size_t  /* Done */
+static ssize_t  /* Done */
 _co_list_increment(co_obj_t *list)
 { 
   return _co_list_change_length(list, 1);
 }
 
-static size_t /* Done */
+static ssize_t /* Done */
 _co_list_decrement(co_obj_t *list)
 { 
   return _co_list_change_length(list, -1);
 }
 
-size_t /* Done */
+ssize_t /* Done */
 co_list_length(co_obj_t *list)
 { 
   return _co_list_change_length(list, 0);
@@ -499,10 +499,10 @@ error:
   return NULL;
 }
 
-size_t
+ssize_t
 co_list_raw(char *output, const size_t olen, const co_obj_t *list)
 {
-  size_t written = 0, read = 0;
+  ssize_t written = 0, read = 0;
   char *in = NULL;
   char *out = output;
   switch(CO_TYPE(list))
@@ -558,10 +558,10 @@ error:
   
 }
 
-size_t
+ssize_t
 co_list_import(co_obj_t **list, const char *input, const size_t ilen)
 {
-  size_t length = 0, olen = 0, read = 0;
+  ssize_t length = 0, olen = 0, read = 0;
   co_obj_t *obj = NULL;
   const char *cursor = input;
   switch((uint8_t)input[0])

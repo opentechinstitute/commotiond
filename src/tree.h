@@ -200,7 +200,7 @@ void co_tree_destroy(co_obj_t *root);
  * @param olen length of output buffer
  * @param tree tree to dump
  */
-size_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
+ssize_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
 
 /**
  * @brief import raw representation of tree
@@ -208,7 +208,7 @@ size_t co_tree_raw(char *output, const size_t olen, const co_obj_t *tree);
  * @param input input buffer
  * @param ilen length of input buffer
  */
-size_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
+ssize_t co_tree_import(co_obj_t **tree, const char *input, const size_t ilen);
 
 /**
  * @brief print tree with indent
