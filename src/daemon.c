@@ -1022,6 +1022,7 @@ int main(int argc, char *argv[]) {
   co_cmds_shutdown();
   co_profiles_shutdown();
   co_plugins_shutdown();
+  co_ifaces_shutdown();
 
   return 0;
 }

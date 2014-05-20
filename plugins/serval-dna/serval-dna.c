@@ -81,6 +81,7 @@ error:
 extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
 co_socket_t co_socket_proto = {};
+svl_crypto_ctx *global_ctx = NULL;
 
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
@@ -395,7 +396,7 @@ error:
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   char *enabled = NULL;
-  svl_crypto_ctx *ctx = NULL;
+  global_ctx = NULL;
   co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
   if (strcmp(enabled,"disabled") == 0) return 1;
 
@@ -404,9 +405,9 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   srandomdev();
   
   CHECK(serval_load_config(),"Failed to load Serval config parameters");
-  ctx = svl_crypto_ctx_new();
-  CHECK(serval_open_keyring(ctx),"Failed to open keyring");
-  keyring = ctx->keyring_file;
+  global_ctx = svl_crypto_ctx_new();
+  CHECK(serval_open_keyring(global_ctx),"Failed to open keyring");
+  keyring = global_ctx->keyring_file;
   
   if (!serval_registered) {
 //     CHECK(serval_register(),"Failed to register Serval commands");
@@ -436,8 +437,8 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   return 1;
 error:
-  if (ctx)
-    svl_crypto_ctx_free(ctx);
+  if (global_ctx)
+    svl_crypto_ctx_free(global_ctx);
   return 0;
 }
 
@@ -469,6 +470,8 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   keyring_free(keyring);
   
   daemon_started = false;
+  
+  svl_crypto_ctx_free(global_ctx);
   
   return 1;
 }
