@@ -163,7 +163,8 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     
     CHECK(list_len == 2 || list_len == 3, "Invalid arguments");
     
-    if (list_len == 3) {
+    if (list_len == 3) { // SID specified
+      
       char *sid_str = _LIST_ELEMENT(params, 1);
       size_t sid_len = co_str_len(co_list_element(params, 1)) - 1;
       CHECK(sid_len == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
@@ -175,11 +176,12 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 	ctx->keyring_path = _LIST_ELEMENT(params, 3) + 10;
 	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - 11;
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+	// TODO make sure keyring path is an existing file
       }
       // if ctx->keyring_path is not set, opens default keyring
       CHECK(serval_open_keyring(ctx, NULL), "Failed to open keyring");
     
-    } else if (list_len == 2) {
+    } else if (list_len == 2) { // no SID specified, one will be created
       
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 1);
       ctx->msg_len = co_str_len(co_list_element(params, 1)) - 1;
@@ -187,6 +189,7 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 	ctx->keyring_path = _LIST_ELEMENT(params, 2) + 10;
 	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - 11;
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
+	// TODO make sure keyring path is an existing file
       }
       // if ctx->keyring_path is not set, opens default keyring
       CHECK(serval_open_keyring(ctx, NULL), "Failed to open keyring");

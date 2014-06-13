@@ -472,7 +472,7 @@ int main(int argc, char *argv[]) {
     if (!strncmp("--bind=",argv[argc-1],7)) {
       CHECK(strlen(argv[argc-1] + 7) < PATH_MAX,"bind URI path too long");
       strcpy(bind_uri,argv[argc-1] + 7);
-      argc--; argv++;
+      argc--;
     } else {
       strcpy(bind_uri,COMMOTION_MANAGESOCK);
     }
