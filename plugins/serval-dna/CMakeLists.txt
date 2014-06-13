@@ -13,6 +13,10 @@ SET(DEFAULT_SID \"00000000000000000000000000000000000000000000000000000000000000
 SET(DEFAULT_MDP_PATH \"/etc/commotion/keys.d/mdp.keyring/serval.keyring\")
 SET(DEFAULT_SERVAL_PATH \"/var/serval-node\")
 
+IF(OPENWRT)
+SET(DEFAULT_SERVAL_PATH \"/etc/serval\")
+ENDIF()
+
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/plugins/serval-dna/serval-config.h.in ${CMAKE_SOURCE_DIR}/plugins/serval-dna/serval-config.h)
 
 SET(PLUGIN_NAME serval-dna)
