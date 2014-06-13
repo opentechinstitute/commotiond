@@ -66,7 +66,9 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
   CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
-  CMD_OUTPUT("key", co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0));
+  co_obj_t *key = co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0);
+  CHECK_MEM(key);
+  CMD_OUTPUT("key", key);
   
   return 1;
 error:
@@ -91,7 +93,9 @@ olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
   CHECK(serval_create_signature(ctx), "Failed to sign OLSRd packet");
   
-  CMD_OUTPUT("sig", co_bin8_create((char*)ctx->signature, SIGNATURE_BYTES, 0));
+  co_obj_t *sig = co_bin8_create((char*)ctx->signature, SIGNATURE_BYTES, 0);
+  CHECK_MEM(sig);
+  CMD_OUTPUT("sig", sig);
   
   ret = 1;
 error:

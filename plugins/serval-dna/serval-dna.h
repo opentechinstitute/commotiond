@@ -47,18 +47,28 @@ extern co_obj_t *err_msg;
     if (collect_errors) { \
       if (err_msg == NULL) \
 	err_msg = co_list16_create(); \
-      char *msg = NULL; \
-      int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-      msg = calloc(len + 1,sizeof(char)); \
-      sprintf(msg, M, ##__VA_ARGS__); \
-      if (len < UINT8_MAX) { \
-	co_list_append(err_msg, co_str8_create(msg,len+1,0)); \
-      } else if (len < UINT16_MAX) { \
-	co_list_append(err_msg, co_str16_create(msg,len+1,0)); \
-      } else if (len < UINT32_MAX) { \
-	co_list_append(err_msg, co_str32_create(msg,len+1,0)); \
+      if (err_msg) { \
+	char *msg = NULL; \
+	int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
+	msg = calloc(len + 1,sizeof(char)); \
+	if (msg) { \
+	  sprintf(msg, M, ##__VA_ARGS__); \
+	  co_obj_t *str = NULL; \
+	  if (len < UINT8_MAX) { \
+	    str = co_str8_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } else if (len < UINT16_MAX) { \
+	    str = co_str16_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } else if (len < UINT32_MAX) { \
+	    str = co_str32_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } \
+	  free(msg); \
+	} \
+      } else { \
+        ERROR("Out of memory."); \
       } \
-      free(msg); \
     } \
     errno=0; goto error; \
   }

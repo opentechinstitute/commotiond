@@ -147,6 +147,7 @@ serval_open_keyring(svl_crypto_ctx *ctx, svl_keyring_update update)
 	      "Failed to set SERVALINSTANCE_PATH env variable");
     ctx->keyring_len = strlen(keyring_path_str);
     ctx->keyring_path = h_malloc(ctx->keyring_len + 1);
+    CHECK_MEM(ctx->keyring_path);
     strcpy(ctx->keyring_path,keyring_path_str);
     hattach(ctx->keyring_path,ctx);
   } else {

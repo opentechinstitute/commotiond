@@ -204,7 +204,9 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
 
   CHECK_MEM((timer = co_timer_create(deadline, serval_timer_cb, alarm)));
   CHECK(co_loop_add_timer(timer,NULL),"Failed to add timer %ld.%06ld %p",deadline.tv_sec,deadline.tv_usec,alarm);
-  CHECK(co_list_append(timer_alarms,co_alarm_create(alarm)),"Failed to add to timer_alarms");
+  co_obj_t *alarm_obj = co_alarm_create(alarm);
+  CHECK_MEM(alarm_obj);
+  CHECK(co_list_append(timer_alarms,alarm_obj),"Failed to add to timer_alarms");
   
   return 0;
   
@@ -253,12 +255,18 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     WARN("Socket %d already registered: %d",alarm->poll.fd,alarm->_poll_index);
   } else {
     sock = (co_socket_t*)NEW(co_socket, co_socket);
+    CHECK_MEM(sock);
     
     sock->fd = (co_fd_t*)co_fd_create((co_obj_t*)sock,alarm->poll.fd);
+    CHECK_MEM(sock->fd);
+    hattach(sock->fd, sock);
     sock->rfd_lst = co_list16_create();
+    CHECK_MEM(sock->rfd_lst);
+    hattach(sock->rfd_lst, sock);
     sock->listen = true;
     // NOTE: Aren't able to get the Serval socket uris, so instead use string representation of fd
     sock->uri = h_calloc(1,6);
+    CHECK_MEM(sock->uri);
     hattach(sock->uri,sock);
     sprintf(sock->uri,"%d",sock->fd->fd);
     sock->fd_registered = false;
@@ -276,13 +284,15 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     alarm->_poll_index = 1;
     alarm->poll.revents = 0;
     
-    CHECK(co_list_append(sock_alarms, co_alarm_create(alarm)),"Failed to add to sock_alarms");
+    co_obj_t *alarm_obj = co_alarm_create(alarm);
+    CHECK_MEM(alarm_obj);
+    CHECK(co_list_append(sock_alarms, alarm_obj),"Failed to add to sock_alarms");
     DEBUG("Successfully added to sock_alarms %p",alarm);
   }
   
   return 0;
 error:
-  if (sock) free((co_obj_t*)sock);
+  if (sock) co_socket_destroy((co_obj_t*)sock);
   return -1;
 }
 
@@ -450,7 +460,9 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   // Initialize our list of Serval alarms/sockets
   sock_alarms = co_list16_create();
+  CHECK_MEM(sock_alarms);
   timer_alarms = co_list16_create();
+  CHECK_MEM(timer_alarms);
   
   setup_sockets();
   
@@ -537,7 +549,9 @@ int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     keyring = serval_get_keyring_file(serval_dna_ctx);
   }
   
-  CMD_OUTPUT("result",co_str8_create("success",sizeof("success"),0));
+  co_obj_t *out = co_str8_create("success",sizeof("success"),0);
+  CHECK_MEM(out);
+  CMD_OUTPUT("result", out);
   
 error:
   INS_ERROR();

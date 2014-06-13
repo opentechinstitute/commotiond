@@ -145,13 +145,14 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
 {
   CLEAR_ERR();
   
+  co_obj_t *out = NULL;
   svl_crypto_ctx *ctx = NULL;
   int list_len = co_list_length(params);
   int keypath = 0;
   
   CHECK(IS_LIST(params) && list_len >= 2, "Invalid params");
   
-  if (!strncmp("--keyring=", co_obj_data_ptr(co_list_get_last(params)), 10)) {
+  if (!strncmp("keyring=", co_obj_data_ptr(co_list_get_last(params)), strlen("keyring="))) {
     keypath = 1;
     --list_len;
   }
@@ -173,8 +174,8 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 2);
       ctx->msg_len = co_str_len(co_list_element(params, 2)) - 1;
       if (keypath) {
-	ctx->keyring_path = _LIST_ELEMENT(params, 3) + 10;
-	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - 11;
+	ctx->keyring_path = _LIST_ELEMENT(params, 3) + strlen("keyring=");
+	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - (strlen("keyring=") + 1);
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
 	// TODO make sure keyring path is an existing file
       }
@@ -186,8 +187,8 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 1);
       ctx->msg_len = co_str_len(co_list_element(params, 1)) - 1;
       if (keypath) {
-	ctx->keyring_path = _LIST_ELEMENT(params, 2) + 10;
-	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - 11;
+	ctx->keyring_path = _LIST_ELEMENT(params, 2) + strlen("keyring=");
+	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - (strlen("keyring=") + 1);
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
 	// TODO make sure keyring path is an existing file
       }
@@ -204,9 +205,15 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     strncpy(sas_str, alloca_tohex(ctx->sas_public, crypto_sign_PUBLICKEYBYTES), 2 * crypto_sign_PUBLICKEYBYTES);
     char sig_str[(2 * SIGNATURE_BYTES) + 1] = {0};
     strncpy(sig_str, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
-    CMD_OUTPUT("SID", co_str8_create(sid_str, (2 * SID_SIZE) + 1, 0));
-    CMD_OUTPUT("SAS", co_str8_create(sas_str, (2 * crypto_sign_PUBLICKEYBYTES) + 1, 0));
-    CMD_OUTPUT("signature", co_str8_create(sig_str, (2 * SIGNATURE_BYTES) + 1, 0));
+    out = co_str8_create(sid_str, (2 * SID_SIZE) + 1, 0);
+    CHECK_MEM(out);
+    CMD_OUTPUT("SID", out);
+    out = co_str8_create(sas_str, (2 * crypto_sign_PUBLICKEYBYTES) + 1, 0);
+    CHECK_MEM(out);
+    CMD_OUTPUT("SAS", out);
+    out = co_str8_create(sig_str, (2 * SIGNATURE_BYTES) + 1, 0);
+    CHECK_MEM(out);
+    CMD_OUTPUT("signature", out);
     
   } else if (co_str_cmp_str(co_list_element(params, 0), "verify") == 0) {
     
@@ -221,12 +228,20 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     int verdict = cmd_serval_verify(ctx);
     if (verdict == 1) {
       DEBUG("signature verified");
-      CMD_OUTPUT("result", co_bool_create(true, 0));  // successfully verified
-      CMD_OUTPUT("verified",co_str8_create("true",sizeof("true"),0));
+      out = co_bool_create(true, 0);
+      CHECK_MEM(out);
+      CMD_OUTPUT("result", out);  // successfully verified
+      out = co_str8_create("true",sizeof("true"),0);
+      CHECK_MEM(out);
+      CMD_OUTPUT("verified", out);
     } else if (verdict == 0) {
       DEBUG("signature NOT verified");
-      CMD_OUTPUT("result", co_bool_create(false, 0));
-      CMD_OUTPUT("verified",co_str8_create("false",sizeof("false"),0));
+      out = co_bool_create(false, 0);
+      CHECK_MEM(out);
+      CMD_OUTPUT("result", out);
+      out = co_str8_create("false",sizeof("false"),0);
+      CHECK_MEM(out);
+      CMD_OUTPUT("verified", out);
     }
     
   }

@@ -310,6 +310,7 @@ keyring_send_sas_request_client(struct subscriber *subscriber)
 	    mdp.out.payload_length);
   
   plain = (unsigned char*)calloc(mdp.out.payload_length,sizeof(unsigned char));
+  CHECK_MEM(plain);
   unsigned long long plain_len = 0;
   unsigned char *sas_public = &mdp.out.payload[1];
   unsigned char *compactsignature = &mdp.out.payload[SAS_SIZE + 1];
@@ -363,7 +364,7 @@ serval_sign_client(svl_crypto_ctx *ctx)
 	  "Failed to append to request");
   CHECK(co_request_append_str(co_req,(char*)ctx->msg,ctx->msg_len + 1),"Failed to append to request");
   char keyring_path[PATH_MAX] = {0};
-  strcpy(keyring_path, "--keyring=");
+  strcpy(keyring_path, "keyring=");
   strncat(keyring_path,ctx->keyring_path,ctx->keyring_len);
   CHECK(co_request_append_str(co_req, keyring_path, strlen(keyring_path) + 1),"Failed to append to request");
   
@@ -455,6 +456,7 @@ int main(int argc, char *argv[]) {
   } else {
     // add default path to ctx->keyring_path
     ctx->keyring_path = h_malloc(strlen(DEFAULT_SERVAL_PATH) + strlen("/serval.keyring"));
+    CHECK_MEM(ctx->keyring_path);
     hattach(ctx->keyring_path,ctx);
     strcpy(ctx->keyring_path,DEFAULT_SERVAL_PATH);
     strcat(ctx->keyring_path,"/serval.keyring");
@@ -505,6 +507,7 @@ int main(int argc, char *argv[]) {
     // Set SERVALINSTANCE_PATH environment variable
     char *last_slash = strrchr(ctx->keyring_path,(int)'/');
     instance_path = calloc(last_slash - ctx->keyring_path + 1,sizeof(char));
+    CHECK_MEM(instance_path);
     strncpy(instance_path,ctx->keyring_path,last_slash - ctx->keyring_path);
     CHECK(setenv("SERVALINSTANCE_PATH", instance_path, 1) == 0,
 	      "Failed to set SERVALINSTANCE_PATH env variable");

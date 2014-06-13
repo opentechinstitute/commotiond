@@ -71,7 +71,7 @@ serval_crypto_register(void)
    */
   
   const char name[] = "serval-crypto",
-  usage[] = "serval-crypto sign [<SID>] <MESSAGE> [--keyring=<KEYRING_PATH>]\n"
+  usage[] = "serval-crypto sign [<SID>] <MESSAGE> [keyring=<KEYRING_PATH>]\n"
             "serval-crypto verify <SAS> <SIGNATURE> <MESSAGE>",
   desc[] =  "Serval-crypto utilizes Serval's crypto API to:\n"
 	    "      * Sign any arbitrary text using a Serval key. If no Serval key ID (SID) is given,\n"
