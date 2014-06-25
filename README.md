@@ -1,3 +1,5 @@
+[![alt tag](http://img.shields.io/badge/maintainer-jheretic-red.svg)](https://github.com/jheretic)
+
 commotiond/libcommotion
 =======================
 This embedded library and daemon are the start of what will form the new core of the Commotion project on embedded platforms. *This is extremely pre-alpha software that does not do anything yet, but which is in rapid development.*
