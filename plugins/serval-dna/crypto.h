@@ -32,9 +32,8 @@
 #ifndef __CO_SERVAL_CRYPTO_H
 #define __CO_SERVAL_CRYPTO_H
 
-#include <serval.h>
-
-#include "obj.h"
+#include "config.h"
+#include <serval/keyring.h>
 
 #define KEYRING_PIN NULL
 #define BUF_SIZE 1024
@@ -57,6 +56,8 @@ typedef struct svl_crypto_ctx svl_crypto_ctx;
 
 svl_crypto_ctx *svl_crypto_ctx_new(void);
 void svl_crypto_ctx_free(svl_crypto_ctx *ctx);
+
+void stowSid(unsigned char *packet, int ofs, const char *sid);
 
 int serval_crypto_register(void);
 

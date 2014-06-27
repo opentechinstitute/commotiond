@@ -33,11 +33,16 @@
 #include <string.h>
 #include <assert.h>
 
+#include "config.h"
 #include <serval.h>
+#include <serval/keyring.h>
 #include <serval/overlay_address.h>
 #include <serval/mdp_client.h>
 #include <serval/crypto.h>
 #include <serval/str.h>
+#include <serval/overlay_packet.h>
+#include <serval/overlay_buffer.h>
+#include <serval/dataformats.h>
 
 #include "obj.h"
 #include "list.h"
@@ -69,7 +74,7 @@ static int
 serval_create_signature(svl_crypto_ctx *ctx)
 {
   CHECK(ctx && ctx->sas_private[0] && ctx->msg && ctx->msg_len,"Invalid ctx");
-  unsigned long long sig_length = SIGNATURE_BYTES;
+  int sig_length = SIGNATURE_BYTES;
   unsigned char hash[crypto_hash_sha512_BYTES]; 
   
   // create sha512 hash of message, which will then be signed
@@ -93,26 +98,31 @@ static int
 serval_extract_sas(svl_crypto_ctx *ctx)
 {
   CHECK(ctx,"Invalid ctx");
+  struct subscriber *sub = find_subscriber(ctx->sid, SID_SIZE, 0);
+  CHECK(sub && sub->identity, "Could not find subscriber associated with SID");
   // get SAS key associated with our SID
-  unsigned char *sas_public = NULL;
-  unsigned char *sas_private = keyring_find_sas_private(ctx->keyring_file, ctx->sid, &sas_public);
-  CHECK(sas_private && sas_public,"Failed to fetch SAS private key");
-  memcpy(ctx->sas_private, sas_private, crypto_sign_SECRETKEYBYTES);
-  memcpy(ctx->sas_public, sas_public, crypto_sign_PUBLICKEYBYTES);
+  struct keypair *pair = keyring_find_sas_private(ctx->keyring_file, sub->identity);
+  CHECK(pair, "Failed to fetch SAS keys");
+  CHECK(pair->private_key_len == crypto_sign_SECRETKEYBYTES &&
+        pair->public_key_len == crypto_sign_PUBLICKEYBYTES, "Invalid SAS keys");
+  memcpy(ctx->sas_private, pair->private_key, crypto_sign_SECRETKEYBYTES);
+  memcpy(ctx->sas_public, pair->public_key, crypto_sign_PUBLICKEYBYTES);
   return 1;
 error:
   return 0;
 }
 
-/* Used by serval-client */
+/* Used by serval_client */
 static int
 keyring_send_sas_request_client(struct subscriber *subscriber)
 {
-  int ret = 0;
-  unsigned char *srcsid[SID_SIZE] = {0};
+  int ret = 0, mdp_sockfd;
+  sid_t srcsid;
   time_ms_t now = gettime_ms();
   
-  CHECK_ERR(overlay_mdp_getmyaddr(0, (sid_t *)srcsid) == 0, "Could not get local address");
+  CHECK((mdp_sockfd = overlay_mdp_client_socket()) >= 0,"Cannot create MDP socket");
+  
+  CHECK_ERR(overlay_mdp_getmyaddr(mdp_sockfd, 0, &srcsid) == 0, "Could not get local address");
   
   if (subscriber->sas_valid)
     return 1;
@@ -121,40 +131,40 @@ keyring_send_sas_request_client(struct subscriber *subscriber)
   
   CHECK_ERR(my_subscriber, "Couldn't request SAS (I don't know who I am)");
   
-  DEBUG("Requesting SAS mapping for SID=%s", alloca_tohex_sid(subscriber->sid));
+  DEBUG("Requesting SAS mapping for SID=%s", alloca_tohex(subscriber->sid.binary, SID_SIZE));
   
   int client_port = 32768 + (random() & 32767);
-  CHECK_ERR(overlay_mdp_bind((sid_t *)my_subscriber->sid, client_port) == 0,
-	    "Failed to bind to client socket");
+  CHECK(overlay_mdp_bind(mdp_sockfd, &srcsid, client_port) == 0,
+	"Failed to bind to client socket");
   
   /* request mapping (send request auth-crypted). */
   overlay_mdp_frame mdp;
-  memset(&mdp, 0, sizeof(mdp));  
+  memset(&mdp,0,sizeof(mdp));  
   
-  mdp.packetTypeAndFlags = MDP_TX;
-  mdp.out.queue = OQ_MESH_MANAGEMENT;
-  memmove(mdp.out.dst.sid, subscriber->sid, SID_SIZE);
-  mdp.out.dst.port = MDP_PORT_KEYMAPREQUEST;
-  mdp.out.src.port = client_port;
-  memmove(mdp.out.src.sid, srcsid, SID_SIZE);
-  mdp.out.payload_length = 1;
-  mdp.out.payload[0] = KEYTYPE_CRYPTOSIGN;
+  mdp.packetTypeAndFlags=MDP_TX;
+  mdp.out.queue=OQ_MESH_MANAGEMENT;
+  memmove(mdp.out.dst.sid.binary,subscriber->sid.binary,SID_SIZE);
+  mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
+  mdp.out.src.port=client_port;
+  memmove(mdp.out.src.sid.binary,srcsid.binary,SID_SIZE);
+  mdp.out.payload_length=1;
+  mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
   
-  int sent = overlay_mdp_send(&mdp, 0, 0);
+  int sent = overlay_mdp_send(mdp_sockfd, &mdp, 0,0);
   if (sent) {
     DEBUG("Failed to send SAS resolution request: %d", sent);
-    CHECK_ERR(mdp.packetTypeAndFlags != MDP_ERROR, "MDP Server error #%d: '%s'", mdp.error.error, mdp.error.message);
+    CHECK(mdp.packetTypeAndFlags != MDP_ERROR,"MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
   }
   
   time_ms_t timeout = now + 5000;
   
   while(now < timeout) {
     time_ms_t timeout_ms = timeout - gettime_ms();
-    int result = overlay_mdp_client_poll(timeout_ms);
+    int result = overlay_mdp_client_poll(mdp_sockfd, timeout_ms);
     
     if (result > 0) {
       int ttl = -1;
-      if (overlay_mdp_recv(&mdp, client_port, &ttl) == 0) {
+      if (overlay_mdp_recv(mdp_sockfd, &mdp, client_port, &ttl) == 0) {
 	int found = 0;
 	switch(mdp.packetTypeAndFlags & MDP_TYPE_MASK) {
 	  case MDP_ERROR:
@@ -193,7 +203,7 @@ keyring_send_sas_request_client(struct subscriber *subscriber)
   /* reconstitute signed SID for verification */
   unsigned char signature[SID_SIZE + crypto_sign_edwards25519sha512batch_BYTES];
   memmove(&signature[0], &compactsignature[0], 64);
-  memmove(&signature[64], &mdp.out.src.sid[0], SID_SIZE);
+  memmove(&signature[64], &mdp.out.src.sid.binary[0], SID_SIZE);
   
   int sign_ret = crypto_sign_edwards25519sha512batch_open(plain,
 							  &plain_len,
@@ -204,16 +214,17 @@ keyring_send_sas_request_client(struct subscriber *subscriber)
   
   /* These next two tests should never be able to fail, but let's just check anyway. */
   CHECK_ERR(plain_len == SID_SIZE, "SID:SAS mapping signed block is wrong length");
-  CHECK_ERR(memcmp(plain, mdp.out.src.sid, SID_SIZE) == 0, "SID:SAS mapping signed block is for wrong SID");
+  CHECK_ERR(memcmp(plain, mdp.out.src.sid.binary, SID_SIZE) == 0, "SID:SAS mapping signed block is for wrong SID");
   
   memmove(subscriber->sas_public, sas_public, SAS_SIZE);
   subscriber->sas_valid = 1;
   subscriber->sas_last_request = now;
   ret = 1;
   
-  error:
+error:
   if (plain)
     free(plain);
+  overlay_mdp_client_close(mdp_sockfd);
   return ret;
 }
 
@@ -237,6 +248,15 @@ svl_crypto_ctx_free(svl_crypto_ctx *ctx)
   if (ctx->keyring_file && ctx->keyring_file != keyring)
     keyring_free(ctx->keyring_file);
   h_free(ctx);
+}
+
+void
+stowSid(unsigned char *packet, int ofs, const char *sid)
+{
+  if (strcasecmp(sid,"broadcast") == 0)
+    memset(packet + ofs, 0xff, SID_SIZE);
+  else 
+    fromhex(packet + ofs, sid, SID_SIZE);
 }
 
 int
@@ -263,7 +283,7 @@ serval_open_keyring(svl_crypto_ctx *ctx)
     CHECK(ctx->keyring_len < PATH_MAX, "Keyring length too long");
   }
   
-  ctx->keyring_file = keyring_open(ctx->keyring_path);
+  ctx->keyring_file = keyring_open(ctx->keyring_path, 1);
   CHECK_ERR(ctx->keyring_file, "Failed to open specified keyring file");
 
   if (keyring_enter_pin(ctx->keyring_file, KEYRING_PIN) <= 0) {
@@ -300,10 +320,8 @@ serval_init_keyring(svl_crypto_ctx *ctx)
     // need to commit keyring or else new identity won't be saved (needs permissions)
     CHECK_ERR(keyring_commit(ctx->keyring_file) == 0, "Failed to save new SID into keyring");
     
-    memcpy(ctx->sid,new_ident->subscriber->sid,SID_SIZE);
+    memcpy(ctx->sid,new_ident->subscriber->sid.binary,SID_SIZE);
   }
-  
-  CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
   return 1;
 error:
@@ -323,9 +341,8 @@ cmd_serval_sign(svl_crypto_ctx *ctx)
   } else {
     // or just use the default keyring
     ctx->keyring_file = keyring; // serval global
-    CHECK_ERR(serval_extract_sas(ctx),
-	      "Failed to fetch SAS keys");
   }
+  CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
   CHECK_ERR(serval_create_signature(ctx),"Failed to create signature");
   
@@ -366,6 +383,8 @@ serval_verify_client(svl_crypto_ctx *ctx)
 	"Invalid ctx");
   
   CHECK(serval_init_keyring(ctx), "Failed to initialize Serval keyring");
+  
+  keyring = ctx->keyring_file;
       
   struct subscriber *sub = find_subscriber(ctx->sid, SID_SIZE, 1); // get Serval identity described by given SID
   
@@ -558,6 +577,8 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
   
   CHECK(serval_init_keyring(ctx), "Failed to initialize Serval keyring");
+  
+  CHECK(serval_extract_sas(ctx), "Failed to fetch SAS keys");
   
   CMD_OUTPUT("key", co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0));
   
