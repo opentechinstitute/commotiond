@@ -41,7 +41,7 @@
 #include "process.h"
 #include "util.h"
 
-co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path) {
+co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path, void* data) {
   if(!proto.init) proto.init = NULL;
   if(!proto.destroy) proto.destroy = co_process_destroy;
   if(!proto.start) proto.start = co_process_start;
@@ -52,7 +52,7 @@ co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *n
   new_proc->_header._type = _ext8;
   new_proc->_exttype = _process;
   new_proc->_len = size;
-
+   
   CHECK_MEM(new_proc);
   
   new_proc->name = h_strdup(name); 
@@ -63,6 +63,7 @@ co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *n
   hattach(new_proc->exec_path,new_proc);
   new_proc->run_path = h_strdup(run_path);
   hattach(new_proc->run_path,new_proc);
+  new_proc->data = data;
 
   if(!new_proc->init((co_obj_t*)new_proc)) {
     SENTINEL("Failed to initialize new process.");

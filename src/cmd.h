@@ -111,4 +111,13 @@ int co_cmd_hook_str(const char *key, const size_t klen, co_obj_t *cb);
  * @param context other parameters passed to iterator
  */
 int co_cmd_process(co_iter_t iter, void *context);
+
+
+/**
+ * @brief get the command object
+ * @param kstr the name
+ * @param klen the lenght of the name
+ */
+co_obj_t *co_cmd_get(const char *kstr, size_t klen);
+
 #endif

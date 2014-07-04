@@ -11,31 +11,31 @@
  * Organization  The Open Technology Institute
  *    Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
  * =====================================================================================
  */
 
+#ifndef _COMMOTION_H
+#define _COMMOTION_H
+
 #include <stdbool.h>
 
-#ifndef _CONNECT_H
-#define _CONNECT_H
-
 #ifndef CO_OBJ_INTERNAL
-typedef void co_obj_t; 
+typedef void co_obj_t;
 #endif
 
 /**
@@ -128,7 +128,7 @@ co_obj_t *co_response_get(co_obj_t *response, const char *key, const size_t klen
  * @param key identifier for response element to retrieve
  * @param klen length of key name
  */
-size_t co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen); 
+size_t co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen);
 
 /**
  * @brief retrieve byte array from response
@@ -137,7 +137,7 @@ size_t co_response_get_str(co_obj_t *response, char **output, const char *key, c
  * @param key identifier for response element to retrieve
  * @param klen length of key name
  */
-size_t co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen); 
+size_t co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen);
 
 /**
  * @brief retrieve unsigned int from response
@@ -155,7 +155,7 @@ int co_response_get_uint(co_obj_t *response, unsigned long *output, const char *
  * @param key identifier for response element to retrieve
  * @param klen length of key name
  */
-int co_response_get_int(co_obj_t *response, signed long *output, const char *key, const size_t klen); 
+int co_response_get_int(co_obj_t *response, signed long *output, const char *key, const size_t klen);
 
 /**
  * @brief retrieve bool from response
@@ -177,4 +177,5 @@ int co_response_print(co_obj_t *response);
  * @param object object to free
  */
 void co_free(co_obj_t *object);
+
 #endif

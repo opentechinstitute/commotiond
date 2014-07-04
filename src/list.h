@@ -11,18 +11,18 @@
  * Organization  The Open Technology Institute
  *    Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -64,6 +64,13 @@ co_obj_t * co_list_get_first(const co_obj_t *list);
  * @param list list object
  */
 co_obj_t * co_list_get_last(const co_obj_t *list);
+
+/**
+ * @brief returns each element of the list in succesive calls, NULL when done
+ * @param list list object
+ * @param pointer to a cookie to mantain state, must be NULL on first call
+ */
+co_obj_t * co_list_foreach(co_obj_t *list, void** state);
 
 /**
  * @brief process list with given iterator function
@@ -158,8 +165,8 @@ co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
 
 /**
  * @brief dump raw representation of list
- * @param output output buffer 
- * @param olen length of output buffer 
+ * @param output output buffer
+ * @param olen length of output buffer
  * @param list list object to process
  */
 size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
@@ -167,8 +174,8 @@ size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
 /**
  * @brief import list from raw representation
  * @param list target pointer to new list object
- * @param input input buffer 
- * @param ilen length of input buffer 
+ * @param input input buffer
+ * @param ilen length of input buffer
  */
 size_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
 

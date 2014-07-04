@@ -12,18 +12,18 @@
  *     Company  The Open Technology Institute
  *   Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -63,7 +63,7 @@ static int _co_iface_is_wireless(const co_obj_t *iface_obj) {
   co_iface_t *iface = (co_iface_t*)iface_obj;
   CHECK((ioctl(iface->fd, SIOCGIWNAME, &iface->ifr) != -1), "No wireless extensions for interface: %s", iface->ifr.ifr_name);
   return 1;
-error: 
+error:
   return 0;
 }
 
@@ -87,7 +87,7 @@ static int _co_iface_wpa_add_network(co_obj_t *iface_obj) {
   co_iface_t *iface = (co_iface_t*)iface_obj;
   char buf[WPA_REPLY_SIZE];
   size_t len;
-  
+
   CHECK(_co_iface_wpa_command(iface_obj, "ADD_NETWORK", buf, &len), "Failed to add network to wpa_supplicant.");
   iface->wpa_id = atoi(buf);
   DEBUG("Added wpa_supplicant network #%s", buf);
@@ -99,7 +99,7 @@ error:
 static int _co_iface_wpa_remove_network(co_obj_t *iface_obj) {
   char buf[WPA_REPLY_SIZE];
   size_t len;
-  
+
   CHECK(_co_iface_wpa_command(iface_obj, "REMOVE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
   DEBUG("Removed wpa_supplicant network #%d", ((co_iface_t *)iface_obj)->wpa_id);
   return 1;
@@ -110,7 +110,7 @@ error:
 static int _co_iface_wpa_disable_network(co_obj_t *iface_obj) {
   char buf[WPA_REPLY_SIZE];
   size_t len;
-  
+
   CHECK(_co_iface_wpa_command(iface_obj, "DISABLE_NETWORK", buf, &len), "Failed to remove network from wpa_supplicant.");
   DEBUG("Disabled wpa_supplicant network #%d", ((co_iface_t *)iface_obj)->wpa_id);
   return 1;
@@ -136,7 +136,7 @@ static int _co_iface_wpa_set(co_obj_t *iface_obj, const char *option, const char
 	res = snprintf(cmd, sizeof(cmd), "SET_NETWORK %d %s %s",
 			  iface->wpa_id, option, optval);
 	CHECK((res > 0 && (size_t) res <= sizeof(cmd) - 1), "Too long SET_NETWORK command.");
-	
+
   return _co_iface_wpa_command(iface_obj, cmd, buf, &len);
 
 error:
@@ -163,6 +163,15 @@ void co_ifaces_shutdown(void) {
   co_obj_free(ifaces);
 }
 
+
+void co_ifaces_foreach(co_iter_t cb, void* context) {
+  co_list_parse(ifaces, cb, context);
+}
+
+co_obj_t *co_ifaces_list(void) {
+  return ifaces;
+}
+
 int co_iface_remove(char *iface_name) {
   co_obj_t *iface = NULL;
   CHECK((iface = co_list_parse(ifaces, _co_iface_match_i, iface_name)) != NULL, "Failed to delete interface %s!", iface_name);
@@ -184,15 +193,15 @@ co_obj_t *co_iface_add(const char *iface_name, const int family) {
   iface->_header._type = _ext8;
   iface->_header._flags = 0;
   iface->_header._ref = 0;
-  
+
   iface->fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
   strlcpy(iface->ifr.ifr_name, iface_name, IFNAMSIZ);
-  
+
  /* Check whether interface is IPv4 or IPv6 */
   if((family & AF_INET) == AF_INET) {
-    iface->ifr.ifr_addr.sa_family = AF_INET; 
+    iface->ifr.ifr_addr.sa_family = AF_INET;
   } else if((family & AF_INET6) == AF_INET6) {
-    iface->ifr.ifr_addr.sa_family = AF_INET6; 
+    iface->ifr.ifr_addr.sa_family = AF_INET6;
   } else {
     ERROR("Invalid address family!");
     co_obj_free((co_obj_t*)iface);
@@ -202,9 +211,9 @@ co_obj_t *co_iface_add(const char *iface_name, const int family) {
   /* Check whether interface is wireless or not */
   if(_co_iface_is_wireless((co_obj_t*)iface)) iface->wireless = true;
   iface->wpa_id = -1;
-    
+
   co_list_append(ifaces, (co_obj_t*)iface);
-  return (co_obj_t*)iface; 
+  return (co_obj_t*)iface;
 }
 
 int co_iface_get_mac(co_obj_t *iface, unsigned char *output, int output_size) {
@@ -230,12 +239,12 @@ error:
 
 
 int co_iface_set_ip(co_obj_t *iface_obj, const char *ip_addr, const char *netmask) {
-  CHECK_MEM(iface_obj); 
+  CHECK_MEM(iface_obj);
   co_iface_t *iface = (co_iface_t*)iface_obj;
   struct sockaddr_in *addr = (struct sockaddr_in *)&iface->ifr.ifr_addr;
 
   DEBUG("Setting address %s and netmask %s.", ip_addr, netmask);
- 
+
 	// Convert IP from numbers and dots to binary notation
   inet_pton(AF_INET, ip_addr, &addr->sin_addr);
 	CHECK((ioctl(iface->fd, SIOCSIFADDR, &iface->ifr) == 0), "Failed to set IP address for interface: %s", iface->ifr.ifr_name);
@@ -248,7 +257,7 @@ int co_iface_set_ip(co_obj_t *iface_obj, const char *ip_addr, const char *netmas
 	iface->ifr.ifr_flags |= IFF_UP;
 	iface->ifr.ifr_flags |= IFF_RUNNING;
 	CHECK((ioctl(iface->fd, SIOCSIFFLAGS, &iface->ifr) == 0), "Interface up failed: %s", iface->ifr.ifr_name);
- 
+
   DEBUG("Addressing for interface %s is done!", iface->ifr.ifr_name);
 	return 1;
 
@@ -257,7 +266,7 @@ error:
 }
 
 int co_iface_unset_ip(co_obj_t *iface_obj) {
-  CHECK_MEM(iface_obj); 
+  CHECK_MEM(iface_obj);
   CHECK(IS_IFACE(iface_obj),"Not an iface.");
   co_iface_t *iface = (co_iface_t*)iface_obj;
   //Get and set interface flags.
@@ -308,7 +317,7 @@ error:
 
 int co_iface_set_ssid(co_obj_t *iface, const char *ssid) {
   CHECK(IS_IFACE(iface),"Not an iface.");
-  return _co_iface_wpa_set(iface, "ssid", ssid); 
+  return _co_iface_wpa_set(iface, "ssid", ssid);
 error:
   return 0;
 }
@@ -342,30 +351,30 @@ error:
 
 int co_iface_set_frequency(co_obj_t *iface, const int frequency) {
   CHECK(IS_IFACE(iface),"Not an iface.");
-  char freq[FREQ_LEN]; 
+  char freq[FREQ_LEN];
   snprintf(freq, FREQ_LEN, "%d", frequency);
-  return _co_iface_wpa_set(iface, "frequency", freq); 
+  return _co_iface_wpa_set(iface, "frequency", freq);
 error:
   return 0;
 }
 
 int co_iface_set_encryption(co_obj_t *iface, const char *proto) {
   CHECK(IS_IFACE(iface),"Not an iface.");
-  return _co_iface_wpa_set(iface, "proto", proto); 
+  return _co_iface_wpa_set(iface, "proto", proto);
 error:
   return 0;
 }
 
 int co_iface_set_key(co_obj_t *iface, const char *key) {
   CHECK(IS_IFACE(iface),"Not an iface.");
-  return _co_iface_wpa_set(iface, "psk", key); 
+  return _co_iface_wpa_set(iface, "psk", key);
 error:
   return 0;
 }
 
 int co_iface_set_mode(co_obj_t *iface, const char *mode) {
   CHECK(IS_IFACE(iface),"Not an iface.");
-  return _co_iface_wpa_set(iface, "mode", mode); 
+  return _co_iface_wpa_set(iface, "mode", mode);
 error:
   return 0;
 }
@@ -411,7 +420,7 @@ error:
 int co_set_dns(const char *dnsservers[], const size_t numservers, const char *searchdomain, const char *resolvpath) {
   FILE *fp = fopen(resolvpath, "w+");
   if(fp != NULL) {
-    if(searchdomain != NULL) fprintf(fp, "search %s\n", searchdomain); 
+    if(searchdomain != NULL) fprintf(fp, "search %s\n", searchdomain);
     for(int i = 0; i < numservers; i++) {
       fprintf(fp, "nameserver %s\n", dnsservers[i]);
     }
@@ -426,7 +435,7 @@ int co_set_dns(const char *dnsservers[], const size_t numservers, const char *se
 int co_set_dns(const char *dnsserver, const char *searchdomain, const char *resolvpath) {
   FILE *fp = fopen(resolvpath, "w+");
   if(fp != NULL) {
-    if(searchdomain != NULL) fprintf(fp, "search %s\n", searchdomain); 
+    if(searchdomain != NULL) fprintf(fp, "search %s\n", searchdomain);
     fprintf(fp, "nameserver %s\n", dnsserver);
     fclose(fp);
     return 1;
@@ -440,33 +449,33 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
   struct in_addr baseaddr;
   struct in_addr generatedaddr;
   struct in_addr genmaskaddr;
-  CHECK(inet_aton(base, &baseaddr) != 0, "Invalid base ip address %s", base); 
-  CHECK(inet_aton(genmask, &genmaskaddr) != 0, "Invalid genmask address %s", genmask); 
+  CHECK(inet_aton(base, &baseaddr) != 0, "Invalid base ip address %s", base);
+  CHECK(inet_aton(genmask, &genmaskaddr) != 0, "Invalid genmask address %s", genmask);
 
   /*
-   * Turn the IP address into a 
+   * Turn the IP address into a
    * network address.
    */
   generatedaddr.s_addr = (baseaddr.s_addr & genmaskaddr.s_addr);
 
   /*
-   * get the matching octet from 
+   * get the matching octet from
    * the mac and and then move it
    * left to the proper spot.
    */
   for (int i = 0; i < 4; i++)
     addr.bytes[i] = (id.bytes[i]&0xff)%0xfe;
 
-  /* 
+  /*
    * if address is of a gateway
-   * type, then set the last byte 
+   * type, then set the last byte
    * to '1'
    * */
   if(type) {
-    /* 
-     * shift us over by one 
+    /*
+     * shift us over by one
      * to ensure that we are
-     * getting maximum entropy 
+     * getting maximum entropy
      * from the mac address.
      */
     addr.bytes[1] = addr.bytes[2];
@@ -476,11 +485,11 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
 
   /*
    * mask out the parts of address
-   * that overlap with the genmask 
+   * that overlap with the genmask
    */
   addr.id &= ~(genmaskaddr.s_addr);
   /*
-   * add back the user-supplied 
+   * add back the user-supplied
    * base ip address.
    */
   generatedaddr.s_addr = (generatedaddr.s_addr|addr.id);

@@ -74,6 +74,7 @@ struct co_process_t {
   int (*start)(co_obj_t *self, char *argv[]);
   int (*stop)(co_obj_t *self);
   int (*restart)(co_obj_t *self);
+  void* data;
 } __attribute__((packed));
 
 /**
@@ -86,7 +87,7 @@ struct co_process_t {
  * @param run_path the run path
  * @return co_process_t to be registered with the daemon
  */
-co_obj_t *co_process_create(size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path);
+co_obj_t *co_process_create(size_t size, co_process_t proto, const char *name, const char *pid_file, const char *exec_path, const char *run_path, void* data);
 
 /**
  * @brief removes a process from commotiond
