@@ -649,13 +649,13 @@ int luawrap_quick_co_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
  */
 
 /** @constructor new
- * @brief create a new command
+ * @brief creates and registers a new command
  * @param name: of the command
  * @param usage: of the command
  * @param desc: of the command
  * @param action: function(self,params) to be called when executed
  */
-LuaWrapConstrunctor Cmd_new(lua_State* L) {
+LuaWrapConstructor Cmd_new(lua_State* L) {
     size_t nlen, ulen, dlen;
     int o_flags = 0;
     
@@ -676,6 +676,23 @@ LuaWrapConstrunctor Cmd_new(lua_State* L) {
     
     lua_pushnil(L);
     return 1;
+}
+
+/** @constructor get
+ * @brief loads a registered command
+ * @param name: of the command
+ */
+LuaWrapConstructor Cmd_new(lua_State* L) {
+    const char *name = luaL_checklstring(L,1,&nlen);
+    co_obj_t* cmd = co_cmd_get(name, nlen);
+    
+    if (cmd) {
+        pushCmd(L,cmd);
+        return 1;
+    } else {
+        lua_pushnil(L);
+        return 1;
+    }
 }
 
 /** @method exec
@@ -701,7 +718,7 @@ LuaWrapMethod Cmd_exec(lua_State* L) {
 }
 
 /** @method usage
- * @brief usage of the command
+ * @brief returns the usage of the command
  */
 LuaWrapMethod Cmd_usage(lua_State* L) {
     co_obj_t* cmd = checkCmd(L,1);
@@ -710,7 +727,7 @@ LuaWrapMethod Cmd_usage(lua_State* L) {
 }
            
 /** @method desc
- * @brief description of the command
+ * @brief returns the description of the command
  */
 LuaWrapMethod Cmd_desc(lua_State* L) {
     co_obj_t* cmd = checkCmd(L,1);
@@ -719,7 +736,7 @@ LuaWrapMethod Cmd_desc(lua_State* L) {
 }
 
 /** @method hook
- * @brief add a callback to a command
+ * @brief adds a callback to a command
  * @param action: function to be called
  */
 LuaWrapMethod Cmd_hook(lua_State* L) {
@@ -734,6 +751,9 @@ LuaWrapMethod Cmd_hook(lua_State* L) {
     return 1;
 }
 
+/** @method __tostring
+ * @brief returns the name of the command
+ */
 LuaWrapMetaMethod Cmd__tostring(lua_State* L) {
     char *kstr = NULL;
     co_obj_t* key = checkCmd(L,1);
@@ -744,15 +764,12 @@ LuaWrapMetaMethod Cmd__tostring(lua_State* L) {
 }
 
 /** @method hooks
- * @brief get the hooks list
+ * @brief returns the hooks list for the command
  */
 LuaWrapRead_Ot(Cmd,hooks,Obj);
 
-
-
-
 /** @method process
- * @brief process all registered commands with given iterator
+ * @brief processes all registered commands with given iterator
  * @param iter iterator function reference
  * @param context other parameters passed to iterator (a List)
  */
@@ -787,28 +804,45 @@ LuaWrapRegFn Cmd_register(lua_State *L) {
     return 0;
 }
 
-/** List **/
-           
-LuaWrapClassDefine(List,NOP,NOP);
 
+
+/*! @class List
+ *  @brief Commotion double linked-list implementation
+ */
+
+/** @method length
+ * @brief returns the number of elements in the list
+ */
 int List_length(lua_State* L) {
     co_obj_t* list = checkList(L,1);
     lua_push_number(L,co_list_length(list));
     return 1;
 }
 
+/** @method get_first
+ * @brief returns the fisrt element of the list
+ */
 int List_get_first(lua_State* L) {
     co_obj_t* list = checkList(L,1);
     pushObj(L,co_list_get_first(list));
     return 1;
 }
 
+/** @method get_first
+ * @brief returns the last element of the list
+ */
 int List_get_last(lua_State* L) {
     co_obj_t* list = checkList(L,1);
     pushObj(L,co_list_get_last(list));
     return 1;
 }
 
+/** @method foreach
+ * @brief calls the given function for each element of the list
+ * @param action: function to be called for each object
+ * returns a boolean true if all elements were processed
+ * action takes the current object and returns a boolean (true to continue)
+ */
 int List_foreach(lua_State* L) {
     int cont = 0;
     co_obj_t* list = checkList(L,1);
@@ -828,15 +862,54 @@ int List_foreach(lua_State* L) {
     return 1;
 }
 
-DEF_OBJ_METH_B__O(List,contains,co_list)
-DEF_OBJ_METH_O__O(List,delete,co_list)
-DEF_OBJ_METH_B__O_O(List,insert_before,co_list)
-DEF_OBJ_METH_B__O_O(List,insert_after,co_list)
-DEF_OBJ_METH_B__O(List,prepend,co_list)
-DEF_OBJ_METH_B__O(List,append,co_list)
-DEF_OBJ_METH_O__O_I(List,element,co_list)
+/** @method contains
+ * @brief returns true if the list contains the given elem
+ * @param elem: the element to be looked for
+ */
+DEF_OBJ_METH_B__O(List,contains,co_list);
+
+/** @method delete
+* @brief returns true if the given elem was removed from the list
+* @param elem: the element to be deleted
+*/
+DEF_OBJ_METH_O__O(List,delete,co_list);
+
+/** @method insert_before
+ * @brief inserts an element before the given element
+ * @param elem: the element before which to insert
+ * @param new_elem: the element to be inserted
+ */
+DEF_OBJ_METH_B__O_O(List,insert_before,co_list);
+
+/** @method insert_after
+ * @brief inserts an element after the given element
+ * @param elem: the element after which to insert
+ * @param new_elem: the element to be inserted
+ */
+DEF_OBJ_METH_B__O_O(List,insert_after,co_list);
+
+/** @method prepend
+ * @brief inserts an element at the start of the list
+ * @param new_elem: the element to be inserted
+ */
+DEF_OBJ_METH_B__O(List,prepend,co_list);
+
+/** @method append
+ * @brief inserts an element at the end of the list
+ * @param new_elem: the element to be inserted
+ */
+DEF_OBJ_METH_B__O(List,append,co_list);
+
+/** @method element
+ * @brief returns the indexth element of the list
+ * @param index: the element
+ */
+DEF_OBJ_METH_O__O_I(List,element,co_list);
 
 
+/** @method __tostring
+ * @brief returns a string representation of the list
+ */
 LuaWrapMetaMethod List__tostring(lua_State* L) {
     co_obj_t* list = checkList(L,1);
    
@@ -848,6 +921,24 @@ LuaWrapMetaMethod List__tostring(lua_State* L) {
     return 1;
 }
 
+/** @method __call
+ * @brief returns an iterator function
+ * function will return next element of the list at each call, nil when done
+ */
+/** @method iter
+ * @brief returns an iterator function
+ * function will return next element of the list at each call, nil when done
+ */
+LuaWrapMetaMethod List__call (lua_State *L) {
+  co_obj_t* list = checkList(L,1);
+  lua_pushlightuserdata(L, NULL);
+  lua_pushcclosure(L, _List_iter, 2);
+  LuaWrapReturn(0);
+}
+
+/** @constructor import
+ * @brief constructs a list given its string representation
+ */
 LuaWrapConstructor List_import(lua_State* L) {
     size_t ilen=0;
     co_obj_t* list = NULL;
@@ -873,17 +964,7 @@ LuaWrapFunction _List_iter(lua_State *L) {
   }
 }
 
-LuaWrapMetaMethod List__call (lua_State *L) {
-  co_obj_t* list = checkList(L,1);
-  lua_pushlightuserdata(L, NULL);
-  lua_pushcclosure(L, _List_iter, 2);
-  LuaWrapReturn(0);
-}
 
-             
-      
-
-           
 static const luaL_Reg List_methods[] = {
     {"lenght", List_length},
     {"get_first", List_get_first},
