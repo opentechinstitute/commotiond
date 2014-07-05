@@ -108,8 +108,9 @@ static C shift##C(lua_State* L,int i) { \
     if (p) { lua_remove(L,i); return *p; }\
     else return NULL;\
 } \
-static int gc#C(lua_State* L) { C* o = to##C(L,1); if ( o && (o->flags & OwnObjFlag) ) co_obj_free(o); return 0; } \
+static int gc#C(lua_State* L) { C* o = to##C(L,1); if ( o && (o->flags & CO_FLAG_LUAGC) ) co_obj_free(o); return 0; } \
 static int dump#C(lua_State* L) { lua_pushstring(L,#C); return 1; } \
+static int mark#C(C* o) { co_obj_setflags(o,CO_FLAG_LUAGC); } \
 typedef int dummy##C
 //2do: finish dumpXxx
 //2do: finish gcXxx
@@ -399,17 +400,16 @@ const char* cbkey(const char* a, const char* b) {
 
 static co_obj_t* toObj(lua_State* L, int idx) {
     co_obj_t* o = NULL;
-    uint8 o_flags = 0;
-    
+
     switch(lua_type(L,idx)) {
         case LUA_TNUMBER:
-            return co_float64_create(lua_tonumber(L,idx),o_flags);
+            return co_float64_create(lua_tonumber(L,idx),CO_FLAG_LUAGC);
         case LUA_TBOOLEAN:
-            return co_bool_create(lua_toboolean(L,idx),o_flags);
+            return co_bool_create(lua_toboolean(L,idx),CO_FLAG_LUAGC);
         case LUA_TSTRING: do {
                 size_t len=0;
                 const char * s = lua_tolstring(L, idx, &len);
-                return co_str32_create(s,len,o_flags);
+                return co_str32_create(s,len,CO_FLAG_LUAGC);
             } while(0);
             break;
         case LUA_TUSERDATA:
@@ -421,7 +421,7 @@ static co_obj_t* toObj(lua_State* L, int idx) {
         default:
             Warn("Unimplemented");
         case LUA_TNIL:
-            o = co_nil_create(o_flags);
+            o = co_nil_create(CO_FLAG_LUAGC);
             break;
     }           
     return o;
@@ -435,7 +435,7 @@ static int gcObj(lua_State* L,int idx) {
     if(lua_type(L,idx) == LUA_TUSERDATA)
         o = lua_touserdata(L,idx);
     
-    if ( o && (o->flags & OwnObjFlag) ) switch (o->type) {
+    if ( o && (o->flags & CO_FLAG_LUAGC) ) switch (o->type) {
         case _nil: 
         case _true: 
         case _false: 
@@ -642,7 +642,6 @@ int luawrap_quick_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
  */
 LuaWrapConstructor Cmd_new(lua_State* L) {
     size_t nlen, ulen, dlen;
-    int o_flags = 0;
     
     const char *name = luaL_checklstring(L,1,&nlen);
     const char *usage = luaL_checklstring(L,2,&ulen);
@@ -771,12 +770,6 @@ static const luaL_Reg Cmd_meta[] = {
     { NULL, NULL }
 };
 
-LuaWrapRegFn Cmd_register(lua_State *L) {
-    LuaWrapClassRegister(Cmd);
-    LuaWrapClassRegisterMeta(Cmd);
-    
-    return 0;
-}
 
 
 
@@ -898,15 +891,18 @@ LuaWrapMetaMethod List__call (lua_State *L) {
   LuaWrapReturn(0);
 }
 
-/** @constructor import
+/** @constructor List.import(str)
  * @brief constructs a list given its string representation
  */
 LuaWrapConstructor List_import(lua_State* L) {
     size_t ilen=0;
     co_obj_t* list = NULL;
     const char* buff = luaL_checklstring (L, 2, &ilen);
+
     size_t olen = co_list_import(&list, buff, list);
-        
+    
+    co_obj_setflags(list,CO_FLAG_LUAGC);
+    
     if (list) pushList(L,list); else lua_pushnil(L);
     return 1;
 }
@@ -949,113 +945,113 @@ static const luaL_Reg List_meta[] = {
     {"__call", List__call},
     {"__index", List_element},
     {"__len", List_length},
+    {"__gc", gcList},
     { NULL, NULL }
 };
 
-LuaWrapRegFn List_register(lua_State *L) {
-    LuaWrapClassRegister(List);
-    LuaWrapClassRegisterMeta(List);
-    return 0;
-}
-
-           
-           
-           
 
 /*! @class Iface 
  * @brief interface handling for the Commotion daemon
  */
 
-/** @fn remove
+// 2do: int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
+
+/** @fn Iface.remove(iface_name)
   * @brief remove an interface
-  * @param name: iface_name the name of the interface to be removed
+  * @param iface_name: the name of the interface to be removed
   */
 LuaWrapFunction luawrap_iface_remove(lua_State* L) {
   const char *iface_name = luaL_checkstring(L,1);
-  lua_pushnumber(co_iface_remove(iface_name));
+  lua_pushnumber(L,co_iface_remove(iface_name));
   return 1;
 }
 
-//int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
-//char *co_iface_profile(char *iface_name);
-//co_obj_t *co_iface_get(char *iface_name);
+/** @fn Iface.profile(iface_name)
+  * @brief remove an interface
+  * @param iface_name: the name of the interface to be removed
+  */
+LuaWrapFunction luawrap_iface_profile(lua_State* L) {
+  const char *iface_name = luaL_checkstring(L,1);
+  lua_pushstring(L,co_iface_profile(iface_name));
+  return 1;
+}
 
-/** @method wpa_connect
+/** @method Iface.wpa_connect()
   */
 OBJ_METHOD_DEF(Iface,wpa_connect,co_iface);
 
-/** @method wpa_disconnect
+/** @method Iface.wpa_disconnect()
   */
 OBJ_METHOD_DEF(Iface,wpa_disconnect,co_iface);
 
-/** @method set_ip
+/** @method Iface.set_ip(addr,mask)
   */
 OBJ_METHOD_DEF_C_C(Iface,set_ip,co_iface);
 
-/** @method unset_ip
+/** @method Iface.unset_ip()
   */
 OBJ_METHOD_DEF(Iface,unset_ip,co_iface);
 
-/** @method set_ssid
+/** @method Iface.set_ssid(ssid)
   */
 OBJ_METHOD_DEF_C(Iface,set_ssid,co_iface);
 
-/** @method set_bssid
+/** @method Iface.set_bssid(bssid)
   */
 OBJ_METHOD_DEF_C(Iface,set_bssid,co_iface);
 
-/** @method set_frequency
+/** @method Iface.set_frequency(freq)
   */
 OBJ_METHOD_DEF_I(Iface,set_frequency,co_iface);
 
-/** @method set_encription
+/** @method Iface.set_encription(enc)
   */
 OBJ_METHOD_DEF_C(Iface,set_encription,co_iface);
 
-/** @method set_key
+/** @method Iface.set_key(key)
   */
 OBJ_METHOD_DEF_C(Iface,set_key,co_iface);
 
-/** @method set_mode
+/** @method Iface.set_mode(mode)
   */
 OBJ_METHOD_DEF_C(Iface,set_mode,co_iface);
 
-/** @method set_apscan
+/** @method Iface.set_apscan(apscan_mode)
   */
 OBJ_METHOD_DEF_I(Iface,set_apscan,co_iface);
 
-/** @method wireless_enable
+/** @method Iface.wireless_enable()
   */
 OBJ_METHOD_DEF(Iface,wireless_enable,co_iface);
 
-/** @method wireless_disable
+/** @method Iface.wireless_disable()
   */
 OBJ_METHOD_DEF(Iface,wireless_disable,co_iface);
 
-/** @method set_dns
+/** @method Iface.set_dns(a,b,c)
   */
 OBJ_METHOD_DEF_C_C_C(Iface,set_dns,co_iface);
 
-/** @method get_mac
+/** @method Iface.get_mac()
   */
 OBJ_METHOD_DEF_GET_BUF(Iface,get_mac,co_iface,6);
 
-/** @method status
+/** @method Iface.status()
   */
 LuaWrapRead_N(Iface,status)
 
-/** @method wpa_id
+/** @method Iface.wpa_id()
   */
 LuaWrapRead_N(Iface,wpa_id)
 
-/** @method wireless
+/** @method Iface.wireless()
   */
 LuaWrapRead_B(Iface,wireless)
     
 // 2do struct ifreq ifr;
 // 2do  struct wpa_ctrl *ctrl;
 
-/** @constructor get
+/** @constructor Iface.get(name)
   * @brief get an interface by name
   * @param name: iface_name the name of the interface
   */
@@ -1070,10 +1066,10 @@ LuaWrapFunction Iface_get(lua_State *L) {
   }
 }
 
-/** @constructor add
+/** @constructor Iface.add(name,family)
   * @brief add an interface by name
   * @param name: the name of the interface
-  * @param family: AF_INET or AF_INET6
+  * @param family: AF_INET or AF_INET6 defaults to AF_INET
   */
 LuaWrapMetaMethod Iface_add(lua_State *L) {
   const char *iface_name = luaL_checkstring(L,1);
@@ -1089,7 +1085,7 @@ LuaWrapMetaMethod Iface_add(lua_State *L) {
   }
 }
 
-/** @fn iter
+/** @fn Iface.iter()
   * @brief returns an iterator for all interfaces
   */
 LuaWrapMetaMethod Iface_iter (lua_State *L) {
@@ -1099,7 +1095,7 @@ LuaWrapMetaMethod Iface_iter (lua_State *L) {
   return 1;
 }
 
-/** @fn foreach
+/** @fn Iface.foreach(action)
   * @brief invokes a function for each interface
   * @param action: function taking each object returning true to continue
   * returns true if it has gone through all interfaces
@@ -1150,43 +1146,11 @@ static const luaL_Reg Iface_methods[] = {
     { NULL, NULL }
 };
 
-LuaWrapRegFn Iface_register(lua_State *L) {
-    LuaWrapClassRegister(Iface);
-    return 1;
-}
+/*! @class Timer 
+ */
 
-
-/** Loop **/
-
-
-LuaWrapFunction Sys_add_process(lua_State*L) {
-    co_obj_t *proc = checkProc(L,1);
-    int pid = co_loop_add_process(proc);
-    lua_pushnumber(L,(luaNumber)pid);
-    return 1;
-}
-
-LuaWrapFunction Sys_remove_process(lua_State*L) {
-    int pid = (int)luaL_checknumber(L,1);
-    int res = co_loop_remove_process(pid);
-    lua_pushnumber(res);
-    return 1;
-}
-
-LuaWrapFunction Sys_add_socket(lua_State*L) {
-    co_obj_t *o = checkSocket(L,1);
-    int r = co_loop_add_socket(o, NULL);
-    lua_pushnumber(r);
-return 1;
-}
-
-LuaWrapFunction Sys_remove_socket(lua_State*L) {
-    co_obj_t *o = checkSock(L,1);
-    int r = co_loop_remove_socket(o, NULL);
-    lua_pushnumber(r);
-    return 1;
-}
-
+/** @method timer.add()
+  */           
 LuaWrapFunction Timer_add(lua_State*L) {
     co_obj_t *o = checkTimer(L,1);
     int r = co_loop_add_timer(o, NULL);
@@ -1194,6 +1158,8 @@ LuaWrapFunction Timer_add(lua_State*L) {
 return 1;
 }
 
+/** @method timer.remove()
+  */           
 LuaWrapFunction Timer_remove(lua_State*L) {
     co_obj_t *o = checkTimer(L,1);
     int r = co_loop_remove_timer(o, NULL);
@@ -1202,14 +1168,8 @@ LuaWrapFunction Timer_remove(lua_State*L) {
 }
 
 
-LuaWrapConstructor Sys_get_socket(lua_State*L) {
-    char *uri = luaL_checkstring(L,1);
-    co_obj_t *o = co_loop_get_socket(uri, NULL);
-    
-    pushSocket(L,o);
-    return 1;
-}
-
+/** @method timer.set(milis)
+  */           
 LuaWrapConstructor Timer_set(lua_State*L) {
     co_obj_t *t = checkTimer(L,1);
     long m = (long)luaL_checknumber(L,2);
@@ -1218,6 +1178,8 @@ LuaWrapConstructor Timer_set(lua_State*L) {
 }
 
            
+/** @constructor Timer.get(timer_id)
+  */
 LuaWrapConstructor Timer_get(lua_State*L) {
     char* timer_id = luaL_checkstring(L,1); // BUG: anchored to a constant variable.
     pushTimer(co_loop_get_timer(timer_id,NULL));
@@ -1225,6 +1187,8 @@ LuaWrapConstructor Timer_get(lua_State*L) {
 }
 
                
+/** @constructor Timer.create(timer_id,time)
+  */           
 LuaWrapConstructor Timer_create(lua_State* L) {
     struct timeval deadline;
     const char* timer_id = luaL_checkstring(L,1); // this works because in lua strings are unique
@@ -1240,7 +1204,8 @@ LuaWrapConstructor Timer_create(lua_State* L) {
     return 1;
 }
            
-           
+/** @method timer.__tostring()
+  */           
 LuaWrapMetaMethod Timer__tostring(lua_State* L) {
     co_timer_t* t = checkTimer(L,1);
     lua_pushstring(L,(char*)t->ptr);
@@ -1262,15 +1227,9 @@ static const luaL_Reg Timer_meta[] = {
     { NULL, NULL }
 };
 
-LuaWrapRegFn Timer_register(lua_State *L) {
-    LuaWrapClassRegister(Timer);
-    LuaWrapClassRegisterMeta(Timer);
-    
-    return 0;
 
-}
-
-/** Process **/
+/*! @class Process
+ */
 
 #define SELF_CB(Name) static int Name(co_obj_t *self) { \
     lua_getfield(L, LUA_REGISTRYINDEX,cbkey(((co_process_t*)self)->name),#Name); \
@@ -1300,9 +1259,11 @@ static int proc_start(co_obj_t *self, char *argv[]) {
         return (int)lua_tonumber(L,-1);
 }
 
+/** @constructor process.create(name, pid_file, exec_path, run_path, init_cb, destroy_cb, start_cb, stop_cb, restart_cb)
+  */
 LuaWrapConstructor Process_create(lua_State* L) {
     co_process_t proto = {
-        {  LuaWrap_ObjFlags,NULL,NULL,0,_ext8 },
+        {  CO_FLAG_LUAGC,NULL,NULL,0,_ext8 },
         _process, sizeof(co_process_t), 0, false, false, _STARTING,
         "LuaProc", "./pidfile", "./", "./", 0, 0,
         proc_init, proc_destroy, proc_start, proc_stop, proc_restart
@@ -1337,6 +1298,8 @@ LuaWrapConstructor Process_create(lua_State* L) {
     return 1;
 }
 
+/** @method process.start(argv)
+  */
 LuaWrapMethod Process_start(lua_State* L) {
     co_obj_t *self = checkProcess(L,1);
     char* argv[255];
@@ -1356,8 +1319,8 @@ LuaWrapMethod Process_start(lua_State* L) {
     return 1;
 }
 
-
-
+/** @method process.__tostring()
+  */
 LuaWrapMethod Process__tostring(lua_State* L) {
     co_obj_t *self = checkProcess(L,1);
     char name[255];
@@ -1366,16 +1329,56 @@ LuaWrapMethod Process__tostring(lua_State* L) {
     return 1;
 }
 
+/** @method process.add()
+  */
+LuaWrapMethod Process_add(lua_State*L) {
+    co_obj_t *proc = checkProc(L,1);
+    co_obj_unsetflags(proc,CO_FLAG_LUAGC);
+    int pid = co_loop_add_process(proc);
+    lua_pushnumber(L,(luaNumber)pid);
+    return 1;
+}
+
+/** @fn Process.remove(pid)
+  */
+LuaWrapFunction Process_remove(lua_State*L) {
+    int pid = (int)luaL_checknumber(L,1);
+    int res = co_loop_remove_process(pid);
+    lua_pushnumber(res);
+    return 1;
+}
+
+/** @method process.destroy()
+  */
 LuaWrapMethod_N(Process,destroy,co_process);
+
+/** @method process.stop()
+  */
 LuaWrapMethod_N(Process,stop,co_process);
+
+/** @method process.restart()
+  */
 LuaWrapMethod_N(Process,restart,co_process);
-LuaWrapRead_C(Process,name)
-LuaWrapRead_C(Process,pid_file)
-LuaWrapRead_C(Process,exec_path)
-LuaWrapRead_C(Process,run_path)
+
+/** @method process.name()
+  */
+LuaWrapRead_C(Process,name);
+
+/** @method process.pid_file()
+  */
+LuaWrapRead_C(Process,pid_file);
+
+/** @method process.exec_path()
+  */
+LuaWrapRead_C(Process,exec_path);
+
+/** @method process.run_path()
+  */
+LuaWrapRead_C(Process,run_path);
 
 static const luaL_Reg Process_methods[] = {
-    {"name",Process_name},
+    {"add",Process_add},
+    {"remove",Process_remove},
     {"pid_file",Process_pid_file},
     {"exec_path",Process_exec_path},
     {"run_path",Process_run_path},
@@ -1390,16 +1393,142 @@ static const luaL_Reg Process_methods[] = {
 static const luaL_Reg Process_meta[] = {
     {"__call", Process_start},
     {"__tostring", Process__tostring},
+    {"__gc",gcProcess},
     { NULL, NULL }
 };
 
-LuaWrapRegFn Timer_register(lua_State *L) {
-    LuaWrapClassRegister(Process);
-    LuaWrapClassRegisterMeta(Process);
-    
-    return 0;
+
+
+
+/*! @class Socket
+ */
+
+/** @method socket.add()
+  */
+LuaWrapFunction Socket_add(lua_State*L) {
+    co_obj_t *o = checkSocket(L,1);
+    int r = co_loop_add_socket(o, NULL);
+    lua_pushnumber(r);
+return 1;
 }
 
-/** Socket **/
+
+/** @method socket.remove()
+  */
+LuaWrapFunction Sys_remove_socket(lua_State*L) {
+    co_obj_t *o = checkSocket(L,1);
+    int r = co_loop_remove_socket(o, NULL);
+    lua_pushnumber(r);
+    return 1;
+}
+
+/** @constructror Socket.get(uri)
+  */
+LuaWrapConstructor Socket_get(lua_State*L) {
+    char *uri = luaL_checkstring(L,1);
+    co_obj_t *o = co_loop_get_socket(uri, NULL);
+    
+    pushSocket(L,o);
+    return 1;
+}
+
+/** @constructror Socket.create(uri)
+ * @brief creates a socket from specified values or initializes defaults
+ * @param size size of socket struct
+ * @param proto socket protocol
+ */
+// 2do  co_obj_t *co_socket_create(size_t size, co_socket_t proto);
+
+/** @method socket.init()
+ * @brief creates a socket from specified values or initializes defaults
+ */
+LuaWrapMethod_N(Socket,init,co_socket);
+
+/** @method socket.destroy()
+ * @brief closes a socket and removes it from memory
+ */
+LuaWrapMethod_N(Socket,destroy,co_socket);
+
+/** @method socket.hangup()
+ * @brief closes a socket and changes its state information
+ */
+// 2do: int co_socket_hangup(co_obj_t *self, co_obj_t *context); 
+
+/** @method socket.send(buf)
+ * @brief sends a message on a specified socket
+ * @param buf to be sent
+ * @param outgoing message to be sent
+ * @param length length of message
+ */
+// 2do: int co_socket_send(co_obj_t *self, char *outgoing, size_t length);
+
+/** @method socket.receive()
+ * @brief receives a message on the listening socket
+ */
+// 2do: int co_socket_receive(co_obj_t *self, char *outgoing, size_t length);
+
+/** @methos socket.setopt(level,option,value)
+ * @brief sets custom socket options, if specified by user
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ * @param value the value for the new option
+ */
+// 2do: int co_socket_setopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen);
+
+/** @method socket.getopt()
+ * @brief gets custom socket options specified from the user
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ */
+// 2do: int co_socket_getopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen);
+
+/**
+ * @brief initializes a unix socket
+ * @param self socket name
+ */
+// 2do: int unix_socket_init(co_obj_t *self);
+
+/**
+ * @brief binds a unix socket to a specified endpoint
+ * @param self socket name
+ * @param endpoint specified endpoint for socket (file path)
+ */
+// 2do: int unix_socket_bind(co_obj_t *self, const char *endpoint);
+
+/**
+ * @brief connects a socket to specified endpoint
+ * @param self socket name
+ * @param endpoint specified endpoint for socket (file path)
+ */
+// 2do: int unix_socket_connect(co_obj_t *self, const char *endpoint);
+
+
+
+
+
+
+//2do id.h
+//2do plugin.h
+//2do profile.h
+//2do tree.h
+//2do util.h
+
+
+// Registration
+    
+LuaWrapAPI int luawrap_register(lua_State *L) {
+    LuaWrapClassRegister(Cmd);
+    LuaWrapClassRegisterMeta(Cmd);
+    LuaWrapClassRegister(List);
+    LuaWrapClassRegisterMeta(List);
+    LuaWrapClassRegister(Iface);
+    LuaWrapClassRegister(Process);
+    LuaWrapClassRegisterMeta(Process);
+    LuaWrapClassRegister(Timer);
+    LuaWrapClassRegisterMeta(Timer);
+    // 2do AF_INET or AF_INET6
+    return 0;
+
+}
 
 #endif
