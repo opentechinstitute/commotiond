@@ -138,14 +138,6 @@ struct co_obj_t
   _type_t _type;
 } __attribute__ ((packed));
 
-typedef struct co_extobj_t co_extobj_t;
-
-struct co_extobj_t {
-  co_obj_t _header;
-  uint8_t _exttype;
-  uint8_t _len;
-} __attribute__((packed));
-
 /* Function pointers */
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
 
