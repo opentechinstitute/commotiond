@@ -87,13 +87,11 @@ size_t vsnprintfcat(char *str, size_t size, const char *format, va_list args) {
   size_t result;
   size_t len = strnlen(str, size);
 
-  va_start(args, format);
   result = vsnprintf(str + len, size - len, format, args);
-  va_end(args);
 
   return result + len;
 }
-/*
+
 /*
 int strstrip(char *s) {
   size_t len = strlen(s);

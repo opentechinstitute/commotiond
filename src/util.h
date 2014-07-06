@@ -72,6 +72,14 @@ size_t strlcpy(char *dest, const char *src, const size_t size);
  * @param format output format
  */
 size_t snprintfcat(char *str, size_t size, const char *format, ...);
+
+/**
+ * @brief prints output from string "str" in a specified format
+ * @param str string to be printed
+ * @param size size of string
+ * @param format output format
+ * @param args a va_list
+ */
 size_t vsnprintfcat(char *str, size_t size, const char *format, va_list args);
 
 /**
