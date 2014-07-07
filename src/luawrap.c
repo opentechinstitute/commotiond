@@ -94,11 +94,15 @@
 #define isNil lua_isnil
 #define shiftNil(L,i) //2do (fn)
 
-#define isF(L,i) (luatype(L, i) == LUA_TFUNCTION)
-#define ckeckF(L,i) do { if(luatype(L, i) == LUA_TFUNCTION) ArgError(i,"not a function");
+#define isF(L,i) ((lua_type(L, i) == LUA_TFUNCTION) || lua_type(L, i) == LUA_TCFUNCTION))
 
-#define isT(L,i) (luatype(L, i) == LUA_TTABLE)
-#define ckeckT(L,i) do { if(luatype(L, i) == LUA_TTABLE) ArgError(i,"not a table");
+#define isLF(L,i) (lua_type(L, i) == LUA_TFUNCTION)
+#define isCF(L,i) (lua_type(L, i) == LUA_TCFUNCTION)
+
+#define pushCF lua_pushcfunction
+
+#define isT(L,i) (lua_type(L, i) == LUA_TTABLE)
+#define ckeckT(L,i) do { if(lua_type(L, i) == LUA_TTABLE) ArgError(i,"not a table");
 #define pushT lua_newtable
 
 #define DLI lua_State* L, int idx
@@ -290,131 +294,120 @@ static int C##__gc(lua_State* L) { Obj* o=(Obj*)to##C(L,1); if (o&&(o->flags & C
 
 /****************************************************************/
 /*
- * DefMethod_X__(Class,Method,Prefix) for quick definition of wrapping api calls
- * Prefix_Method() ==> Class__Method
- * N=number S=string O=Object No=opt_number So=opt_string Oo=opt_object
+ * DefMethod_[OSNL]_(_[OSNL])+ (C,M,P,...) for quick definition of wrapping api calls
+ * PrefixMethod() ==> Class__Method
+ * in name:
+ *    _N=number _S=string _O=object _L=buffer _Xo=opt_x 
+ * in args:
+ *    C=Class P=Prefix O=OutType Sz=BufferSize D=Default T=numberType 
+ *    C1,C2=inClass D1,D2=defaults T1,T2=types
  */
 
+#define _M(C,M) Method C##_##M(lua_State* L)
 
 /* int P_M(C*) ==> n = c.f() */
-#define DefMethod_N(C,M,P) Method C##_##M(lua_State* L) { C *o = check##C(L,1); pushN(L,P##_##M(o)); R1; }
+#define DefMethod_N(C,M,P)  { pushN(L,P##M(check##C(L,1))); R1; }
 /* O* P_M(C*) ==> o = c.f() */
-#define DefMethod_O(C,M,P,O) Method C##_##M(lua_State* L) { C *o = check##C(L,1); push##O(L,P##_##M(o)); R1; }
-/* int P_M(C*) ==> n = c.f() */
-#define DefMethod_S(C,M,P) Method C##_##M(lua_State* L) { C *o = check##C(L,1); pushS(L,P##_##M(o)); R1; }
+#define DefMethod_O(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1))); R1; }
+/* char* P_M(C*) ==> s = c.f() */
+#define DefMethod_S(C,M,P) _M(C,M) { pushS(L,P##M(check##C(L,1))); R1; }
+/* int P_M(C*,char*,size_t) ==> b = c.f() */
+#define DefMethod_L(C,M,P,Sz) _M(C,M) { char b[Sz]; pushL(L,b,P##M(check##C(L,1),b,Sz)); R1; }
 
 /*  T P_M(C*, char*) ==> n = c.f(s) */
-#define DefMethod_N__S(C,M,P) Method C##_##Method(lua_State* L) { C *o = check##C(L,1); \
-    char* s = checkS(L,2); pushN(L,Pre##_##Method(o,s)); R1; }
+#define DefMethod_N__S(C,M,P) _M(C,M) { pushN(L,P##M(check##C(L,1),checkS(L,2))); R1; }
 /*  T P_M(C*, char*) ==> n = c.f(opt_s) */
-#define DefMethod_N__So(C,M,P,D) Method C##_##Method(lua_State* L) { C *o = check##C(L,1); \
-    char* s = optS(L,2,D); pushN(L,Pre##_##Method(o,s)); R1; }
+#define DefMethod_N__So(C,M,P,D) _M(C,M) { pushN(L,P##M(check##C(L,1),optS(L,2,D))); R1; }
 /* T P_M(C*, T) ==> n = c.f(n) */
-#define DefMethod_N__N(C,M,P,T) Method C##M(lua_State* L) { C *o = check##C(L,1);\
-    T i = checkN(L,2,T); pushN(L,P##_##M(o,i)); R1; }
+#define DefMethod_N__N(C,M,P,T) _M(C,M) { pushN(L,P##M(check##C(L,1),checkN(L,2,T))); R1; }
 /* T P_M(C*, T) ==> n = c.f(opt_n) */
-#define DefMethod_N__No(C,M,P,T,D) Method C##M(lua_State* L) { C *o = check##C(L,1);\
-    T i = optN(L,2,T,D); pushN(L,P##_##M(o,i)); R1; }
+#define DefMethod_N__No(C,M,P,T,D) _M(C,M) { pushN(L,P##M(check##C(L,1),optN(L,2,T,D))); R1; }
 /* T P_M(C*, C2*) ==> n = c.f(o) */
-#define DefMethod_N__O(C,N,P,C2) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    C2* i = check##C2(L,2); pushN(L,P##N(o, i)); R1; }
+#define DefMethod_N__O(C,N,P,C2) _M(C,M) { pushN(L,P##M(check##C(L,1), check##C2(L,2))); R1; }
 /* T P_M(C*, C2*) ==> n = c.f(o) */
-#define DefMethod_N__Oo(C,N,P,C2) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    C2* i = opt##C2(L,2); pushN(L,P##N(o, i)); R1; }
+#define DefMethod_N__Oo(C,N,P,C2,D2) _M(C,M) { pushN(L,P##M(check##C(L,1), opt##C2(L,2,D2))); R1; }
 
 /* O* P_M(C*, char*) ==> o = c.f(s) */
-#define DefMethod_O__S(C,M,P,O) Method C##_##Method(lua_State* L) { C *o = check##C(L,1); \
-    char* s = checkS(L,2); push##O(L,Pre##_##Method(o,s)); R1; }
+#define DefMethod_O__S(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1),checkS(L,2))); R1; }
 /* O* P_M(C*, char*) ==> o = c.f(opt_s) */
-#define DefMethod_O__So(C,M,P,O) Method C##_##Method(lua_State* L) { C *o = check##C(L,1); \
-    char* s = checkS(L,2); push##O(L,Pre##_##Method(o,s)); R1; }
+#define DefMethod_O__So(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1),checkS(L,2))); R1; }
 /* O* P_M(C*, T) ==> o = c.f(n) */
-#define DefMethod_O__N(C,M,P,O,T) Method C##M(lua_State* L) { C *o = check##C(L,1);\
-    T i = checkN(L,2,T); push##O(L,P##_##M(o,i)); R1; }
+#define DefMethod_O__N(C,M,P,O,T) _M(C,M) { push##O(L,P##M(check##C(L,1),checkN(L,2,T))); R1; }
 /* O* P_M(C*, T) ==> o = c.f(opt_n) */
-#define DefMethod_O__No(C,M,P,O,T,D) Method C##M(lua_State* L) { C *o = check##C(L,1);\
-    T i = optN(L,2,T,D); push##O(L,P##_##M(o,i)); R1; }
+#define DefMethod_O__No(C,M,P,O,T,D) _M(C,M) { push##O(L,P##M(check##C(L,1),optN(L,2,T,D))); R1; }
 /* O* P_M(C*, C2*) ==>  o = c.f(o) */
-#define DefMethod_N__O(C,N,P,C2) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    C2* i = check##C2(L,2); push##O(L,P##N(o, i)); R1; }
+#define DefMethod_N__O(C,N,P,C2) _M(C,M) { push##O(L,P##M(check##C(L,1), check##C2(L,2))); R1; }
 /* O* P_M(C*, C2*) ==>  o = c.f(opt_o) */
-#define DefMethod_O__Oo(C,N,P,O,C2,D) Method  C##_##N(lua_State* L) { C* o=check##C(L,1);\
-    C2* i = opt##C2(L,2,D); push##O(L,P##N(o, i)); R1; }
+#define DefMethod_O__Oo(C,N,P,O,C2,D) _M(C,M) { push##O(L,P##M(check##C(L,1), opt##C2(L,2,D))); R1; }
 
 
 /* n = c.f(s1,s2) */
-#define DefMethod_N__S_S(C,M,P) Method C##_##M(lua_State* L) { C *o = check##C(L,1); \
-    char* s1 = checkS(L,2); char* s2 = checkS(L,3); pushN(L,P##_##M(o,s1,s2)); R1; }
+#define DefMethod_N__S_S(C,M,P) _M(C,M) { pushN(L,P##M(check##C(L,1),checkS(L,2),checkS(L,3))); R1; }
 /* n = c.f(s1,opt_s2) */
-#define DefMethod_N__S_So(C,M,P,D2) Method C##_##M(lua_State* L) { C *o = check##C(L,1); \
-    char* s = optS(L,2,D1); char* s2 = optS(L,3,D2); pushN(L,P##_##M(o,s1,s2)); R1; }
+#define DefMethod_N__S_So(C,M,P,D2) _M(C,M) { pushN(L,P##_##M(check##C(L,1),checkS(L,2),optS(L,3,D2))); R1; }
 /* n = c.f(opt_s1,opt_s2)  */
-#define DefMethod_N__So_So(C,M,P,D1,D2) Method C##_##M(lua_State* L) { C *o = check##C(L,1); \
-    char* s = optS(L,2,D1); char* s2 = optS(L,3,D2); pushN(L,P##_##M(o,s1,s2)); R1; }
+#define DefMethod_N__S_So(C,M,P,D1,D2) _M(C,M) { pushN(L,P##_##M(check##C(L,1),optS(L,2,D1),optS(L,3,D2))); R1; }
 
 
 /* n = c.f(s1,s2,s3) */
-#define DefMethod_N__S_S_S(C,M,P) Method C##_##M(lua_State* L) { C *o = check##C(L,1); \
-    char* s1 = checkS(L,2); char* s2 = checkS(L,3);  char* s3 = checkS(L,4);\
-    pushN(L,P##_##M(o,s1,s2,s3)); R1; }
+#define DefMethod_N__S_S_S(C,M,P) _M(C,M) { pushN(L,P##_##M(check##C(L,1),checkS(L,2),checkS(L,3),checkS(L,4))); R1; }
 
 
 
 /* T P_N(C*,C1*,C2*) ==> n = c.f(opt_o1,opt_o2) */
-#define DefMethod_N__Oo_Oo(C,N,P,O1,O2) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    O1* i = opt##C2(L,2);  co_obj_t* i2 = opt##C3(L,3); pushN(L,P##N(o, i, i2)); R1; }
+#define DefMethod_N__Oo_Oo(C,N,P,O1,O2) _M(C,M) { pushN(L,P##M(check##C(L,1),opt##C3(L,3), opt##C2(L,2))); R1; }
 
 /* T P_N(C*,C1*,C2*) ==> n = c.f(opt_o1,opt_o2) */
-#define DefMethod_N__O_Oo(C,N,P,O1,O2) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    O1* i = check##C2(L,2);  co_obj_t* i2 = opt##C3(L,3); pushN(L,P##N(o, i, i2)); R1; }
+#define DefMethod_N__O_Oo(C,M,P,O1,O2) _M(C,M) { pushN(L,P##M(check##C(L,1), check##C2(L,2), opt##C3(L,3))); R1; }
 
 /*  O* P_N(C*,C1*,C2*) ==>  o = c.f(opt_o1,opt_o2) */
-#define DefMethod_O__Oo_Oo(C,N,P,O,C1,D1,C2,D2) Method  C##_##N(lua_State* L) { C* o=check##C(L,1); \
-    C1* i=opt##O1(L,2,D1); C2* i2  = opt##O2(L,3,D2); push##O(L,P##N(o, i,i2)); R1; }
+#define DefMethod_O__Oo_Oo(C,M,P,O,C1,D1,C2,D2) _M(C,M){ push##O(L,P##M(check##C(L,1),opt##C1(L,2,D1),opt##C2(L,3,D2))); R1; }
 
 /*  O* P_N(C*,C1*,C2*) ==>  o = c.f(o1,opt_o2) */
-#define DefMethod_O__O_Oo(C,N,P,O,C1,D1,C2,D2) Method  C##_##N(lua_State* L) { C* o=check##C(L,1); \
-    C1* i=check##O1(L,2,D1); C2* i2  = opt##O2(L,3,D2); push##O(L,P##N(o, i,i2)); R1; }
+#define DefMethod_O__O_Oo(C,N,P,O,C1,D1,C2,D2) _M(C,M) { push##O(L,P##N(check##C(L,1),check##D1(L,2,D1),opt##C2(L,3,D2))); R1; }
 
 
 /* O* P_N(C*,C2*,T) ==> o = c.f(o,n) */
-#define DefMethod_O__O_N(C,N,P,O,C2,T) Method  C##_##N(lua_State* L) { C* o = check##C(L,1); \
-    C2* i = check#C2(L,2); T i2 = checkN(L,3,T); push##O(L,res); R1; }
+#define DefMethod_O__O_N(C,M,P,O,C2,T) _M(C,M) { push##O(L,P##M(check##C(L,1),check#C2(L,2),checkN(L,3,T))); R1; }
 
-/* returns a buf */ //2do: rewrite?
-#define DefMethod_GET_BUF(C,M,P,DefLen) Method C##_##M(lua_State* L) {  C *o = check##C(L,1); \
-    int len = optN(L,2,int,DefLen); char* b = malloc(len);\
-    int r = P##_##M(o,b,len); pushL(L,b,r); free(b); R1; }
+#define DefMethod_N_L(C,M,P) _M(C,M) { size_t len; pushN(P##M(check##C(L,1), checkL(L,2,&len), len); R1; }
 
+#define DefMethod_L(C,M,P,Sz) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1),b,Sz)); R1; }
 
+#define DefMethod_L__O(C,M,P,Sz,O) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1),check##O(L,2),b,Sz)); R1; }
+
+#define DefMethod_L__N_N(C,M,P,Sz,O,T1,T2) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1), checkN(L,2,T1), checkN(L,3,T2), b, Sz))); R1 }
+
+#define DefMethod_N__N_N_L(C,M,P,) _M(C,M) { size_t len=0; pushN(L,P##_##M(check##C(L,1), checkN(L,2,T1), checkL(L,3,T2), checkL(L, 4,&len), len)); R1; }
 
 /* quick methods for struct accessors */
 
 /* Accesses string from struct Elem   */
 #define DefAccessorRW_S(C,E) Method C##_##E(lua_State* L) { C* o=check##C(L,1); \
-    if (isS(L,2)) { toS(L,2); R1; } else { pushS(L,o->E); R1;} }
-#define DefAccessorRO_S(C,E) Method C##_##E(lua_State* L) { C* o=check##C(L,1); pushS(L,o->E); R1; }
+    if (isS(L,2)) { /*o->E = toS(L,2); */ R0; } else { pushS(L,o->E); R1;} }
+#define DefAccessorRO_S(C,E) Method C##_##E(lua_State* L) { pushS(L,check##C(L,1)->E); R1; }
 
 
 /* Accesses number from struct Elem  */
 #define DefAccessorRW_N(C,E,T) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
     if ( isN(L,2) ) { o->E = toN(L,2,T); R1; } else { pushN(L,o->E); R1;} }
-#define DefAccessorRO_N(C,E,T) Method C##_##E(lua_State* L) { C* o = check##C(L,1); pushN(L,o->E); R1; }
+#define DefAccessorRO_N(C,E,T) Method C##_##E(lua_State* L) { pushN(L,check##C(L,1)->E); R1; }
 
 /* Accesses enum from struct Elem  */
 #define DefAccessorRW_E(C,E,Vs,D) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
     if ( isS(L,2) ) { o->E = S2V(Vs,toS(L,2),D); R1; } else { pushE(L,o->E,Vs); R1;} }
-#define DefAccessorRO_E(C,E,Vs) Method C##_##E(lua_State* L) { C* o = check##C(L,1); pushE(L,o->E,Vs); R1; }
+#define DefAccessorRO_E(C,E,Vs) Method C##_##E(lua_State* L) { pushE(L,check##C(L,1)->E,Vs); R1; }
 
 /* Accesses bool from struct Elem  */
 #define DefAccessorRW_B(C,E) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
     if (isB(L,2)) { o->E = toB(L,2); lua_settop(L,2); R1; } else { pushB(L,o->E); R1;} }
-#define DefAccessorRO_B(C,E) Method C##_##E(lua_State* L) { C* o = check##C(L,1); pushB(L,(int)o->E); R1; }
+#define DefAccessorRO_B(C,E) Method C##_##E(lua_State* L) { pushB(L,(int)check##C(L,1)->E); R1; }
 
 /* Accesses O from struct Elem  */
 #define DefAccessorRW_O(C,E,O) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
     if (is##O(L,2)) { o->E = to##O(L,2); R1; } else { push##O(L,o->E); R1;} }
-#define DefAccessorRO_O(C,E,O) Method C##_##E(lua_State* L) { C* o = check##C(L,1); push##O(L,o->E); R1; }
+#define DefAccessorRO_O(C,E,O) Method C##_##E(lua_State* L) { push##O(L,check##C(L,1)->E); R1; }
+
 
 
 /****************************************************************/
@@ -739,8 +732,7 @@ static int pushObj(lua_State* L, co_obj_t* o) {
         case _ext8:
         case _ext16:
         case _ext32:
-            switch( ((co_exttype_t)o)->_exttype) {
-                
+            switch( ((co_ext8_t)o)->_exttype) {
                 case _cmd: pushCmd(L,o); R1;
                 case _iface: pushIface(L,o); R1;                    
                 case _plug:  pushPlug(L,o); R1;
@@ -1538,19 +1530,19 @@ Method_N(Process,restart,co_process);
 
 /** @method process.name()
   */
-DefRead_C(Process,name);
+DefRead_S(Process,name);
 
 /** @method process.pid_file()
   */
-DefRead_C(Process,pid_file);
+DefRead_S(Process,pid_file);
 
 /** @method process.exec_path()
   */
-DefRead_C(Process,exec_path);
+DefRead_S(Process,exec_path);
 
 /** @method process.run_path()
   */
-DefRead_C(Process,run_path);
+DefRead_S(Process,run_path);
 
 static const luaL_Reg Process_methods[] = {
     {"add",Process_add},
@@ -1611,25 +1603,37 @@ Constructor Socket_get(lua_State*L) {
 
 DefSelfCb_N(Socket,init,uri);
 DefSelfCb_N(Socket,destroy,uri);
-DefSelfCb_N(Socket,destroy,uri);
-DefSelfCb_N__S(Socket,bind,uri);
-DefSelfCb_N__S(Socket,connect,uri);
-DefSelfCb_N__B(Socket,send,uri);
-DefSelfCb_N__OB(Socket,receive,uri,FileDes);
-DefSelfCb_N__Ou(Socket,hangup,uri);
-DefSelfCb_N__Ou(Socket,poll,uri);
-DefSelfCb_N__Ou(Socket,register,uri);
-DefSelfCb_N__IIB(Socket,setopt,uri);
-DefSelfCb_N__IIB(Socket,getopt,uri);
+DefSelfCb_N__S(Socket,bind,uri,int);
+DefSelfCb_N__S(Socket,connect,uri,int);
+DefSelfCb_N__B(Socket,send,uri,int);
+DefSelfCb_L__O(Socket,receive,uri,FileDes);
+DefSelfCb_N__Oo(Socket,hangup,uri,Obj,NULL);
+DefSelfCb_N__Oo(Socket,poll,uri,Obj,NULL);
+DefSelfCb_N__Oo(Socket,register,uri,Obj,NULL);
+DefSelfCb_N__L_N_N(Socket,setopt,uri);
+DefSelfCb_L__N_N(Socket,getopt,uri);
 
-/** @constructror Socket.create(uri, listen, init, destroy, hangup, bind, connect, send, setopt, setopt, getopt, register)
+/** @constructror Socket.create(uri, listen, proto)
  * @brief creates a socket from specified values or initializes defaults
  * @param uri uri describing the socket
  * @param listen (defaults to FALSE) 
- * Other parameters are callback functions 
- */
+ * @param proto a table with the callbacks to be invoked
+ * callback functions: 
+ *  status_int = init(socket) 
+ *  status_int = destroy(socket) 
+ *  status_int = bind(socket,opt_ctx) 
+ *  status_int = connect(socket,opt_ctx) 
+ *  status_int = hangup(socket,opt_ctx)
+ *  status_int = send(socket,data_buf)
+ *  received_buf = receive(socket,fd_int)
+ *  status_int = setopt(socket,level_int,option_id_int,optval_buf): 
+ *  optval_buf = getopt(socket,level_int,option_id_int): 
+ *  status_int = register(socket,opt_ctx): 
+*/
 Method Socket_create(uri,listen){
-    static const char* arg_names[] = {"","","","init","destroy","hangup","bind","connect","send","setopt","getopt","register"};
+    static const char* fn_names[] = {"init","destroy","hangup","bind","connect","send","setopt","getopt","register",NULL};
+    const char* fn_name;
+    Socket* s;
     Socket proto = {
         {CO_FLAG_LUAGC,NULL,NULL,0,_ext8},_sock,sizeof(Socket),
         "URI",NULL,NULL,FALSE,NULL,NULL,FALSE,
@@ -1640,36 +1644,36 @@ Method Socket_create(uri,listen){
     };
 
     proto.uri = checkS(L,1);
-    proto.listen = luaL_optboolean(L,2,0);
+    proto.listen = optB(L,2,0);
     
-    co_process_t* p;
+    checkT(L,3);
     
-    if ((i = lua_gettop(L)) > 11) {
-        lua_settop(L, 11);
-        i=11;
+    for (fn_name = fn_names; *fn_name; fn_name++) {
+        pushS(fn_name);
+        lua_gettable(L, 3);
+        
+        if (isF(L,-1))
+            lua_setfield(L,LUA_REGISTRYINDEX, SelfCbKey("Socket",proto.uri,fn_name));
+        else {
+            // 2do error...
+            lua_pop(L,1);
+       }
     }
-    
-    for (  ; i > 2; i--) if (lua_type (L, i) == LUA_TFUNCTION) {
-        lua_setfield(L,LUA_REGISTRYINDEX, SelfCbKey("Socket",arg_names[i],proto.uri));
-        lua_pop(L,1);
-    }    pushSocket(L,co_socket_create(sizeof(Socket), proto));
+
+    pushSocket(L,co_socket_create(sizeof(Socket), proto));
     R1;
 }
 
 /** @method socket.init()
  * @brief creates a socket from specified values or initializes defaults
  */
-Method_N(Socket,init,co_socket);
+DefMethod_N(Socket,init,co_socket,int);
 
-/** @method socket.destroy()
- * @brief closes a socket and removes it from memory
- */
-Method_N(Socket,destroy,co_socket);
-
-/** @method socket.hangup()
+/** @method socket.hangup(opt_context)
  * @brief closes a socket and changes its state information
+ * @brief opt_context unused
  */
-// 2do: int co_socket_hangup(co_obj_t *self, co_obj_t *context); 
+DefMethod_N__Oo(Socket,hangup,co_socket,int,Obj,NULL);
 
 /** @method socket.send(buf)
  * @brief sends a message on a specified socket
@@ -1677,7 +1681,7 @@ Method_N(Socket,destroy,co_socket);
  * @param outgoing message to be sent
  * @param length length of message
  */
-// 2do: int co_socket_send(co_obj_t *self, char *outgoing, size_t length);
+DefMethod_N_L(Socket,send,co_socket,int);
 
 /** @method socket.receive()
  * @brief receives a message on the listening socket
@@ -1690,48 +1694,105 @@ Method_N(Socket,destroy,co_socket);
  * @param option the option to be changed
  * @param value the value for the new option
  */
-// 2do: int co_socket_setopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen);
+DefMethod_N__N_N_L(Socket,setopt,co_socket,int,int,int);
 
 /** @method socket.getopt()
  * @brief gets custom socket options specified from the user
  * @param level the networking level to be customized
  * @param option the option to be changed
  */
-// 2do: int co_socket_getopt(co_obj_t * self, int level, int option, void *optval, socklen_t optvallen);
+DefMethod_L__N_N(Socket,setopt,co_socket,int,int);
 
-/**
+/** @method socket.__gc()
+ * @brief closes a socket and removes it from memory
+ */
+Method_N(Socket,destroy,co_socket);
+
+
+/*! @class UnixSocket 
+ */
+// dealt with a str8
+
+/** @constructor UnixSocket.unix(name)
  * @brief initializes a unix socket
  * @param self socket name
  */
-// 2do: int unix_socket_init(co_obj_t *self);
+Constructor UnixSocket__unix(lua_State* L) {
+    size_t nlen;
+    const char* name = checkL(L,1,&nlen);
+    Obj* key = co_str8_create(name, nlen, 0); 
+    int r = unix_socket_init(key);
+    if (r==0) {
+        pushUnixSocket(L,key);
+        R1;
+    }
+}
 
-/**
+/** @method unix_socket.bind(endpoint)
  * @brief binds a unix socket to a specified endpoint
- * @param self socket name
  * @param endpoint specified endpoint for socket (file path)
  */
-// 2do: int unix_socket_bind(co_obj_t *self, const char *endpoint);
+DefMethod_N__S(UnixSocket,bind,unix_socket);
 
 /**
  * @brief connects a socket to specified endpoint
  * @param self socket name
  * @param endpoint specified endpoint for socket (file path)
  */
-// 2do: int unix_socket_connect(co_obj_t *self, const char *endpoint);
+DefMethod_N__S(UnixSocket,connect,unix_socket);
+
+
+static const luaL_Reg Socket_methods[] = {
+    { NULL, NULL }
+};
+
+static const luaL_Reg Socket_metamethods[] = {
+    {"__gc",Socket_destroy},
+    { NULL, NULL }
+};
+
+static const luaL_Reg UnixSocket_methods[] = {
+    { NULL, NULL }
+};
+
+static const luaL_Reg UnixSocket_metamethods[] = {
+    {"__gc",UnixSocket__gc},
+    { NULL, NULL }
+};
 
 
 
 
-
-
-//2do id.h
-//2do plugin.h
 //2do profile.h
 //2do tree.h
 //2do util.h
 
+// id.h
+/** @fn  Sys.node_id_get()
+ * @brief Returns nodeid
+ */
+Function NodeId_get(lua_State* L) {
+    nodeid_t id = co_id_get(void);
+    pushN(L,id.id);
+    R1;
+}
 
-// Registration
+// plugin.h
+/** @fn Sys.plugin_load()
+ * @brief loads all plugins in specified path
+ * @param dir_path directory to load plugins from
+ */
+Function Plugin_load(lua_State* L) {
+    pushN(L, co_plugins_load(checkS(L,1)));
+    R1;
+}
+
+
+static const luaL_Reg orphan_functions[] = {
+    {"node_id_get",NodeId_get},
+    {"plugin_load",Plugin_load},
+    {NULL,NULL}
+}
 
 static void init_globals(lua_State* L) {
     nil_obj = co_nil_create(0);
@@ -1748,6 +1809,8 @@ extern int luawrap_register(lua_State *L) {
     ClassRegisterMeta(Process);
     ClassRegister(Timer);
     ClassRegisterMeta(Timer);
+    ClassRegisterMeta(Socket);
+    ClassRegisterMeta(UnixSocket);
     // 2do AF_INET or AF_INET6
     return 0;
 
