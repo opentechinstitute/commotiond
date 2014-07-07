@@ -55,11 +55,11 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-
 /* Sizes */
 #define ROTBUF_MAXLEN 255
 #define ROTBUF_NBUFS 16
 
+/****************************************************************************/
 /* Lua shortcuts */
 #define toS lua_tostring
 #define checkS luaL_checkstring
@@ -105,8 +105,16 @@
 #define ckeckT(L,i) do { if(lua_type(L, i) == LUA_TTABLE) ArgError(i,"not a table");
 #define pushT lua_newtable
 
+#define getReg(k) lua_getfield(L, LUA_REGISTRYINDEX,(k))
+#define getGlob(k) \\2do
+
 #define DLI lua_State* L, int idx
 #define LI L,idx
+#define L1 L,1
+#define L2 L,2
+#define L3 L,3
+#define L4 L,4
+#define L5 L,5
 #define R1 return 1
 #define R0 return 0
 #define E int
@@ -172,6 +180,7 @@ typedef int dummy##C
 
 /** defines garbage collector functions for a Class:
  * markXxx(o) mark an object for garbage collection (to be used when pushing own objects to stack)
+ * unmarkXxx(o) unmarks an object for garbage collection (to be used when giving away control)
  * method xxx.__gc() a garbage collector method for an Xxx
 */
 #define DefGC(C)  \
@@ -418,44 +427,32 @@ static int C##__gc(lua_State* L) { Obj* o=(Obj*)to##C(L,1); if (o&&(o->flags & C
  * T type of number
  * O Type of object
  */
-#define SelfCbErr() do { return 0; } while(0) //2do
+#define _sCbErr() do { return 0; } while(0) //2do
+#define _sCbPrep(C,N,Id) getReg(SelfCbKey(#C,#N,((C*)self)->Id)); checkLF(L,-1); push##C(L,self)
+#define _sCbPcall(Nargs,Ret) if(lua_pcall(L,Nargs+1,1)){ SelfCbErr(); } else { return (Ret); }
 
 #define SelfCbKey(C,n1,n2) (cbkey("CB:" #C,n1,n2)))
 
-#define DefSelfCb_N(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey(#C,#N,((C*)self)->Id)); \
-    push##C(L,self); \
-    if(lua_pcall(L,1,1)){ SelfCbErr(); } else return (T)toN(L,-1); }
+#define DefSelfCb_N(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self) \
+    { _sCbPrep(C,N,Id);  _sCbPcall(0,toN(L,-1,T)); }
 
-#define DefSelfCb_N__O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey(#C,#N,((C*)self)->Id)); \
-    push##C(L,self); push#O(L,o); \
-    if(lua_pcall(L,2,1)){ SelfCbErr(); } else return toN(L,-1,T); }
+#define DefSelfCb_N__O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o) {\
+    { _sCbPrep(C,N,Id);  push#O(L,o); _sCbPcall(1,toN(L,-1,T)); }
 
 #define DefSelfCb_N__S(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, const char *s) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey(#C,#N,((C*)self)->Id)); \
-    push##C(L,self); pushS(L,s); \
-    if(lua_pcall(L,2,1)){ SelfCbErr(); } else return toN(L,-1,T); }
+    { _sCbPrep(C,N,Id);  pushS(L,s); _sCbPcall(1,toN(L,-1,T)); }
 
 #define DefSelfCb_N__L(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, char *s, size_t len) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey(#C,#N,((C*)self)->Id)); \
-    push##C(L,self); pushL(L,s,len); \
-    if(lua_pcall(L,2,1)){ SelfCbErr(); } else return toN(L,-1,T); }
+    { _sCbPrep(C,N,Id);   pushL(L,s,len); _sCbPcall(1,toN(L,-1,T)); }
 
 #define DefSelfCb_N__O_L(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, char *s, size_t len) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey("Socket",#N,((C*)self)->Id)); \
-    push##C(L,self); push##O(L,o); pushL(L,s,len); \
-    if(lua_pcall(L,3,1)){ SelfCbErr(); } else return toN(L,-1,T); }
+    { _sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _sCbPcall(1,toN(L,-1,T)); }
 
-#define DefSelfCb_Ou(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, co_obj_t *unused) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey("Socket",#N,((C*)self)->Id)); \
-    push##C(L,self); push##O(L,o);\
-    if(lua_pcall(L,2,1)){ SelfCbErr(); } else return toN(L,-1,T); }
+#define DefSelfCb_O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, co_obj_t *unused) { \
+    { _sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _sCbPcall(0,to##O(L,-1)); }
 
 #define DefSelfCb_N__N_N_L(C,N,Id,T,T1,T2,PT,LT) static T C##_##N##_cb(C*o, T1 i1, T2 i2, PT *s, LT len) { \
-    lua_getfield(L, LUA_REGISTRYINDEX,SelfCbKey("Socket",#N,((C*)self)->Id)); \
-    push##C(L,self); pushN(L,i1,T1); pushN(L,i2,T2); pushL(L,s,len);\
-    if(lua_pcall(L,4,1)) { SelfCbErr(); } else return toN(L,-1,T); }
+    { _sCbPrep(C,N,Id); pushN(L,i1,T1); pushN(L,i2,T2); pushL(L,s,len); _sCbPcall(3,toN(L,-1,T)); }
 
 /****************************************************************/
 /*
@@ -566,6 +563,23 @@ static int pushE(lua_State* L, int idx, VS* e) {};
 #define pushFmtS(ARGS) ( lua_pushstring(L, tmpFmt ARGS ) )
 #define cbkey(a, b, c) tmpFmt("%s_%s_%s", a, b, c);
 #define cat(a,b) tmpFmt("%s%s", a, b);
+
+void checkCbs(lua_State* L,int idx,const char* key,const char* name,const char* fn_names[]) {
+    void* fn_name;
+   
+    checkT(L,idx);
+    
+    for (fn_name = (void*)fn_names; *((const char*)fn_name); fn_name++) {
+        pushS(L,(const char*)fn_name);
+        lua_gettable(L, idx);
+        
+        if (isF(L,-1))
+            setReg(SelfCbKey(key,name,fn_name));
+        else {
+            // 2do error...
+        }
+    }
+}
 
 
 
@@ -1405,7 +1419,7 @@ DefSelfCb_N(Process,restart,name);
 static int proc_start(co_obj_t *self, char *argv[]) {
     int i = 0;
     
-    lua_getfield(L, LUA_REGISTRYINDEX, SelfCbKey("Process","start",(Process*)->name));
+    getReg(SelfCbKey("Process","start",(Process*)->name));
     lua_settop(L,1);
     pushProcess(L,self);
     pushT(L);
@@ -1437,26 +1451,14 @@ Constructor Process_create(lua_State* L) {
     };
 
     static const char* fn_names[] = {"init","destroy","start","stop","restart",NULL};
-    const char* fn_name;
     co_process_t* p;
 
     proto.name = checkS(L,1);
     proto.pid_file = checkS(L,2);
     proto.exec_path = checkS(L,3);
     proto.run_path = checkS(L,4);
-    checkT(L,5);
+    checkCbs(L,5,"Process",name,fn_names);
     
-    for (fn_name = (char*)fn_names; *fn_name; fn_name++) {
-        pushS(fn_name);
-        lua_gettable(L, 5);
-        
-        if (isF(L,-1))
-            lua_setfield(L,LUA_REGISTRYINDEX, SelfCbKey("Process",name,fn_name));
-        else {
-            // 2do error...
-        }
-    }
-
     p = co_process_create(sizeof(lua_process), proto, proto.name, proto.pid_file, proto.exec_path, proto.run_path);
     
     if (p) 
@@ -1646,20 +1648,8 @@ Method Socket_create(uri,listen){
     proto.uri = checkS(L,1);
     proto.listen = optB(L,2,0);
     
-    checkT(L,3);
+    checkCbs(L,5,"Socket",proto.uri,fn_names);
     
-    for (fn_name = fn_names; *fn_name; fn_name++) {
-        pushS(fn_name);
-        lua_gettable(L, 3);
-        
-        if (isF(L,-1))
-            lua_setfield(L,LUA_REGISTRYINDEX, SelfCbKey("Socket",proto.uri,fn_name));
-        else {
-            // 2do error...
-            lua_pop(L,1);
-       }
-    }
-
     pushSocket(L,co_socket_create(sizeof(Socket), proto));
     R1;
 }
