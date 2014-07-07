@@ -1,7 +1,7 @@
 /* vim: set ts=2 expandtab: */
 /**
- *       @file  luawrap.c
- *      @brief  A wrapper for the Lua programming Language
+ *       @file  colua.c
+ *      @brief  a Commontiond API for the Lua programming Language
  *
  *     @author  Luis E. Garcia Ontanon <luis@ontanon.org>
  *
@@ -49,375 +49,7 @@
 #include "socket.h"
 #include "util.h"
 
-#include <math.h>
-#include <stdio.h>
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-
-/* Sizes */
-#define ROTBUF_MAXLEN 255
-#define ROTBUF_NBUFS 16
-
-/****************************************************************************/
-/* Lua shortcuts */
-#define toS lua_tostring
-#define checkS luaL_checkstring
-#define pushS lua_pushstring
-#define isS lua_isstring
-#define optS luaL_optstring
-#define shiftS(L,i) //2do (fn)
-
-#define toL lua_tolstring
-#define checkL luaL_checklstring
-#define pushL lua_pushlstring
-#define isL lua_isstring
-#define optL luaL_optlstring
-#define shiftL(L,i) //2do (fn)
-
-#define toN(L,i,T) ((T)lua_tonumber(L,(i)))
-#define checkN(L,i,T) ((T)luaL_checknumber(L,(i)))
-#define pushN(L,n) (lua_pushNumber(L,(luaNumber)n))
-#define isN(L,i) (lua_isnumber(L,(i)))
-#define optN(L,i,T,D) ((T)luaL_optnumber(L,(i),(luaNumber)(D)))
-#define shiftN(L,i) //2do (fn)
-
-#define toB lua_toboolean
-#define checkB luaL_checkboolean
-#define pushB(L,b) (lua_pushboolean(L,(int)b))
-#define isB lua_isboolean
-#define optB(L,i,D) (luaL_optboolean(L,(i),(int)(D)))
-#define shiftB(L,i) //2do (fn)
-
-#define checkNil luaL_checknil
-#define pushNil (lua_pushnil
-#define isNil lua_isnil
-#define shiftNil(L,i) //2do (fn)
-
-#define isF(L,i) ((lua_type(L, i) == LUA_TFUNCTION) || lua_type(L, i) == LUA_TCFUNCTION))
-
-#define isLF(L,i) (lua_type(L, i) == LUA_TFUNCTION)
-#define isCF(L,i) (lua_type(L, i) == LUA_TCFUNCTION)
-
-#define pushCF lua_pushcfunction
-
-#define isT(L,i) (lua_type(L, i) == LUA_TTABLE)
-#define ckeckT(L,i) do { if(lua_type(L, i) == LUA_TTABLE) ArgError(i,"not a table");
-#define pushT lua_newtable
-
-#define getReg(k) lua_getfield(L, LUA_REGISTRYINDEX,(k))
-#define getGlob(k) \\2do
-
-#define DLI lua_State* L, int idx
-#define LI L,idx
-#define L1 L,1
-#define L2 L,2
-#define L3 L,3
-#define L4 L,4
-#define L5 L,5
-#define R1 return 1
-#define R0 return 0
-#define E int
-
-/****************************************************************/
-/*
- * ClassDefine(Xxx,check_code,push_code)
- * defines:
- * toXxx(L,idx) gets a Xxx from an index (Lua Error if fails)
- * checkXxx(L,idx) gets a Xxx from an index after calling check_code (No Lua Error if it fails)
- * optXxx(L,idx,dflt) gets an Xxx from an index, dflt if it is nil or unexistent 
- * pushXxx(L,xxx) pushes an Xxx into the stack
- * isXxx(L,idx) tests whether we have an Xxx at idx
- * shiftXxx(L,idx) removes and returns an Xxx from idx only if it has a type of Xxx, returns NULL otherwise
- * dumpXxx(L,idx) returns a string representation of the Xxx at pos idx 
- * ClassDefine must be used with a trailing ';'
- * (a dummy typedef is used to be syntactically correct)
- */
-#define ClassDefine(C,check_code,push_code) \
-static C to##C(DLI) { \
-    C* v = (C*)lua_touserdata (L, idx); \
-    if (!v) luaL_error(L, "bad argument %d (%s expected, got %s)", idx, #C, lua_typename(L, lua_type(L, idx))); \
-    return v ? *v : NULL; \
-} \
-static C check##C(DLI) { \
-    C* p; \
-    luaL_checktype(DLI,LUA_TUSERDATA); \
-    p = (C*)luaL_checkudata(LI, #C); \
-    check_code; \
-    return p ? *p : NULL; \
-} \
-static C* push##C(lua_State* L, C v) { \
-    C* p; \
-    luaL_checkstack(L,2,"Unable to grow stack\n"); \
-    p = (C*)lua_newuserdata(L,sizeof(C)); *p = v; \
-    luaL_getmetatable(L, #C); lua_setmetatable(L, -2); \
-    push_code; \
-    return p; \
-}\
-static gboolean is##C(DLI) { \
-    void *p; \
-    if(!lua_isuserdata(LI)) return FALSE; \
-    p = lua_touserdata(LI); \
-    lua_getfield(L, LUA_REGISTRYINDEX, #C); \
-    if (p == NULL || !lua_getmetatable(DLI) || !lua_rawequal(L, -1, -2)) p=NULL; \
-    lua_pop(L, 2); \
-    return p ? TRUE : FALSE; \
-} \
-static C shift##C(DLI) { \
-    C* p; \
-    if(!lua_isuserdata(LI)) return NULL; \
-    p = (C*)lua_touserdata(LI); \
-    lua_getfield(L, LUA_REGISTRYINDEX, #C); \
-    if (p == NULL || !lua_getmetatable(L, i) || !lua_rawequal(L, -1, -2)) p=NULL; \
-    lua_pop(L, 2); \
-    if (p) { lua_remove(LI); return *p; }\
-    else return NULL;\
-} \
-static int dump#C(lua_State* L) { pushS(L,#C); R1; } \
-static C* opt#C(DLI,dflt) { retrun ( (lua_gettop(L)<idx || isNil(LI)) ? dflt : check##C(LI) )); R0;}}\
-typedef int dummy##C
-
-
-/** defines garbage collector functions for a Class:
- * markXxx(o) mark an object for garbage collection (to be used when pushing own objects to stack)
- * unmarkXxx(o) unmarks an object for garbage collection (to be used when giving away control)
- * method xxx.__gc() a garbage collector method for an Xxx
-*/
-#define DefGC(C)  \
-static int mark#C(C* o) { co_obj_setflags(o,(o->flags)|CO_FLAG_LUAGC); } \
-static int unmark#C(C* o) { co_obj_setflags(o,(o->flags)&(0xff^CO_FLAG_LUAGC)); } \
-static int C##__gc(lua_State* L) { Obj* o=(Obj*)to##C(L,1); if (o&&(o->flags & CO_FLAG_LUAGC)) co_obj_free(o); R0; }
-
-
-/****************************************************************/
-/** Arguments for check_code or push_code
- */
-#define FAIL_ON_NULL(s) do { if (! *p) luaL_argerror(L,idx,s); } while(0)
-#define CHK_OBJ(Chk,s) do { if ((! *p) || ! Chk(p) ) luaL_argerror(L,idx,s); } while(0)
-#define NOP 
-
-/****************************************************************/
-/*
- * ClassRegister(Xxx)
- * registration code for a given class
- */
-#define ClassRegister(C) { \
-    /* check for existing class table in global */ \
-    lua_getglobal (L, #C); \
-    if (!lua_isnil (L, -1)) { \
-        fprintf(stderr, "ERROR: Attempt to register class '%s' which already exists in global Lua table\n", #C); \
-        exit(1); \
-    } \
-    lua_pop (L, 1); \
-    /* create new class method table and 'register' the class methods into it */ \
-    lua_newtable (L); \
-    wslua_setfuncs (L, C ## _methods, 0); \
-    /* add a method-table field named '__typeof' = the class name, this is used by the typeof() Lua func */ \
-    pushS(L, #C); \
-    lua_setfield(L, -2, "__typeof"); \
-    /* create a new metatable and register metamethods into it */ \
-    luaL_newmetatable (L, #C); \
-    wslua_setfuncs (L, C ## _meta, 0); \
-    /* add the '__gc' metamethod with a C-function named Class__gc */ \
-    /* this will force ALL wslua classes to have a Class__gc function defined, which is good */ \
-    lua_pushcfunction(L, C ## __gc); \
-    lua_setfield(L, -2, "__gc"); \
-    /* push a copy of the class methods table, and set it to be the metatable's __index field */ \
-    lua_pushvalue (L, -2); \
-    lua_setfield (L, -2, "__index"); \
-    /* push a copy of the class methods table, and set it to be the metatable's __metatable field, to hide metatable */ \
-    lua_pushvalue (L, -2); \
-    lua_setfield (L, -2, "__metatable"); \
-    /* pop the metatable */ \
-    lua_pop (L, 1); \
-    /* set the class methods table as the global class table */ \
-    lua_setglobal (L, #C); \
-}
-
-/****************************************************************/
-/*
- * ClassRegisterMeta(Xxx)
- * registration code for a classes metatable
- */
-#define ClassRegisterMeta(C) { \
-    /* check for existing metatable in registry */ \
-    luaL_getmetatable(L, #C); \
-    if (!lua_isnil (L, -1)) { \
-        fprintf(stderr, "ERROR: Attempt to register metatable '%s' which already exists in Lua registry\n", #C); \
-        exit(1); \
-    } \
-    lua_pop (L, 1); \
-    /* create a new metatable and register metamethods into it */ \
-    luaL_newmetatable (L, #C); \
-    wslua_setfuncs (L, C ## _meta, 0); \
-    /* add a metatable field named '__typeof' = the class name, this is used by the typeof() Lua func */ \
-    pushS(L, #C); \
-    lua_setfield(L, -2, "__typeof"); \
-     /* add the '__gc' metamethod with a C-function named Class__gc */ \
-    /* this will force ALL wslua classes to have a Class__gc function defined, which is good */ \
-    lua_pushcfunction(L, C ## __gc); \
-    lua_setfield(L, -2, "__gc"); \
-    /* pop the metatable */ \
-    lua_pop(L, 1); \
-}
-
-
-/****************************************************************/
-/* more Lua macros */
-
-
-/*
- * RegisterFunction(name)
- * registration code for "bare" functions in global namespace
- */
-#define RegisterFunction(name) do { lua_pushcfunction(L, luawrap_## name); lua_setglobal(L, #name); } while(0)
-
-
-/* these function type markers might not be useful at all */
-#define Register static int
-#define Method static int
-#define Constructor static int
-#define MetaMethod static int
-#define Function static int
-
-
-#define Methods static const luaL_Reg
-#define Meta static const luaL_Reg
-
-
-/* throws an error */
-#define Error(error) do { luaL_error(L, error ); return 0; } while(0)
-
-/* throws an error for a bad argument */
-#define ArgError(idx,error) do { luaL_argerror(L,idx,error); return 0; } while(0)
-
-/* throws an error for a bad optional argument */
-#define OptArgError(idx,error) do { luaL_argerror(L,idx, error); return 0; } while(0)
-
-/* for registering globals */
-#define RegGlobalBool(L,n,v) { pushB(L,v); lua_setglobal(L,n); }
-#define RegGlobalString(L,n,v) { pushS(L,v); lua_setglobal(L,n); }
-#define RegGlobalNumber(L,n,v) { pushN(L,v); lua_setglobal(L,n); }
-
-
-
-/****************************************************************/
-/*
- * DefMethod_[OSNL]_(_[OSNL])+ (C,M,P,...) for quick definition of wrapping api calls
- * PrefixMethod() ==> Class__Method
- * in name:
- *    _N=number _S=string _O=object _L=buffer _Xo=opt_x 
- * in args:
- *    C=Class P=Prefix O=OutType Sz=BufferSize D=Default T=numberType 
- *    C1,C2=inClass D1,D2=defaults T1,T2=types
- */
-
-#define _M(C,M) Method C##_##M(lua_State* L)
-
-/* int P_M(C*) ==> n = c.f() */
-#define DefMethod_N(C,M,P)  { pushN(L,P##M(check##C(L,1))); R1; }
-/* O* P_M(C*) ==> o = c.f() */
-#define DefMethod_O(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1))); R1; }
-/* char* P_M(C*) ==> s = c.f() */
-#define DefMethod_S(C,M,P) _M(C,M) { pushS(L,P##M(check##C(L,1))); R1; }
-/* int P_M(C*,char*,size_t) ==> b = c.f() */
-#define DefMethod_L(C,M,P,Sz) _M(C,M) { char b[Sz]; pushL(L,b,P##M(check##C(L,1),b,Sz)); R1; }
-
-/*  T P_M(C*, char*) ==> n = c.f(s) */
-#define DefMethod_N__S(C,M,P) _M(C,M) { pushN(L,P##M(check##C(L,1),checkS(L,2))); R1; }
-/*  T P_M(C*, char*) ==> n = c.f(opt_s) */
-#define DefMethod_N__So(C,M,P,D) _M(C,M) { pushN(L,P##M(check##C(L,1),optS(L,2,D))); R1; }
-/* T P_M(C*, T) ==> n = c.f(n) */
-#define DefMethod_N__N(C,M,P,T) _M(C,M) { pushN(L,P##M(check##C(L,1),checkN(L,2,T))); R1; }
-/* T P_M(C*, T) ==> n = c.f(opt_n) */
-#define DefMethod_N__No(C,M,P,T,D) _M(C,M) { pushN(L,P##M(check##C(L,1),optN(L,2,T,D))); R1; }
-/* T P_M(C*, C2*) ==> n = c.f(o) */
-#define DefMethod_N__O(C,N,P,C2) _M(C,M) { pushN(L,P##M(check##C(L,1), check##C2(L,2))); R1; }
-/* T P_M(C*, C2*) ==> n = c.f(o) */
-#define DefMethod_N__Oo(C,N,P,C2,D2) _M(C,M) { pushN(L,P##M(check##C(L,1), opt##C2(L,2,D2))); R1; }
-
-/* O* P_M(C*, char*) ==> o = c.f(s) */
-#define DefMethod_O__S(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1),checkS(L,2))); R1; }
-/* O* P_M(C*, char*) ==> o = c.f(opt_s) */
-#define DefMethod_O__So(C,M,P,O) _M(C,M) { push##O(L,P##M(check##C(L,1),checkS(L,2))); R1; }
-/* O* P_M(C*, T) ==> o = c.f(n) */
-#define DefMethod_O__N(C,M,P,O,T) _M(C,M) { push##O(L,P##M(check##C(L,1),checkN(L,2,T))); R1; }
-/* O* P_M(C*, T) ==> o = c.f(opt_n) */
-#define DefMethod_O__No(C,M,P,O,T,D) _M(C,M) { push##O(L,P##M(check##C(L,1),optN(L,2,T,D))); R1; }
-/* O* P_M(C*, C2*) ==>  o = c.f(o) */
-#define DefMethod_N__O(C,N,P,C2) _M(C,M) { push##O(L,P##M(check##C(L,1), check##C2(L,2))); R1; }
-/* O* P_M(C*, C2*) ==>  o = c.f(opt_o) */
-#define DefMethod_O__Oo(C,N,P,O,C2,D) _M(C,M) { push##O(L,P##M(check##C(L,1), opt##C2(L,2,D))); R1; }
-
-
-/* n = c.f(s1,s2) */
-#define DefMethod_N__S_S(C,M,P) _M(C,M) { pushN(L,P##M(check##C(L,1),checkS(L,2),checkS(L,3))); R1; }
-/* n = c.f(s1,opt_s2) */
-#define DefMethod_N__S_So(C,M,P,D2) _M(C,M) { pushN(L,P##_##M(check##C(L,1),checkS(L,2),optS(L,3,D2))); R1; }
-/* n = c.f(opt_s1,opt_s2)  */
-#define DefMethod_N__S_So(C,M,P,D1,D2) _M(C,M) { pushN(L,P##_##M(check##C(L,1),optS(L,2,D1),optS(L,3,D2))); R1; }
-
-
-/* n = c.f(s1,s2,s3) */
-#define DefMethod_N__S_S_S(C,M,P) _M(C,M) { pushN(L,P##_##M(check##C(L,1),checkS(L,2),checkS(L,3),checkS(L,4))); R1; }
-
-
-
-/* T P_N(C*,C1*,C2*) ==> n = c.f(opt_o1,opt_o2) */
-#define DefMethod_N__Oo_Oo(C,N,P,O1,O2) _M(C,M) { pushN(L,P##M(check##C(L,1),opt##C3(L,3), opt##C2(L,2))); R1; }
-
-/* T P_N(C*,C1*,C2*) ==> n = c.f(opt_o1,opt_o2) */
-#define DefMethod_N__O_Oo(C,M,P,O1,O2) _M(C,M) { pushN(L,P##M(check##C(L,1), check##C2(L,2), opt##C3(L,3))); R1; }
-
-/*  O* P_N(C*,C1*,C2*) ==>  o = c.f(opt_o1,opt_o2) */
-#define DefMethod_O__Oo_Oo(C,M,P,O,C1,D1,C2,D2) _M(C,M){ push##O(L,P##M(check##C(L,1),opt##C1(L,2,D1),opt##C2(L,3,D2))); R1; }
-
-/*  O* P_N(C*,C1*,C2*) ==>  o = c.f(o1,opt_o2) */
-#define DefMethod_O__O_Oo(C,N,P,O,C1,D1,C2,D2) _M(C,M) { push##O(L,P##N(check##C(L,1),check##D1(L,2,D1),opt##C2(L,3,D2))); R1; }
-
-
-/* O* P_N(C*,C2*,T) ==> o = c.f(o,n) */
-#define DefMethod_O__O_N(C,M,P,O,C2,T) _M(C,M) { push##O(L,P##M(check##C(L,1),check#C2(L,2),checkN(L,3,T))); R1; }
-
-#define DefMethod_N_L(C,M,P) _M(C,M) { size_t len; pushN(P##M(check##C(L,1), checkL(L,2,&len), len); R1; }
-
-#define DefMethod_L(C,M,P,Sz) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1),b,Sz)); R1; }
-
-#define DefMethod_L__O(C,M,P,Sz,O) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1),check##O(L,2),b,Sz)); R1; }
-
-#define DefMethod_L__N_N(C,M,P,Sz,O,T1,T2) _M(C,M) { char b[Sz]; pushL(L,b,P##_##M(check##C(L,1), checkN(L,2,T1), checkN(L,3,T2), b, Sz))); R1 }
-
-#define DefMethod_N__N_N_L(C,M,P,) _M(C,M) { size_t len=0; pushN(L,P##_##M(check##C(L,1), checkN(L,2,T1), checkL(L,3,T2), checkL(L, 4,&len), len)); R1; }
-
-/* quick methods for struct accessors */
-
-/* Accesses string from struct Elem   */
-#define DefAccessorRW_S(C,E) Method C##_##E(lua_State* L) { C* o=check##C(L,1); \
-    if (isS(L,2)) { /*o->E = toS(L,2); */ R0; } else { pushS(L,o->E); R1;} }
-#define DefAccessorRO_S(C,E) Method C##_##E(lua_State* L) { pushS(L,check##C(L,1)->E); R1; }
-
-
-/* Accesses number from struct Elem  */
-#define DefAccessorRW_N(C,E,T) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
-    if ( isN(L,2) ) { o->E = toN(L,2,T); R1; } else { pushN(L,o->E); R1;} }
-#define DefAccessorRO_N(C,E,T) Method C##_##E(lua_State* L) { pushN(L,check##C(L,1)->E); R1; }
-
-/* Accesses enum from struct Elem  */
-#define DefAccessorRW_E(C,E,Vs,D) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
-    if ( isS(L,2) ) { o->E = S2V(Vs,toS(L,2),D); R1; } else { pushE(L,o->E,Vs); R1;} }
-#define DefAccessorRO_E(C,E,Vs) Method C##_##E(lua_State* L) { pushE(L,check##C(L,1)->E,Vs); R1; }
-
-/* Accesses bool from struct Elem  */
-#define DefAccessorRW_B(C,E) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
-    if (isB(L,2)) { o->E = toB(L,2); lua_settop(L,2); R1; } else { pushB(L,o->E); R1;} }
-#define DefAccessorRO_B(C,E) Method C##_##E(lua_State* L) { pushB(L,(int)check##C(L,1)->E); R1; }
-
-/* Accesses O from struct Elem  */
-#define DefAccessorRW_O(C,E,O) Method C##_##E(lua_State* L) { C* o = check##C(L,1); \
-    if (is##O(L,2)) { o->E = to##O(L,2); R1; } else { push##O(L,o->E); R1;} }
-#define DefAccessorRO_O(C,E,O) Method C##_##E(lua_State* L) { push##O(L,check##C(L,1)->E); R1; }
-
-
+#include "extern/luawrap.h"
 
 /****************************************************************/
 /* Macros for callback wrappers (used by Process and Socket) */
@@ -427,32 +59,36 @@ static int C##__gc(lua_State* L) { Obj* o=(Obj*)to##C(L,1); if (o&&(o->flags & C
  * T type of number
  * O Type of object
  */
-#define _sCbErr() do { return 0; } while(0) //2do
-#define _sCbPrep(C,N,Id) getReg(SelfCbKey(#C,#N,((C*)self)->Id)); checkLF(L,-1); push##C(L,self)
-#define _sCbPcall(Nargs,Ret) if(lua_pcall(L,Nargs+1,1)){ SelfCbErr(); } else { return (Ret); }
+#define _CbErr() { return 0; }  //2do
+#define _CbPrep(C,N,Id) getReg(SelfCbKey(#C,#N,((C*)self)->Id)); checkLF(L,-1); push##C(L,self)
+#define _CbPcall(Nargs,Ret) if(lua_pcall(L,Nargs+1,1)) _sCbErr() else { return (Ret); }
 
-#define SelfCbKey(C,n1,n2) (cbkey("CB:" #C,n1,n2)))
+#define SelfCbKey(C,n1,n2) (cbkey(#C,n1,n2)))
 
 #define DefSelfCb_N(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self) \
-    { _sCbPrep(C,N,Id);  _sCbPcall(0,toN(L,-1,T)); }
+    { _CbPrep(C,N,Id);  _CbPcall(0,toN(L,-1,T)); } _End(C,N)
 
 #define DefSelfCb_N__O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o) {\
-    { _sCbPrep(C,N,Id);  push#O(L,o); _sCbPcall(1,toN(L,-1,T)); }
+    { _CbPrep(C,N,Id);  push#O(L,o); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
 
 #define DefSelfCb_N__S(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, const char *s) { \
-    { _sCbPrep(C,N,Id);  pushS(L,s); _sCbPcall(1,toN(L,-1,T)); }
+    { _CbPrep(C,N,Id);  pushS(L,s); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
 
 #define DefSelfCb_N__L(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, char *s, size_t len) { \
-    { _sCbPrep(C,N,Id);   pushL(L,s,len); _sCbPcall(1,toN(L,-1,T)); }
+    { _CbPrep(C,N,Id);   pushL(L,s,len); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
 
 #define DefSelfCb_N__O_L(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, char *s, size_t len) { \
-    { _sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _sCbPcall(1,toN(L,-1,T)); }
+    { sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
 
 #define DefSelfCb_O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, co_obj_t *unused) { \
-    { _sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _sCbPcall(0,to##O(L,-1)); }
+    { _CbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _CbPcall(0,to##O(L,-1)); } _End(C,N)
 
 #define DefSelfCb_N__N_N_L(C,N,Id,T,T1,T2,PT,LT) static T C##_##N##_cb(C*o, T1 i1, T2 i2, PT *s, LT len) { \
-    { _sCbPrep(C,N,Id); pushN(L,i1,T1); pushN(L,i2,T2); pushL(L,s,len); _sCbPcall(3,toN(L,-1,T)); }
+    { _CbPrep(C,N,Id);  pushN(L,i1,T1);  pushN(L,i2,T2); pushL(L,s,len); _CbPcall(3,toN(L,-1,T)); } _End(C,N)
+
+
+
+LuaWrapDefinitions();
 
 /****************************************************************/
 /*
@@ -530,39 +166,12 @@ static lua_State* gL = NULL;
 static co_obj_t* nil_obj = NULL;
 static const char* err = NULL;
 
-/****************************************************************/
-/* Util funcs */
-
-/* keep in mind that the result will not change for ROTBUF_NBUFS calls. */
-const char* tmpFmt(const char *format, ...) {
-    static char buf[ROTBUF_NBUFS][ROTBUF_MAXLEN];
-    static int bi = 0;
-    const char* s = buf[++bi, bi %= ROTBUF_NKEYS];
-    va_list args;
-
-    va_start(args, format);
-    result = vsnprintf(s, ROTBUF_MAXLEN, format, args);
-    va_end(args);
-
-    return s;
-}
-
-static const char* v2s(VS* vs, int v, int def) {
-    for (;vs->s;vs++) if (vs->v == v) return vs->s;
-    return def;
-}
-
-static int s2v(VS* vs, const char* s, int def) {
-    for (;vs->s;vs++) if ( vs->s == s || strcmp(vs->s,s)==0 ) return vs->v;
-    return def;
-}
-
-static int pushE(lua_State* L, int idx, VS* e) {};
-
 
 #define pushFmtS(ARGS) ( lua_pushstring(L, tmpFmt ARGS ) )
 #define cbkey(a, b, c) tmpFmt("%s_%s_%s", a, b, c);
 #define cat(a,b) tmpFmt("%s%s", a, b);
+
+static int do_nothing(lua_State* L) { return 0; }
 
 void checkCbs(lua_State* L,int idx,const char* key,const char* name,const char* fn_names[]) {
     void* fn_name;
@@ -573,14 +182,15 @@ void checkCbs(lua_State* L,int idx,const char* key,const char* name,const char* 
         pushS(L,(const char*)fn_name);
         lua_gettable(L, idx);
         
-        if (isF(L,-1))
-            setReg(SelfCbKey(key,name,fn_name));
-        else {
+        if (! isF(L,-1)) {
+            lua_pop(L1);
+            lua_pushcfunction(L,do_nothing);
             // 2do error...
         }
+        
+        setReg(SelfCbKey(key,name,fn_name));
     }
 }
-
 
 
 /****************************************************************/
@@ -711,7 +321,7 @@ static int pushObj(lua_State* L, co_obj_t* o) {
     switch (o->type) {
         
         case _nil: lua_pushnil(L); R1;
-        case _true: lua_pushbool(L,1); R1;
+        case _true: lua_pushbool(L1); R1;
         case _false: lua_pushbool(L,0); R1;
 
         case _float32: PUSH_N_DATA(float,32); R1;
@@ -730,6 +340,7 @@ static int pushObj(lua_State* L, co_obj_t* o) {
         case _bin32: PUSH_C_DATA(bin, 32); R1;
         
         case _str8: PUSH_C_DATA(str, 8); R1;
+        
         case _str16: PUSH_C_DATA(str, 16); R1;
         case _str32: PUSH_C_DATA(str, 32); R1;
         
@@ -783,8 +394,8 @@ static int pushObj(lua_State* L, co_obj_t* o) {
 static co_obj_t* luawrap_iter(co_obj_t *data, co_obj_t *current, void *context) {
     lua_State* L = (lua_State*)context;
     pushObj(L,current); 
-    if(lua_pcall(L,1,1)){ err = toS(L,-1); return NULL; }
-    lua_pop(L,1);
+    if(lua_pcall(L1,1)){ err = toS(L,-1); return NULL; }
+    lua_pop(L1);
     return current;
 }
 
@@ -796,8 +407,8 @@ static co_obj_t* luawrap_iter(co_obj_t *data, co_obj_t *current, void *context) 
 static int luawrap_quick_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     co_str8_t s = ((co_str8_t)self);
     pushObj(gL,params);
-    if(lua_pcall(L,1,1)){err=toS(gL,-1); return 0;}
-    *output = shiftObj(gL,1);
+    if(lua_pcall(L1,1)){err=toS(gL,-1); return 0;}
+    *output = shiftObj(gL1);
     rerurn *output?1:0;
 }
 
@@ -821,8 +432,8 @@ static int cmd_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
     pushObj(gL,params);
     lua_getfield(gL, LUA_REGISTRYINDEX, cbkey("Cmd","-",name)); // function_name
 
-    if(lua_pcall(L,2,1)){err=toS(gL,-1); return 0;}
-    *output = shiftObj(gL,1);
+    if(lua_pcall(L2,1)){err=toS(gL,-1); return 0;}
+    *output = shiftObj(gL1);
     rerurn *output?1:0;
 }
 
@@ -835,11 +446,11 @@ static int cmd_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
  */
 Constructor Cmd_register(lua_State* L) {
     size_t nlen, ulen, dlen;    
-    const char *name = luaL_checklstring(L,1,&nlen);
-    const char *usage = luaL_checklstring(L,2,&ulen);
-    const char *desc = luaL_checklstring(L,3,&dlen);
+    const char *name = luaL_checklstring(L1,&nlen);
+    const char *usage = luaL_checklstring(L2,&ulen);
+    const char *desc = luaL_checklstring(L3,&dlen);
     int r;
-    isF(L,4);
+    isF(L4);
 
     lua_setfield(L,LUA_REGISTRYINDEX, cbkey("Cmd","-",name));
     
@@ -858,7 +469,7 @@ Constructor Cmd_register(lua_State* L) {
  */
 Constructor Cmd_get(lua_State* L) {
     size_t nlen = 0;
-    const char *name = luaL_checklstring(L,1,&nlen);
+    const char *name = luaL_checklstring(L1,&nlen);
     pushCmd(L,co_cmd_get(name, nlen));
     R1;
 }
@@ -869,8 +480,8 @@ Constructor Cmd_get(lua_State* L) {
  * returns the output of the excution
  */
 Method Cmd_exec(lua_State* L) {
-    Cmd* c = checkCmd(L,1);
-    Obj* param = checkObj(L, 2);
+    Cmd* c = checkCmd(L1);
+    Obj* param = checkObj(L2);
     Obj* key = co_str8_create(c->name, strlen(c->name), 0);
     
     if (co_cmd_exec(key, &output, param) != 0) {
@@ -898,10 +509,10 @@ DefAccessorR_S(Cmd,desc,co_cmd);
  * @param action: function to be called
  */
 Method Cmd_hook(lua_State* L) {
-    Cmd* c = checkCmd(L,1);
+    Cmd* c = checkCmd(L1);
     Obj* key = co_str8_create(c->name, strlen(c->name), 0);
     
-    luaL_checktype(L, 2, LUA_TFUNCTION);
+    luaL_checktype(L2, LUA_TFUNCTION);
     lua_setfield (L, LUA_REGISTRYINDEX, cbkey("Cmd","",c->name));
     
     lua_pushboolean(L,co_cmd_hook(key, luawrap_cb));
@@ -912,7 +523,7 @@ Method Cmd_hook(lua_State* L) {
  * @brief returns the name of the command
  */
 MetaMethod Cmd__tostring(lua_State* L) {
-    Cmd* c = checkCmd(L,1);
+    Cmd* c = checkCmd(L1);
     pushFmtS(("Cmd:%s",c->name));
     R1;
 }
@@ -922,7 +533,7 @@ MetaMethod Cmd__tostring(lua_State* L) {
  * @param iter iterator function reference
  */
 Function Cmd_process(lua_State* L) {
-    luaL_checkfunction(L,1)
+    luaL_checkfunction(L1)
     luawrap_iter_check(L);
     co_cmd_process(luawrap_iter, L);
     R0;
@@ -1016,7 +627,7 @@ DefMethod_O__O_N(List,element,co_list,Obj,int);
  * @brief returns a string representation of the list
  */
 MetaMethod List__tostring(lua_State* L) {
-    co_obj_t* list = checkList(L,1);
+    co_obj_t* list = checkList(L1);
    
     size_t olen = 255;
     char buff[olen];
@@ -1034,16 +645,16 @@ MetaMethod List__tostring(lua_State* L) {
  */
 int List_foreach(lua_State* L) {
     int cont = 0;
-    co_obj_t* list = checkList(L,1);
+    co_obj_t* list = checkList(L1);
     co_obj_t* cur;
     void* cookie = NULL;
-    luaL_checkfunction(L,2);
+    luaL_checkfunction(L2);
     
     while( cur = co_list_foreach(list, &cookie) ) {
         pushObj(cur);
-        lua_call(L,1,1);
+        lua_call(L1,1);
         cont = lua_toboolean(L,-1);
-        lua_pop (L, 1);
+        lua_pop (L1);
         if (!cont) break; 
     }
     
@@ -1060,7 +671,7 @@ int List_foreach(lua_State* L) {
  * function will return next element of the list at each call, nil when done
  */
 MetaMethod List__call (lua_State *L) {
-  co_obj_t* list = checkList(L,1);
+  co_obj_t* list = checkList(L1);
   lua_pushlightudata(L, NULL);
   lua_pushcclosure(L, _List_iter, 2);
   R0;
@@ -1072,7 +683,7 @@ MetaMethod List__call (lua_State *L) {
 Constructor List_import(lua_State* L) {
     size_t ilen=0;
     co_obj_t* list = NULL;
-    const char* buff = luaL_checklstring (L, 2, &ilen);
+    const char* buff = luaL_checklstring (L2, &ilen);
 
     size_t olen = co_list_import(&list, buff, list);
         
@@ -1081,10 +692,10 @@ Constructor List_import(lua_State* L) {
 }
 
 Function _List_iter(lua_State *L) {
-  co_obj_t* list = toList(L,1);
-  void* next = lua_touserdata(L,2);
+  co_obj_t* list = toList(L1);
+  void* next = lua_touserdata(L2);
   co_obj_t* item = co_list_foreach(list,&next);
-  lua_pop(L,1);
+  lua_pop(L1);
   lua_pushlightuserdata(L, next);
 
   if (item) {
@@ -1232,9 +843,9 @@ Function Iface_foreach (lua_State *L) {
     
     while( cur = co_list_foreach(list, &cookie) ) {
         pushIface(cur);
-        lua_call(L,1,1);
+        lua_call(L1,1);
         cont = lua_toboolean(L,-1);
-        lua_pop(L, 1);
+        lua_pop(L1);
         if (!cont) break; 
     }
     
@@ -1247,7 +858,7 @@ Function Iface_foreach (lua_State *L) {
   * @param iface_name: the name of the interface to be removed
   */
 Function luawrap_iface_remove(lua_State* L) {
-  const char *iface_name = checkS(L,1);
+  const char *iface_name = checkS(L1);
   lua_pushnumber(L,co_iface_remove(iface_name));
   R1;
 }
@@ -1257,7 +868,7 @@ Function luawrap_iface_remove(lua_State* L) {
   * @param iface_name: the name of the interface to be removed
   */
 Function luawrap_iface_profile(lua_State* L) {
-  const char *iface_name = checkS(L,1);
+  const char *iface_name = checkS(L1);
   pushS(L,co_iface_profile(iface_name));
   R1;
 }
@@ -1267,7 +878,7 @@ Function luawrap_iface_profile(lua_State* L) {
   * @param name: iface_name the name of the interface
   */
 Constructor Iface_get(lua_State *L) {
-  const char *iface_name = checkS(L,1);
+  const char *iface_name = checkS(L1);
   Iface* iface = (Iface*) co_iface_get(iface_name);
   if (iface) {
     pushIface(L,iface);
@@ -1283,9 +894,9 @@ Constructor Iface_get(lua_State *L) {
   * @param family: AF_INET or AF_INET6 defaults to AF_INET
   */
 Constructor Iface_add(lua_State *L) {
-  const char *iface_name = checkS(L,1);
+  const char *iface_name = checkS(L1);
 // XXX remove if nil...
-  int family = (int)luaL_optnumber(L,2,(luaNumber)(AF_INET));
+  int family = (int)luaL_optnumber(L2,(luaNumber)(AF_INET));
   Iface* iface = (Iface*) co_iface_add(iface_name, family);
 
   if (iface) {
@@ -1331,7 +942,7 @@ static const luaL_Reg Iface_methods[] = {
 /** @method timer.add()
   */           
 Method Timer_add(lua_State*L) {
-    co_obj_t *o = checkTimer(L,1);
+    co_obj_t *o = checkTimer(L1);
     int r = co_loop_add_timer(o, NULL);
     lua_pushnumber(r);
 R1;
@@ -1340,7 +951,7 @@ R1;
 /** @method timer.remove()
   */           
 Method Timer_remove(lua_State*L) {
-    co_obj_t *o = checkTimer(L,1);
+    co_obj_t *o = checkTimer(L1);
     int r = co_loop_remove_timer(o, NULL);
     lua_pushnumber(r);
     R1;
@@ -1350,8 +961,8 @@ Method Timer_remove(lua_State*L) {
 /** @method timer.set(milis)
   */           
 Method Timer_set(lua_State*L) {
-    co_obj_t *t = checkTimer(L,1);
-    long m = (long)luaL_checknumber(L,2);
+    co_obj_t *t = checkTimer(L1);
+    long m = (long)luaL_checknumber(L2);
     int r = co_loop_set_timer(t,m,NULL);
     R1;
 }
@@ -1360,7 +971,7 @@ Method Timer_set(lua_State*L) {
 /** @constructor Timer.get(timer_id)
   */
 Constructor Timer_get(lua_State*L) {
-    char* timer_id = checkS(L,1); // BUG: 2do  make sure this key persists (anchor to a registry variable?)
+    char* timer_id = checkS(L1); // BUG: 2do  make sure this key persists (anchor to a registry variable?)
     pushTimer(co_loop_get_timer(timer_id,NULL));
     R1;
 }
@@ -1370,10 +981,10 @@ Constructor Timer_get(lua_State*L) {
   */           
 Constructor Timer_create(lua_State* L) {
     struct timeval deadline;
-    const char* timer_id = checkS(L,1); // this works because in lua strings are unique
+    const char* timer_id = checkS(L1); // this works because in lua strings are unique
                                             // but it needs not to be __gc d 
-    double tv = luaL_checknumber(L,2);
-    luaL_checktype (L, 3, LUA_TFUNCTION);
+    double tv = luaL_checknumber(L2);
+    luaL_checktype (L3, LUA_TFUNCTION);
     
     ++timer_id;
     deadline.tv_sec = (long)floor(tv);
@@ -1386,7 +997,7 @@ Constructor Timer_create(lua_State* L) {
 /** @method timer.__tostring()
   */           
 MetaMethod Timer__tostring(lua_State* L) {
-    co_timer_t* t = checkTimer(L,1);
+    co_timer_t* t = checkTimer(L1);
     pushS(L,(char*)t->ptr);
     R1;
 }
@@ -1420,7 +1031,7 @@ static int proc_start(co_obj_t *self, char *argv[]) {
     int i = 0;
     
     getReg(SelfCbKey("Process","start",(Process*)->name));
-    lua_settop(L,1);
+    lua_settop(L1);
     pushProcess(L,self);
     pushT(L);
     
@@ -1430,7 +1041,7 @@ static int proc_start(co_obj_t *self, char *argv[]) {
         lua_rawset(L, 3);
     }
     
-    if(lua_pcall(L,2,1)) {
+    if(lua_pcall(L2,1)) {
         //2do: error
         return 0;
     } else 
@@ -1453,10 +1064,10 @@ Constructor Process_create(lua_State* L) {
     static const char* fn_names[] = {"init","destroy","start","stop","restart",NULL};
     co_process_t* p;
 
-    proto.name = checkS(L,1);
-    proto.pid_file = checkS(L,2);
-    proto.exec_path = checkS(L,3);
-    proto.run_path = checkS(L,4);
+    proto.name = checkS(L1);
+    proto.pid_file = checkS(L2);
+    proto.exec_path = checkS(L3);
+    proto.run_path = checkS(L4);
     checkCbs(L,5,"Process",name,fn_names);
     
     p = co_process_create(sizeof(lua_process), proto, proto.name, proto.pid_file, proto.exec_path, proto.run_path);
@@ -1473,16 +1084,16 @@ Constructor Process_create(lua_State* L) {
   * @param argv an optional table containing the string arguments to the start procedure
   */
 Method Process_start(lua_State* L) {
-    co_obj_t *self = checkProcess(L,1);
+    co_obj_t *self = checkProcess(L1);
     char* argv[255];
     argv[0]=NULL;
     
-    if (lua_type(L,2) == LUA_TTABLE) {
+    if (lua_type(L2) == LUA_TTABLE) {
         lua_pushnil(L);
-        while (lua_next(L, 2) != 0) {
+        while (lua_next(L2) != 0) {
             if (i>255) break;
             argv[i] = toS(L, -1);
-            lua_pop(L, 1);
+            lua_pop(L1);
             if (argv[i] == NULL) break;
             argv[++i] = NULL;
         }
@@ -1495,14 +1106,14 @@ Method Process_start(lua_State* L) {
 /** @method process.__tostring()
   */
 Method Process__tostring(lua_State* L) {
-    pushFmtS(("Process:%s", checkProcess(L,1)->name ));
+    pushFmtS(("Process:%s", checkProcess(L1)->name ));
     R1;
 }
 
 /** @method process.add()
   */
 Method Process_add(lua_State*L) {
-    co_obj_t *proc = checkProcess(L,1);
+    co_obj_t *proc = checkProcess(L1);
     co_obj_unsetflags(proc,CO_FLAG_LUAGC);
     int pid = co_loop_add_process(proc);
     lua_pushnumber(L,(luaNumber)pid);
@@ -1512,7 +1123,7 @@ Method Process_add(lua_State*L) {
 /** @fn Process.remove(pid)
   */
 Function Process_remove(lua_State*L) {
-    int pid = (int)luaL_checknumber(L,1);
+    int pid = (int)luaL_checknumber(L1);
     int res = co_loop_remove_process(pid);
     lua_pushnumber(res);
     R1;
@@ -1577,7 +1188,7 @@ DefGC(Socket);
 /** @method socket.add()
   */
 Method Socket_add(lua_State*L) {
-    co_obj_t *o = checkSocket(L,1);
+    co_obj_t *o = checkSocket(L1);
     int r = co_loop_add_socket(o, NULL);
     unmarkSocket(o);
     pushN(r);
@@ -1587,7 +1198,7 @@ Method Socket_add(lua_State*L) {
 /** @method socket.remove()
   */
 Method Socket_remove(lua_State*L) {
-    co_obj_t *o = checkSocket(L,1);
+    co_obj_t *o = checkSocket(L1);
     int r = co_loop_remove_socket(o, NULL);
     markSocket(o);
     pushN(r);
@@ -1597,7 +1208,7 @@ Method Socket_remove(lua_State*L) {
 /** @constructror Socket.get(uri)
   */
 Constructor Socket_get(lua_State*L) {
-    char *uri = checkS(L,1);
+    char *uri = checkS(L1);
     co_obj_t *o = co_loop_get_socket(uri, NULL);
     pushSocket(L,o);
     R1;
@@ -1645,8 +1256,8 @@ Method Socket_create(uri,listen){
         0
     };
 
-    proto.uri = checkS(L,1);
-    proto.listen = optB(L,2,0);
+    proto.uri = checkS(L1);
+    proto.listen = optB(L2,0);
     
     checkCbs(L,5,"Socket",proto.uri,fn_names);
     
@@ -1709,7 +1320,7 @@ Method_N(Socket,destroy,co_socket);
  */
 Constructor UnixSocket__unix(lua_State* L) {
     size_t nlen;
-    const char* name = checkL(L,1,&nlen);
+    const char* name = checkL(L1,&nlen);
     Obj* key = co_str8_create(name, nlen, 0); 
     int r = unix_socket_init(key);
     if (r==0) {
@@ -1773,7 +1384,7 @@ Function NodeId_get(lua_State* L) {
  * @param dir_path directory to load plugins from
  */
 Function Plugin_load(lua_State* L) {
-    pushN(L, co_plugins_load(checkS(L,1)));
+    pushN(L, co_plugins_load(checkS(L1)));
     R1;
 }
 
