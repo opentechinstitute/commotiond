@@ -14,7 +14,7 @@ do
     local lw_code="i.c"
     
     local verbose = 6 -- I'm the verbosity level
-    local __err = error -- the error function (will change at each line read)
+    local E = error -- the error function (will change at each line read)
    
     local function dup_to(t) -- I create tables that will copy to the given table (err if key exists)
         -- used to guarantee uniqueness of names between different objects
@@ -22,8 +22,7 @@ do
             __newindex=function(o,k,v)
                 if t[k] then
                     local o = t[k];
-                    __err(("duplicate name: %s previously used in %s:%d")
-                            :format(k, o.filename, o.ln))
+                    E(("duplicate name: %s previously used in %s:%d"):format(k, o.filename, o.ln))
                 end
                 rawset(o,k,v);
                 t[k]=v;
@@ -47,8 +46,6 @@ do
     function table.shift(t) return t:remove(1) end
     table.pop = table.remove
     table.push = table.insert
-    
-    
     
     function string.mcount(s,pat) -- I count occurrences of pat in a string
         local ln = 0
@@ -78,9 +75,9 @@ do
                 
                 for i,el in ipairs(m:split(".",".")) do 
                     r = r[el]
-                    test = r or __err(f("No such element in table: '%s'",m))
+                    test = r or E(f("No such element in table: '%s'",m))
                 end
-                return type(r) == "string" and r or __err("WTF")
+                return r
             else
                 return o[m]
             end
@@ -340,7 +337,7 @@ do
             if t_par then
                 r.t = ty
             else
-                local t =  (types[ty] or __err("no such type: " .. ty)).t
+                local t =  (types[ty] or E("no such type: " .. ty)).t
                 r.t = t
                 r.type = ty
                 t_par = t_pars[t]
@@ -376,10 +373,10 @@ do
     local lw_cmd = {}; --  //LW: commands execution
 
     function lw_cmd.Module(params,val,frame)
-        if module_name then __err("module already defined") end        
+        if module_name then E("module already defined") end        
         log(2,'Module:',params)
         local p = params:split("%s"," ","+");
-        module_name = p[1]:M("^(%u%a+)$") or __err("no module name given")
+        module_name = p[1]:M("^(%u%a+)$") or E("no module name given")
         mode = M("^(%a+)$",p[1]) or "static"
         test = mode:M("static") or err("only static mode supported")
         local s = "#include <stdio.h>\n#include <lua.h>\n#include <lualib.h>\n#include <lauxlib.h>\n"
@@ -389,14 +386,14 @@ do
         
         if mode == 'static' then
             local fn = prefix .. lw_include
-            local fd = io.open(fn,"r") or __err("cannot open: " .. fn)
-            frame.add(fd:read("*all") or __err("cannot read: " .. fn),fn,1)
+            local fd = io.open(fn,"r") or E("cannot open: " .. fn)
+            frame.add(fd:read("*all") or E("cannot read: " .. fn),fn,1)
             fd:close()
 
 
             fn = prefix .. lw_code
-            fd = io.open(fn,"r") or __err("cannot open: " .. fn)
-            frame.add(fd:read("*all") or __err("cannot read: " .. fn),fn,1)
+            fd = io.open(fn,"r") or E("cannot open: " .. fn)
+            frame.add(fd:read("*all") or E("cannot read: " .. fn),fn,1)
             fd:close()
         else -- 'extern'
             -- copy luawrap.h
@@ -409,12 +406,12 @@ do
 
     
     function class (params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         local c = {filename=frame.filename,ln=frame.ln, methods={}}
         local p = params:split("%s"," ","+");
         
-        c.name = p[1]:match("^([%a]+)$") or __err("Class must have a name [A-Z][A-Za-z0-9]+")
-        c.type = p[2]:match("^([%a_]+)$") or __err("Class must have a type [A-Za-z0-9]+")
+        c.name = p[1]:match("^([%a]+)$") or E("Class must have a name [A-Z][A-Za-z0-9]+")
+        c.type = p[2]:match("^([%a_]+)$") or E("Class must have a type [A-Za-z0-9]+")
         c.t = 'O';
         classes[c.name] = c
 
@@ -439,7 +436,7 @@ do
     end
 
     function lw_cmd.Alias(params,val,frame)
-       if not module_name then __err("no module defined") end        
+       if not module_name then E("no module defined") end        
        log(5,'Alias:',params,val)
         do return end
         local a = {}
@@ -449,7 +446,7 @@ do
     local mode = 'static'
 
     function lw_cmd.CallBack(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         log(5,'CallBack:',params,val)
         
         local c = {t = 'F'}
@@ -463,19 +460,19 @@ do
     end
     
     function lw_cmd.Accessor(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         log(5,'Accessor:',params,val)
         do return end
     end
     
     function lw_cmd.OwnFunction(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         log(5,'OwnFunction:',params,val)
         do return end
     end
 
     function lw_cmd.Finish(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         log(5,'Finish:',params,val)
         do return end
     end
@@ -484,7 +481,7 @@ do
 
 
     function lw_cmd.CallBack(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         do return end
         -- 2do: break like Class
         local cb = lw_cmd.Function(params,val,frame,{
@@ -498,33 +495,33 @@ do
     local function shift(t) return table.remove(t,1) end
     
     function lw_cmd.Function(params,val,frame)
-        if not module_name then __err("no module defined") end        
+        if not module_name then E("no module defined") end        
         log(2,'Function:',params,val)
         local m = m or {
             filename=fname, ln=fln, rets={}, args={}, names={}, params=params, expr=val
         }
         
         local pars = params:split("%s"," ",'+');
-        m.fullname = shift(pars) or __err("Function must have name parameter")
-        m.fn_name = shift(pars) or __err("Function must have fn_name parameter")        
-        m.proto = prototypes[m.fn_name] or __err("no prototype found for: " .. v2s(m.fn_name) )
+        m.fullname = shift(pars) or E("Function must have name parameter")
+        m.fn_name = shift(pars) or E("Function must have fn_name parameter")        
+        m.proto = prototypes[m.fn_name] or E("no prototype found for: " .. v2s(m.fn_name) )
         
         local collection
         
         if m.fullname:match("%s*(%u[%a]+)[.]([%a_]+)%s*") then
             m.cname, m.name = m.fullname:match("(%u[%a]+)[.]([%a_]+)")
-            collection = (classes[m.cname] or __err("no such class: " .. v2s(m.cname))).methods
+            collection = (classes[m.cname] or E("no such class: " .. v2s(m.cname))).methods
         elseif m.fullname:match("([%a_]+)") then
             m.name = m.fullname
             collection = functions
         else
-            __err("Not a good name: "..v2s(m.fullname))
+            E("Not a good name: "..v2s(m.fullname))
         end
         
         local i = 0
         local ret, args = val:match("%s*([^@]*)%s*[@]?([^@]*)%s*")
         
-        test = (ret and args) or __err("malformed method:" .. v2s(m.fn_name) )
+        test = (ret and args) or E("malformed method:" .. v2s(m.fn_name) )
         
         D(types)
         splitList(ret,ret_t_pars,m.rets)
@@ -535,7 +532,7 @@ do
                 if m.proto.args[a.name] then
                     a.type = m.proto.args[a.name].type
                 else
-                    __err(f("In function %s untyped argument: '%s' is not in prototype",m.fullname,a.name))
+                    E(f("In function %s untyped argument: '%s' is not in prototype",m.fullname,a.name))
                 end
             end
         end
@@ -552,7 +549,7 @@ do
         if cmd == 'ProcFile' then
             local infile, outfile = line:match('ProcFile%s+([^%s]+)%s*([^%s]*)%s*')
             
-            test =  not infile and __err("No input file in ProcFile directive")
+            test =  not infile and E("No input file in ProcFile directive")
             local new_fr = reader(infile,frame.add,frame.vadd,frame.finish)
             table.insert(stack,new_fr)
             frame = stack[#stack]
@@ -560,7 +557,7 @@ do
                 if mode == 'extern' then
                     frame.add, frame.vadd, frame.finish = output(outfile)
                 else
-                    __err("Cannot use ProcFile in 'static' mode");
+                    E("Cannot use ProcFile in 'static' mode");
                 end
             end
             return frame 
@@ -569,10 +566,10 @@ do
                 lw_cmd[cmd](params,val,frame)
                 return frame;
             else
-                __err("No such command: " .. cmd)
+                E("No such command: " .. cmd)
             end
         else
-            __err(" bad cmd: " .. lwc)
+            E(" bad cmd: " .. lwc)
         end
     end
     
@@ -580,7 +577,7 @@ do
         local f = io.open(filename, "r");
         
         if not f then
-            __err("Cannot open file: '" .. filename .. "'")
+            E("Cannot open file: '" .. filename .. "'")
         end
 
         local s = f:read("*all")
@@ -623,7 +620,7 @@ do
                     os.exit(3)
                 end
             
-                __err = _err
+                E = _err
                 
                 if ml_lwc then
                     ml_lwc = ml_lwc .. line
