@@ -13,11 +13,11 @@
  */
 
 
-/* this C file is most likely be dumped into a generated wrapper than compiled
-   standalone the include is unnecessary furthermore the file is likely not
+#ifndef __LuaWrap
+/* this C include is most likely be dumped into a generated wrapper than compiled
+   standalone. The include is unnecessary furthermore the file is likely not
    even to exists at the given location so its fencing.
    */
-#ifndef __LuaWrap
 #include "luawrap.h"
 #endif
 
@@ -143,7 +143,6 @@ LW_MODE int lwClassCreate(luaState* L, const char* name, luaL_Reg* methods, luaL
     lua_setfield (L, -2, "__metatable");
     /* pop the metatable */
     lua_pop (L,1);
-    /* set the class methods table as the global class table */
     return 1;
 }
 

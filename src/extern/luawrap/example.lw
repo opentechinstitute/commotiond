@@ -25,14 +25,14 @@
 //LW: Class CmdKey co_obj_t
 
 int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
-//LW: Function generate_ip co_generate_ip: L{output;(_>0?_:0);4096} N{_} @ S{base} S{genmask} N{id} N{type}
+//LW: Function generate_ip co_generate_ip: L{output;_;int} N{_} @ S{base} S{genmask} N{id} N{type} 
 
 
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
 //LW: CallBack ListIter co_iter_t closure: Obj{_} @ List{data} Obj{current} X{context;NULL;void*}
 
 co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
-//LW: Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL;void*}
+//   LW: Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL;void*}
 
 
 /* @brief typedef for a Callback Id generator
@@ -48,11 +48,11 @@ typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 //LW: CallBack CmdCB co_cb_t key: Obj{output} N{_} @ Obj{self} X{outputp;&output;Obj**} K{CmdCb,self}
 
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
-//LW: Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CoCB{cb} K{CmdCb;key}
+//  LW: Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CoCB{cb} K{CmdCb;key}
 
 
-//LW: Function List.import co_list_import: List{list} N{_} @ L{input;ilen} X{listp;&list;co_obj_t**}
-//LW: Function List.contains co_list_contains: B{_} @ List{list} O{item;Obj}
+//LW: Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;co_obj_t**}
+//LW: Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
 //LW: Function List.len co_list_length: N{_} @ List{list}
 //LW: Alias List.__len List.len
 
@@ -75,9 +75,9 @@ typedef int (*socket_send_cb)(co_obj_t *self, char *outgoing, size_t length);
 //LW: Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}
 
 /*LW: Function Socket.receive co_socket_receive:
-        L{incoming;(_>0?_:0);4096} N{_} @ Socket{self} Fd{fd} X{length;4096} */
+        L{incoming;_;4096} N{_} @ Socket{self} Fd{fd} X{length;4096}*/
 
-//LW: Function List.element co_list_element: Obj{_} = List{list} @ N{index}
+//LW: Function List.element co_list_element: Obj{_} @ List{list} N{index}
 
 
 //LW: OwnFunction Socket.add Socket_add
