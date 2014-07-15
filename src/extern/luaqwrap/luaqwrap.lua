@@ -1,4 +1,4 @@
---!       @file  luawrap.lua
+--!       @file  luaqwrap.lua
 --      @brief  An API wrapper for the Lua programming Language
 --
 --     @author  Luis E. Garcia Ontanon <luis@ontanon.org>
@@ -10,8 +10,8 @@
 --
 --   See Copyright notice at bottom of the file
 do
-    local lw_include="i.h"
-    local lw_code="i.c"
+    local lqw_include="luaqwrap.h"
+    local lqw_code="luaqwrap.c"
     
     local verbose = 6 -- I'm the verbosity level
     local own_prefix  = arg[0]:match("^(.*/)[%a_.]") or '' -- I hold the own prefix to the script (and its files)
@@ -30,7 +30,7 @@ do
     table.pop = table.remove
     table.push = table.insert
     
-    local lw_cmd = {}; --  //LW: commands execution
+    local lqw_cmd = {}; --  //LW: commands execution
     local mode = 'static'
 
     local function dup_to(t) -- I create tables that will copy to the given table (err if key exists)
@@ -380,7 +380,7 @@ do
     end
 
     local function class2C(c) -- given a class I yield C code for its basic functions or declarations
-        return F("typedef %{type} %{name};\n"..((c.own and "LwDeclareClass(%{name});\n") or "LwDefineClass(%{name});\n"),c)
+        return F("typedef %{type} %{name};\n"..((c.own and "LqwDeclareClass(%{name});\n") or "LqwDefineClass(%{name});\n"),c)
     end
 
     local function registration2C(fn_name) -- I yield C code for registration to Lua of classes and functions 
@@ -400,7 +400,7 @@ do
             end
             s = s .. "    {NULL,NULL}};\n"
             
-            b = b .. F('  LwClassRegister(%{name},1);\n',c)
+            b = b .. F('  lqwClassRegister(%{name},1);\n',c)
 
         end
         
@@ -466,16 +466,16 @@ do
         if c.mode == 'closure' then
             s = F("static int %{name}__fn_idx;\n",c);
         else
-            call = F('  int fn_idx = lua_gettop(L)+1;\n  lw_getCb(L,cbKey%{name}((void*)(%{key_name})));\n',c);
+            call = F('  int fn_idx = lua_gettop(L)+1;\n  lqw_getCb(L,cbKey%{name}((void*)(%{key_name})));\n',c);
         end
         
-        s = s .. F("LW_MODE %{proto.type} call%{name}(%{proto.arglist}) {\n  luaState* L = lwState();",c)
+        s = s .. F("LQW_MODE %{proto.type} call%{name}(%{proto.arglist}) {\n  luaState* L = lwState();",c)
         
         if c.proto.type ~= 'void' then
             s = s .. F("\n  %{proto.type} _ = %{ret_def};\n",c)
         end
         
-        local cf = 'LW_MODE %{name} check%{name}(luaState* L, int idx'
+        local cf = 'LQW_MODE %{name} check%{name}(luaState* L, int idx'
         
         if c.mode == 'closure' then
             cf = cf .. F(") {\n",c)
@@ -523,7 +523,7 @@ do
         if c.mode == 'closure' then
             cf = cf .. "  %{name}__fn_idx = idx;\n"
         else 
-            cf = cf .. '  lw_setCb(L,cbKey%{name}(%{key_name}));\n'
+            cf = cf .. '  lqw_setCb(L,cbKey%{name}(%{key_name}));\n'
         end
         cf = cf .. "\n return call%{name};\n}\n";
                 
@@ -575,7 +575,7 @@ do
     
 
 
-    function lw_cmd.Module(params,val,frame)
+    function lqw_cmd.Module(params,val,frame)
         if module_name then E("module already defined") end        
         log(2,'Module:',params)
         local p = params:split("%s"," ","+");
@@ -583,18 +583,18 @@ do
         mode = M("^(%a+)$",p[1]) or "static"
         test = mode:M("static") or E("only static mode supported")
         local s = "#include <stdio.h>\n#include <lua.h>\n#include <lualib.h>\n#include <lauxlib.h>\n"
-          .. f("#define LW_MODULE %s\n#define LW_MODE %s\n",module_name,mode)
+          .. f("#define LQW_MODULE %s\n#define LQW_MODE %s\n",module_name,mode)
         frame.add(s)
         
         
         if mode == 'static' then
-            local fn = own_prefix .. lw_include
+            local fn = own_prefix .. lqw_include
             local fd = io.open(fn,"r") or E("cannot open: " .. fn)
             frame.add(fd:read("*all") or E("cannot read: " .. fn),fn,1)
             fd:close()
 
 
-            fn = own_prefix .. lw_code
+            fn = own_prefix .. lqw_code
             fd = io.open(fn,"r") or E("cannot open: " .. fn)
             frame.add(fd:read("*all") or E("cannot read: " .. fn),fn,1)
             fd:close()
@@ -621,7 +621,7 @@ do
         return c
     end
     
-    function lw_cmd.Class(params,val,frame)
+    function lqw_cmd.Class(params,val,frame)
         log(2,'Class:',params,val)
         local c = class(params,val,frame)
         log(3,'Class:',c)
@@ -629,7 +629,7 @@ do
         frame.add(s);
     end
     
-    function lw_cmd.OwnClass(params,val,frame)
+    function lqw_cmd.OwnClass(params,val,frame)
         log(2,'OwnClass:',params,val)
         local c = class(params,val,frame)
         c.own = true
@@ -638,7 +638,7 @@ do
         frame.add(s);
     end
 
-    function lw_cmd.Alias(params,val,frame)
+    function lqw_cmd.Alias(params,val,frame)
        if not module_name then E("no module defined") end        
        log(5,'Alias:',params,val)
         do return end
@@ -646,19 +646,19 @@ do
         log(3,'Alias:',a)
     end
     
-    function lw_cmd.Accessor(params,val,frame)
+    function lqw_cmd.Accessor(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'Accessor:',params,val)
         do return end
     end
     
-    function lw_cmd.OwnFunction(params,val,frame)
+    function lqw_cmd.OwnFunction(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'OwnFunction:',params,val)
         do return end
     end
 
-    function lw_cmd.Finish(params,val,frame)
+    function lqw_cmd.Finish(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'Finish:',params,val)
         local fname = params:M("^%s*([%a_]+)%s*$") or E("Not a valid registration function name");
@@ -688,7 +688,7 @@ do
         O={"name","ref","default"},
     }        
     
-    function lw_cmd.Function(params,val,frame,m)
+    function lqw_cmd.Function(params,val,frame,m)
         if not module_name then E("no module defined") end        
         log(2,'Function:',params,val)
         local m = m or {
@@ -759,10 +759,10 @@ do
         log(3,"Function",m)
     end
 
-    function lw_cmd.CallBack(params,val,frame)
+    function lqw_cmd.CallBack(params,val,frame)
         if not module_name then E("no module defined") end
         
-        local cb = lw_cmd.Function(params,val,frame,{
+        local cb = lqw_cmd.Function(params,val,frame,{
             is_cb=true,filename=frame.filename, ln=frame.ln,
             rets={}, args={}, names={}, params=params, expr=val, t='F'
         })
@@ -789,8 +789,8 @@ do
             end
             return frame 
         elseif cmd then
-            if lw_cmd[cmd] then
-                lw_cmd[cmd](params,val,frame)
+            if lqw_cmd[cmd] then
+                lqw_cmd[cmd](params,val,frame)
                 return frame;
             else
                 EF("No such command: '%s'", cmd)

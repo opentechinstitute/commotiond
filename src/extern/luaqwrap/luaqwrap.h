@@ -13,8 +13,8 @@
  *   Based on code written by me <lego@wireshark.org> for Wireshark 
  */
 
-#ifndef __LuaWrap
-#define __LuaWrap
+#ifndef __LuaQWrap
+#define __LuaQWrap
 
 #include <math.h>
 #include <stdio.h>
@@ -22,8 +22,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#ifndef LW_MODE
-#define LW_MODE extern
+#ifndef LQW_MODE
+#define LQW_MODE extern
 #endif 
 
 /* Sizes */
@@ -43,7 +43,7 @@
 #define isS lua_isstring
 #define optS luaL_optstring
 #define shiftS(L,i) //2do (fn)
-#define pushFmtS(ARGS) ( lua_pushstring(L, lwFmt ARGS ) )
+#define pushFmtS(ARGS) ( lua_pushstring(L, lqwFmt ARGS ) )
 
 #define toL lua_tolstring
 #define checkL luaL_checklstring
@@ -119,23 +119,23 @@
  *   void Xxx__check(Xxx*) check the object, throw an error if invalid
  *   void Xxx__push(Xxx*) what to do when a new object is pushed into Lua... 
  *   void Xxx__gcoll(Xxx*) the garbage collector... what to do when the object leaves Lua.
- * LwDefinePushDummy(Xxx) and LwDefineChkDummy(Xxx) and LwDefineGCollDummy(C) might help
+ * LqwDefinePushDummy(Xxx) and LqwDefineChkDummy(Xxx) and LqwDefineGCollDummy(C) might help
  */
-#define LwClassDefine(C) \
-LW_MODE void C##__push(#C*); LW_MODE void C##__check(#C*); LW_MODE void C##__gcoll(#C*) \
-LW_MODE C to##C(DLI) { \
+#define LqwClassDefine(C) \
+LQW_MODE void C##__push(#C*); LQW_MODE void C##__check(#C*); LQW_MODE void C##__gcoll(#C*) \
+LQW_MODE C to##C(DLI) { \
     C* v = (C*)lua_touserdata (L, idx); \
     if (!v) luaL_error(L, "bad argument %d (%s expected, got %s)", idx, #C, lua_typename(L, lua_type(L, idx))); \
     return v ? *v : NULL; \
 } \
-LW_MODE C check##C(DLI) { \
+LQW_MODE C check##C(DLI) { \
     C* p; \
     luaL_checktype(DLI,LUA_TUSERDATA); \
     p = (C*)luaL_checkudata(LI, #C); \
     C##__check(p); \
     return p ? *p : NULL; \
 } \
-LW_MODE C* push##C(lua_State* L, C v) { \
+LQW_MODE C* push##C(lua_State* L, C v) { \
     C* p; \
     luaL_checkstack(L2,"Unable to grow stack\n"); \
     p = (C*)lua_newuserdata(L,sizeof(C)); *p = v; \
@@ -143,7 +143,7 @@ LW_MODE C* push##C(lua_State* L, C v) { \
     C##__push(p); \
     return p; \
 }\
-LW_MODE gboolean is##C(DLI) { \
+LQW_MODE gboolean is##C(DLI) { \
     void *p; \
     if(!lua_isuserdata(LI)) return FALSE; \
     p = lua_touserdata(LI); \
@@ -152,7 +152,7 @@ LW_MODE gboolean is##C(DLI) { \
     lua_pop(L2); \
     return p ? TRUE : FALSE; \
 } \
-LW_MODE C shift##C(DLI) { \
+LQW_MODE C shift##C(DLI) { \
     C* p; \
     if(!lua_isuserdata(LI)) return NULL; \
     p = (C*)lua_touserdata(LI); \
@@ -162,26 +162,26 @@ LW_MODE C shift##C(DLI) { \
     if (p) { lua_remove(LI); return *p; }\
     else return NULL;\
 } \
-LW_MODE int dump#C(lua_State* L) { pushS(L,#C); R1; } \
-LW_MODE C* opt#C(DLI,dflt) { retrun ( (lua_gettop(L)<idx || isNil(LI)) ? dflt : check##C(LI) )); R0;}}\
-LW_MODE int C##__gc (luaState* L) { C#__gcoll(to##C(L,1)); return 0; } \
+LQW_MODE int dump#C(lua_State* L) { pushS(L,#C); R1; } \
+LQW_MODE C* opt#C(DLI,dflt) { retrun ( (lua_gettop(L)<idx || isNil(LI)) ? dflt : check##C(LI) )); R0;}}\
+LQW_MODE int C##__gc (luaState* L) { C#__gcoll(to##C(L,1)); return 0; } \
 _End(C,ClassDefine)
 
 
-#define LwDefinePushDummy(C) LW_MODE void C##__push(#C*) {}
-#define LwDefineChkDummy(C) LW_MODE void C##__check(#C*) {}
-#define LwDefineGCollDummy(C) LW_MODE void C##__gcoll(#C*) {}
+#define LqwDefinePushDummy(C) LQW_MODE void C##__push(#C*) {}
+#define LqwDefineChkDummy(C) LQW_MODE void C##__check(#C*) {}
+#define LqwDefineGCollDummy(C) LQW_MODE void C##__gcoll(#C*) {}
 
 
-#define LwClassDeclare(C) \
-LW_MODE C to##C(DLI); \
-LW_MODE C check##C(DLI); \
-LW_MODE C* push##C(lua_State* L, C v) ; \
-LW_MODE gboolean is##C(DLI) ; \
-LW_MODE C shift##C(DLI) ; \
-LW_MODE int dump#C(lua_State* L); \
-LW_MODE C* opt#C(DLI,dflt);
-LW_MODE int C##__gc (luaState* L)
+#define LqwClassDeclare(C) \
+LQW_MODE C to##C(DLI); \
+LQW_MODE C check##C(DLI); \
+LQW_MODE C* push##C(lua_State* L, C v) ; \
+LQW_MODE gboolean is##C(DLI) ; \
+LQW_MODE C shift##C(DLI) ; \
+LQW_MODE int dump#C(lua_State* L); \
+LQW_MODE C* opt#C(DLI,dflt);
+LQW_MODE int C##__gc (luaState* L)
 ;
 
 /* @brief prototype for callback keying functions
@@ -191,7 +191,10 @@ LW_MODE int C##__gc (luaState* L)
  * the return of a CbKey must be able to uniquely identify the calling instance
  * of a callback based on a datum passed to the callback
  */
-typedef const char* (*lwCbKey_t)(const char* cbname, void* ptr);
+typedef const char* (*lqwCbKey)(void* ptr);
+#define LqwCbKeyPtr(CB) LQW_MODE const char* CB##_key(void* p) { return lqwFmt(#CB ":%p",p); }
+#define LqwCbKeyStr(CB) LQW_MODE const char* CB##_key(void* p) { return lqwFmt(#CB ":%s",(const char*)p); }
+
 
 
 /****************************************************************/
@@ -199,13 +202,13 @@ typedef const char* (*lwCbKey_t)(const char* cbname, void* ptr);
 /*
  * it creates the class and its tables and leaves it on top of the stack.
  */
-LW_MODE int lwClassCreate(luaState* L, const char* name, luaL_Reg* methods, luaL_Reg* meta, lua_CFunction __gc);
+LQW_MODE int lqwClassCreate(luaState* L, const char* name, luaL_Reg* methods, luaL_Reg* meta, lua_CFunction __gc);
 
 /* ... to be added to a given table (idx)*/
-#define LwClassRegister(C,idx) { pushS(L,#C); lwClassCreate(L,#C,C##_methods,C##_meta,C##__gc); lua_settable(L,idx); }
+#define LqwClassRegister(C,idx) { pushS(L,#C); lqwClassCreate(L,#C,C##_methods,C##_meta,C##__gc); lua_settable(L,idx); }
 
 /* ... or to the global namespace */
-#define LwClassRegister(C) { pushS(L,#C); lwClassCreate(L,#C,C##_methods,C##_meta,C##__gc); lua_setglobal(L,-1); }
+#define LqwClassRegister(C) { pushS(L,#C); lqwClassCreate(L,#C,C##_methods,C##_meta,C##__gc); lua_setglobal(L,-1); }
 
 /* LuaWrapDeclarations and LuaWrapDefinitions
  */
@@ -214,25 +217,22 @@ LW_MODE int lwClassCreate(luaState* L, const char* name, luaL_Reg* methods, luaL
    in rotating storage, ROTBUF_NBUFS determines how many different strings will be there at any time.
    Results are valid before calling it again ROTBUF_NBUFS times, after that the result is being overwritten.
    */
-LW_MODE const char* lwFmt(const char *f, ...);
-LW_MODE const char* lwVFmt(const char *f, va_list);
+LQW_MODE const char* lqwFmt(const char *f, ...);
+LQW_MODE const char* lqwVFmt(const char *f, va_list);
 
-LW_MODE const char* v2s(VS* vs, int v, int def); // for enums
-LW_MODE int s2v(VS* vs, const char* s, int def); // 2do
-LW_MODE int pushE(lua_State* L, int idx, VS* e); // 2do
-
-LW_MODE const char* lwCbKeyPtr(const char* cbname, const char* fname, void* ptr);
-LW_MODE const char* lwCbKeyS(const char* cbname, const char* fname, void* ptr);
-LW_MODE const char* lwCbKeyInt(const char* cbname, const char* fname, void* ptr);
+typedef struct VS {const char* s; int v;} VS;
+LQW_MODE const char* lqwV2S(VS* vs, int v, int def);
+LQW_MODE int lqwS2V(VS* vs, const char* s, int def);
+LQW_MODE int pushE(lua_State* L, int idx, VS* e); // 2do
 
 /* luaL_error() returns void... so it cannot be used in expressions... that sucks!
  * this one returns, so it can be used "inline" with &&, || and ?:
  */
-LW_MODE int lwError(lua_State* L, const char *f, ...); 
-LW_MODE lua_State* lwState(void);
-LW_MODE int lwCleanup(void);
+LQW_MODE int lqwError(lua_State* L, const char *f, ...); 
+LQW_MODE lua_State* lqwState(void);
+LQW_MODE int lqwCleanup(void);
 
-LW_MODE int lwNop(lua_State* L); // do nothing
+LQW_MODE int lqwNop(lua_State* L); // do nothing
 
 /*
  * RegisterFunction(name)
@@ -242,18 +242,18 @@ LW_MODE int lwNop(lua_State* L); // do nothing
 
 
 /* function type markers  */
-#define Register LW_MODE int
-#define Method LW_MODE int
-#define Constructor LW_MODE int
-#define MetaMethod LW_MODE int
-#define Function LW_MODE int
+#define Register LQW_MODE int
+#define Method LQW_MODE int
+#define Constructor LQW_MODE int
+#define MetaMethod LQW_MODE int
+#define Function LQW_MODE int
 
 /* registration */
-#define Methods LW_MODE const luaL_Reg
-#define Meta LW_MODE const luaL_Reg
+#define Methods LQW_MODE const luaL_Reg
+#define Meta LQW_MODE const luaL_Reg
 
 /* throws an error */
-#define LwError(error) do { luaL_error(L, error ); return 0; } while(0)
+#define LqwError(error) do { luaL_error(L, error ); return 0; } while(0)
 
 /* throws an error for a bad argument */
 #define ArgError(idx,error) do { luaL_argerror(L,idx,error); return 0; } while(0)

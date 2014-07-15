@@ -1,23 +1,23 @@
-LuaWrap an API wrapper for Lua
+LuaQWrap an API wrapper for Lua
 Copyright (c) 2014, Luis Enrique Garcia Ontanon
 
-LuaWrap is a code generator to create Lua bindings for C APIs.
+LuaQWrap is a code generator to quickly create Lua bindings for C APIs.
 
-luawrap.lua parses the original file (.lw) copying it into its outfile
-looking for "LW directives" in comments and replaces them with the
-appropriate C code.
-
-The .lw file is C with special #preprocessor lines that are called directives.
+luawrap.lua parses the original file (.lqw) copying it into its outfile
+looking for directives in #Directives and replaces them with the
+appropriate C code. The .lqw file is C with special #preprocessor lines
+that are called directives.
 
 LuaWrap directives are:
-
 
 #Module <name> [mode="static"|"extern"]
    Defines the name of the module to be added to the global namespace and sets
  in which mode luawrap is to operate (defaults to 'static'), it must be the
  first LW command in the file.
+ 
+ name: first letter uppercase, only alphanumeric afterwards
 
-   In 'static' mode it parses and generates a single .c file and all functions
+ mode:  In 'static' mode it parses and generates a single .c file and all functions
  are created static.
 
    In 'extern' mode the main file is seed to a .h and tells which .lw files are
@@ -138,7 +138,7 @@ elems in argument-list can be:
 
 
 
-LuaWrap is directly derived from the code used to add Lua to
+LuaQWrap is directly derived from the code used to add Lua to
 Wireshark, and authored by the same person.
 
 \Lego

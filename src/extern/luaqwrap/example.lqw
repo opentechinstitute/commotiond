@@ -1,4 +1,4 @@
-/** @file example.lw
+/** @file example.lqw
  *  @brief an example of a LuaWrap wrapper
  */
 
@@ -34,7 +34,7 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
  */
 
 static const char* cbKeyCmdCB(void* ptr) {
-    return lwFmt("CmdCB%s",((co_str8_t*)ptr)->data);
+    return lqwFmt("CmdCB%s",((co_str8_t*)ptr)->data);
 }
 
 typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
@@ -58,15 +58,41 @@ int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
 #Accessor Socket.dummy RW: B{$dummy} @ B{$dummy} 
 
 
+typedef int (*socket_cb)(co_obj_t *self, co_obj_t *context);
+LqwCbKeyPtr(SocketInitCB);
+#CallBack SocketInitCB{self} socket_cb 0: N{_} @ Socket{self}
+LqwCbKeyPtr(SocketDestroyCB);
+#CallBack SocketDestroyCB{self} socket_cb 0: N{_} @ Socket{self}
+
 typedef int (*socket_ctx_cb)(co_obj_t *self, co_obj_t *context);
-static lwCbKey cbKeySocketCtxCB = lwCbKey_ptr;
-#CallBack SocketCtxCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+LqwCbKeyPtr(SocketHangupCB);
+#CallBack SocketHangupCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+LqwCbKeyPtr(SocketPollCB);
+#CallBack SocketPollCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+LqwCbKeyPtr(SocketRegisterCB);
+#CallBack SocketRegisterCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
 
 typedef int (*socket_send_cb)(co_obj_t *self, char *outgoing, size_t length);
-static lwCbKey cbKeySocketSendCB = lwCbKey_ptr;
+LqwCbKeyPtr(SocketSendCB);
 #CallBack SocketSendCB{self} socket_send_cb 0: N{_} @ Socket{self} L{outgoing;lenght}
 
-#Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}X
+typedef int (*socket_ep_cb)(co_obj_t *self, const char *endpoint);
+#CallBack SocketBindCB{self} socket_ep_cb 0: N{_} @ Socket{self} S{endpoint}
+#CallBack SocketConnectCB{self} socket_ep_cb 0: N{_} @ Socket{self} S{endpoint}
+
+typedef int (*socket_receive_cb)(co_obj_t *self, co_obj_t *fd, char *incoming, size_t length);
+#CallBack SocketReceiveCB{self} socket_receive_cb 0: L{incoming;_;65536} N{_} @ Socket{self} Fd{fd}
+
+
+typedef int (*socket_opt_cb)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
+#CallBack SocketSetOptCB{self} socket_opt_cb 0:\
+    L{optval;_;65536} N{_} @ Socket{self} N{level;int} N{option;int} X{optvallen;65536;socklen_t}
+#CallBack SocketGetOptCB{self} socket_opt_cb 0: \
+    L{optval;_;65536} N{_} @ Socket{self} N{level;int} N{option;int} X{optvallen;65536;socklen_t}
+
+
+
+#Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}
 
 #Function Socket.receive co_socket_receive: \
         L{incoming;_;4096} N{_} @ Socket{self} Fd{fd} X{length;4096}
