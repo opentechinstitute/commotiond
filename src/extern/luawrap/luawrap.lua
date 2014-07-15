@@ -81,11 +81,14 @@ do
         local function replace(m)
             if m:match("[.]") then
                 local r = o
+                print("<--");
                 
                 for i,el in ipairs(m:split(".",".")) do 
+                    print(i,el);
                     r = r[el]
                     test = r or EF("No such element in table: '%s'",m)
                 end
+                print("-->");
                 return r
             else
                 return o[m]
@@ -160,6 +163,8 @@ do
       dump(s)
     end
     
+    local function D(o) log(0,o) end
+
     local function output(f,cmd) -- I  manage an output file adding #line directives when needed
         -- return 3 functions:
         --    add(lines,filename,linenum)
@@ -187,7 +192,7 @@ do
                     __l = _l
                 end
                 
-                local __s = (__f and ff('#line %d %s\n',__l,__f) or '') .. _s
+                local __s = (__f and ff('#line %d "%s"\n',__l,__f) or '') .. _s
                 
                 __l = __s:mcount("\n")
                 l = l + __l
@@ -292,8 +297,15 @@ do
             end
         end,
         F=function(a)
-            test = a.name or EF("%s-argument[%d] '%s' without a name",a.type,a.idx);
-            return F("  %{type} %{name} = check%{type}(L, %{idx});  /* arg[%{idx}] %{text} */\n",a)
+            local cb = callbacks[a.type] or EF("No such Callback '%s'",a.type);
+            
+            if cb.mode == 'key' then
+                test = a.key_name or EF("Keyed Callback '%s' without key_name",a.type)
+                
+                return F("  %{type} %{name} = check%{type}(L, %{idx}, %{key_name});  /* arg[%{idx}] %{text} */\n",a)
+            else
+                return F("  %{type} %{name} = check%{type}(L, %{idx});  /* arg[%{idx}] %{text} */\n",a)
+            end    
         end,
         K=function(a)
             test =  a.name or EF("K-argument[%d] '%s' without a name",a.idx);
@@ -380,13 +392,13 @@ do
             for name, m in pairs(c.methods) do
                 s = s .. F('    {"%{name}",%{codename}},\n',m)
             end
-            s = s .. "    {NULL,NULL}\n  };\n"
+            s = s .. "    {NULL,NULL}};\n"
                         
             s = s .. F("  lual_Reg* %{name}_metas = {\n",c)
             for name, m in pairs(c.meta) do
                 s = s .. F('    {"%{name}",%{codename}},\n',m)
             end
-            s = s .. "    {NULL,NULL}\n  };\n"
+            s = s .. "    {NULL,NULL}};\n"
             
             b = b .. F('  LwClassRegister(%{name},1);\n',c)
 
@@ -396,16 +408,126 @@ do
         for name, f in pairs(functions) do
             s = s .. F('    {"%{name}",%{codename}},\n',f)
         end
-        s = s .. "    {NULL,NULL}\n  };\n  lual_Reg* f;\n\n"
+        s = s .. "    {NULL,NULL}};\n  lual_Reg* f;\n\n"
         b = b .. "  \n  for (f=functions;f->name;f++) {\n" ..
                  "    pushS(L,f->name); lua_pushcfunction(L,f->func); lua_settable(L,1);\n  }\n\n"
         
         return s .. b .. "  return 1;\n}\n"
     end
 
-    local function cb2C(cb) -- given a callback I yield C code for it
-        D(cb)
-        error("XXX");
+    local cb_arg_t = {
+        B=function(a) return F("  pushB(L,(int)%{name}); /* arg[%{idx}] %{text} */\n",a) end,
+        N=function(a) return F("  pushN(L,(luaNumber)%{name}); /* arg[%{idx}] %{text} */\n",a) end,
+        O=function(a) return F("  push%{type}(L,%{name}); /* arg[%{idx}] %{text} */\n",a) end,
+        F=function(a) return F("  push%{type}(L,%{name}); /* arg[%{idx}] %{text} */\n",a) end,
+        S=function(a) return F("  pushS(L,%{name}); /* arg[%{idx}] %{text} */\n",a) end,
+        L=function(a) return F("  pushL(L,%{name},(size_t)%{len_name}); /* arg[%{idx}] %{text} */\n",a) end,
+        X=function(a) return F("  %{name} = (%{type})%{value}; /* arg[%{idx}] %{text} */\n",a)
+        end,
+    }
+    
+    local cb_ret_t = {
+        B=function(a)
+            return a.name:M('^[%a][%a_]*$') and F("  int %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+                F("    %{name} = toB(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
+        end,
+        N=function(a)
+            return a.name:M('^[%a][%a_]*$') and F("  %{type} %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+                F("    %{name} = toN(L,%{idx},%{type}); /* ret[%{idx}] %{text} */\n",a)
+        end,
+        O=function(a)
+            return a.name:M('^[%a][%a_]*$') and F("  %{type}* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+                F("    %{name} = to%{type}(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
+        end,
+        S=function(a)
+            return a.name:M('^[%a][%a_]*$') and F("  const char* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+                F("    %{name} = toS(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
+        end,
+        L=function(a)
+            local len_def, var_def
+            
+            if (not a.len_name) or a.len_name:M('^[%a][%a_]*$') then
+                len_def = '';
+            else
+                len_def =  F("%{len_type} %{len_name}; ",a)
+            end
+                        
+            return len_def .. F("  /* ret[%{idx}] %{text} */\n",a),
+                F("    %{name} = toL(L,%{idx},&(%{len_name})); /* ret[%{idx}] %{text} */\n",a)
+        end,
+    }
+    
+
+    local function cb2C(c) -- given a callback I yield C code for i
+        D(c)
+        local s = ""
+        local call = ""
+
+        if c.mode == 'closure' then
+            s = F("static int %{name}__fn_idx;\n",c);
+        else
+            call = F('  int fn_idx = lua_gettop(L)+1;\n  lw_getCb(L,cbKey%{name}((void*)(%{key_name})));\n',c);
+        end
+        
+        s = s .. F("LW_MODE %{proto.type} call%{name}(%{proto.arglist}) {\n  luaState* L = lwState();",c)
+        
+        if c.proto.type ~= 'void' then
+            s = s .. F("\n  %{proto.type} _ = %{ret_def};\n",c)
+        end
+        
+        local cf = 'LW_MODE %{name} check%{name}(luaState* L, int idx'
+        
+        if c.mode == 'closure' then
+            cf = cf .. F(") {\n",c)
+        else
+            cf = cf .. F(", void* %{key_name}) {\n",c)
+        end
+        
+        for idx, a in ipairs(c.args) do
+            local c = cb_arg_t[a.t] or function(a) return "" end
+            call = call .. c(a);
+        end
+        
+        if c.mode == 'closure' then
+            call = call .. f("  if((__res = lua_pcall(L, %d, %d, %s__fn_idx)== LUA_OK)){\n",#c.args,#c.rets,c.name)
+        else
+            call = call .. f("  if((__res = lua_pcall(L, %d, %d, fn_idx)== LUA_OK)){\n",#c.args,#c.rets)
+        end
+        
+        for idx,r in ipairs(c.rets) do
+            local c = cb_ret_t[r.t] or EF("return %{name} is of invalid type '%{t}'",r);
+            local d, b = c(r);
+            
+            s = s .. d
+            call = call .. b
+        end
+        
+        call  = call .. f("    lua_pop(L,%d)\n",#c.rets)
+        
+        if c.proto.type ~= 'void' then
+            call = call .. F("    return _;\n",c)
+        else
+            call = call .. F("    return;\n",c)
+        end
+                
+        call = call .. F('  } else lwPcallErr(%{name},__res);\n\n',c)
+
+        if c.proto.type ~= 'void' then
+            call = call .. F("  return _;\n}\n",c)
+        else
+            call = call .. "  return;\n}\n"
+        end
+        
+        cf = cf .. "  checkF(L,idx);\n"
+        
+        if c.mode == 'closure' then
+            cf = cf .. "  %{name}__fn_idx = idx;\n"
+        else 
+            cf = cf .. '  lw_setCb(L,cbKey%{name}(%{key_name}));\n'
+        end
+        cf = cf .. "\n return call%{name};\n}\n";
+                
+        return s .. call  .. F(cf,c);
     end
     
     
@@ -429,6 +551,7 @@ do
         local i = 0
         
         for ty, par in list:gmatch("(%u[%a]*)[{]%s*([^}]*)%s*[}]") do
+            log(0,"%s = %s",ty,par)
             i = i + 1
             local r = {idx = i, text = f("%s{%s}",ty,par)}
             local t_par = t_pars[ty]
@@ -436,10 +559,10 @@ do
             if t_par then
                 r.t = ty
             else
-                local t =  (types[ty] or E("no such type: " .. ty)).t
+                local t = (types[ty] or EF("no such type: '%s'",ty)).t
                 r.t = t
                 r.type = ty
-                t_par = t_pars[t]
+                t_par = t_pars[t] or EF("No params for type '%s'",t)
             end
             
             splitParams(";",par,t_par,r)
@@ -523,21 +646,6 @@ do
         log(3,'Alias:',a)
     end
     
-
-    function lw_cmd.CallBack(params,val,frame)
-        if not module_name then E("no module defined") end        
-        log(5,'CallBack:',params,val)
-        
-        local c = {t = 'F'}
-        local p = params:split("%s"," ","+")
-        
-        c.name, c.type, c.mode = p[1], p[2], p[3]
-        
-        test = (c.name and c.type and c.mode) or E("CallBack must have name, type and mode params");
-        
-        callbacks[c.name] = c
-    end
-    
     function lw_cmd.Accessor(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'Accessor:',params,val)
@@ -558,10 +666,6 @@ do
         frame.add(s);
     end
     
-    local function D(o) log(0,o) end
-
-
-    
     local function shift(t) return table.remove(t,1) end
 
     
@@ -573,16 +677,15 @@ do
         L={"name","len_name","len_type"},
         O={"name","default"},
         X={"name","value","type"},
-        F={"name","type"},
-        K={"name","key_mode"},
+        F={"name","key_name"},
     }
     
     local ret_t_pars = { -- options for return argument parts
-        N={"name"},
-        S={"name"},
-        B={"name"},
-        L={"name","len_name","bufsize","len_type","len_def"},
-        O={"name","ref"},
+        N={"name","default"},
+        S={"name","default"},
+        B={"name","default"},
+        L={"name","len_name","bufsize","len_type","len_def","default"},
+        O={"name","ref","default"},
     }        
     
     function lw_cmd.Function(params,val,frame,m)
@@ -596,11 +699,24 @@ do
         m.fullname = shift(pars) or E("Function/Callback must have name parameter")
         m.fn_name = shift(pars) or E("Function/Callback must have fn_name parameter")        
         m.proto = prototypes[m.fn_name] or E("no prototype found for: " .. v2s(m.fn_name) )
-        m.mode = m.is_cb and shift(pars) or E("No mode parameter for Callback")
         
         local collection
         if m.is_cb then
-
+            test = m.proto.typedef or EF("Callback prototype must be a callback prototype");
+            m.ret_def = shift(pars)
+            
+            m.name, m.key_name = m.fullname:match("%s*(%u[%a]+)[{]?([%a_]*)[}]?%s*")
+            
+            test = m.name or EF("CallBack %s has no good name",m.fullname);
+            
+            m.mode = m.key_name ~= '' and 'key' or 'closure'
+            
+            if m.proto.type ~= 'void' and not m.ret_def then
+                EF("Callback '%s' has non void return type but was given no return default.",m.name)    
+            end
+            
+            collection = callbacks
+        else
             if m.fullname:match("%s*(%u[%a]+)[.]([%a_]+)%s*") then
                 m.cname, m.name = m.fullname:match("(%u[%a]+)[.]([%a_]+)")
                 m.codename = m.cname .. "_" .. m.name
@@ -611,13 +727,11 @@ do
             elseif m.fullname:match("([%a_]+)") then
                 m.name = m.fullname
                 m.codename = module_name .. "_" .. m.name
+                m.is_orphan = true;
                 collection = functions
             else
                 E("Not a good name: "..v2s(m.fullname))
             end
-        else
-            test = m.proto.typedef or EF("Callback prototype must be a callback prototype");
-            collection = callbacks
         end
             
         local i = 0
@@ -625,7 +739,8 @@ do
         
         test = (ret and args) or E("malformed method:" .. v2s(m.fn_name) )
         
-        D(types)
+        D(ret)
+        D(args)
         splitList(ret,ret_t_pars,m.rets)
         splitList(args,arg_t_opts,m.args)
         
@@ -638,29 +753,26 @@ do
                 end
             end
         end
-        
+                
         collection[m.name] = m
-        local s = (m.is_cb and cb2C or function2C)(m)
-        frame.add(s)
+        frame.add((m.is_cb and cb2C or function2C)(m))
         log(3,"Function",m)
     end
 
     function lw_cmd.CallBack(params,val,frame)
-        if not module_name then E("no module defined") end        
-        do return end
-        -- 2do: break like Class
-        local cb = lw_cmd.Function(params,val,frame,{
-            is_cb=true,filename=frame.filename, ln=frame.ln, self={t='O'},
-            rets={}, args={}, names={}, params=params, expr=val
-        })
+        if not module_name then E("no module defined") end
         
-        callbacks[cb.name] = cb
+        local cb = lw_cmd.Function(params,val,frame,{
+            is_cb=true,filename=frame.filename, ln=frame.ln,
+            rets={}, args={}, names={}, params=params, expr=val, t='F'
+        })
     end
     
     
     local function lwcmd(lwc,frame,stack)
         local cmd,params,val = lwc:match("(%u[%a]+)%s*([^:]*)[:]?%s*(.*)%s*")
         log(1,"LWD:", lwc,cmd,params,val)
+        frame.add(f("// %s:%d #%s\n",frame.filename,frame.ln, lwc))
         if cmd == 'ProcFile' then
             local infile, outfile = lwc:match('ProcFile%s+([^%s]+)%s*([^%s]*)%s*')
             
@@ -705,30 +817,33 @@ do
                 frame.cur_line = line
 
                 if mode=='static' and frame.base then
-                    frame.add(line.."\n",frame.filename,frame.ln)
+                    if not (ml_lwc or line:match("^[#][%u]")) then
+                        frame.add(line.."\n",frame.filename,frame.ln)
+                    end
                 end
                 
                 local function _err(str)
-                    local s = f("Error[%s:%d]:%s\nLine:%s",frame.filename,frame.ln,str,v2s(line))
+                    local s = f('%s:%d: error: "%s"\nLine:%s\n',frame.filename,frame.ln,str,v2s(line))
                     log(0,s)
-                    io.stderr:write(s.."\n")
+                    add(f('#error "%s" ',str),frame.filename,frame.ln);
+                    finish();
+                    io.stderr:write(s)
                     os.exit(3)
                 end
             
                 E = _err
+                error = _err
                 
                 if ml_lwc then -- in a multi-line command
-                    ml_lwc = ml_lwc .. line
-                    if line:match("[*][/]") then
-                        frame = lwcmd(ml_lwc:gsub("\n",''):gsub("[*][/]",''),frame,stack)
+                    ml_lwc = ml_lwc ..' '.. line
+                    if not line:match("[\\]$") then
+                        frame = lwcmd(ml_lwc:gsub("\n",' '),frame,stack)
                         ml_lwc = nil
-                    else
-                        ml_lwc = ml_lwc .. line
                     end
-                elseif line:match("^%s*/[*]LW:(.*)") then -- multi-line LuaWrap command start
-                    ml_lwc = line:match("^%s*/[*]LW:(.*)")
-                elseif line:match("^%s*//LW:(.*)") then -- one line LuaWrap commands
-                    lwcmd(line:match("^%s*//LW:(.*)"),frame,stack)
+                elseif line:match("^[#][%u].*[\\]$") then -- multi-line LuaWrap command start
+                    ml_lwc = line:match("^#([%u].*)[\\]$")
+                elseif line:match("^[#][%u].*[^\\]$") then -- one line LuaWrap commands
+                    frame = lwcmd(line:match("^[#]([%u].*)$"),frame,stack)
                 elseif line:match('^[#]include%s+["]([[%a_/.]+[.]h)["]') and frame.base then -- #include
                     local incl = line:match('^[#]include%s+["]([[%a_/.]+[.]h)["]')
                     local new_fr = reader(incl,add,vadd,finish);

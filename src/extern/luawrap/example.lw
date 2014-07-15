@@ -2,7 +2,7 @@
  *  @brief an example of a LuaWrap wrapper
  */
 
-//LW: Module Commotion static
+#Module Commotion static
 
 
 #include "../../obj.h"
@@ -10,7 +10,7 @@
 #include "../../socket.h"
 
 /* just declare the class operations, our own code will define them */
-//LW: OwnClass Obj co_obj_t
+#OwnClass Obj co_obj_t
 
 /* the Obj is used as a catch all for all other classes
     toObj, optObj and checkObj unwrap whatever the object is without checking its lua class
@@ -18,21 +18,14 @@
 */
 
 /* these classes are fully declared */
-//LW: Class List co_obj_t
-//LW: Class Socket co_socket_t
-//LW: Class Fd co_fd_t
-//LW: Class Cmd co_cmd_t
-//LW: Class CmdKey co_obj_t
+#Class List co_obj_t
+#Class Socket co_socket_t
+#Class Fd co_fd_t
+#Class Cmd co_cmd_t
+#Class CmdKey co_obj_t
 
 int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
-//LW: Function generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id} N{type} 
-
-
-typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
-//LW: CallBack ListIter co_iter_t closure: Obj{_} @ List{data} Obj{current} X{context;NULL;void*}
-
-co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
-//   LW: Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL;void*}
+#Function generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id} N{type} 
 
 
 /* @brief typedef for a Callback Id generator
@@ -40,47 +33,49 @@ co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
  * @param ptr a pointer that can yield an unique id (and that will be passed to the cb)
  */
 
-LwCbKey(CmdCb) {
-    return lwFmt("%s%s",type,((co_str8_t*)ptr)->data);
+static const char* cbKeyCmdCB(void* ptr) {
+    return lwFmt("CmdCB%s",((co_str8_t*)ptr)->data);
 }
 
 typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
-//LW: CallBack CmdCB co_cb_t key: Obj{output} N{_} @ Obj{self} X{outputp;&output;Obj**} K{CmdCb,self}
+#CallBack CmdCB{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Obj{self} List{params}
 
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
-//  LW: Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CoCB{cb} K{CmdCb;key}
+#Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CmdCB{cb;key}
+
+#Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;co_obj_t**}
+#Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
+#Function List.len co_list_length: N{_} @ List{list}
+#Alias List.__len List.len
 
 
-//LW: Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;co_obj_t**}
-//LW: Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
-//LW: Function List.len co_list_length: N{_} @ List{list}
-//LW: Alias List.__len List.len
-
-
-//LW: Accessor Socket.fd RO: Fd{$fd}
-//LW: Accessor Socket.accept_fds RO: List{$rfd_lst}
-//LW: Accessor Socket.registered_fd RO: B{$fd_registered}
-//LW: Accessor Socket.local RO: S{sockaddr_tostr($local)}
-//LW: Accessor Socket.remote RO: S{sockaddr_tostr($local)}
-//LW: Accessor Socket.listen RO : B{$listen}
-//LW: Accessor Socket.dummy RW: B{$dummy} @ B{$dummy} 
+#Accessor Socket.fd RO: Fd{$fd}
+#Accessor Socket.accept_fds RO: List{$rfd_lst}
+#Accessor Socket.registered_fd RO: B{$fd_registered}
+#Accessor Socket.local RO: S{sockaddr_tostr($local)}
+#Accessor Socket.remote RO: S{sockaddr_tostr($local)}
+#Accessor Socket.listen RO : B{$listen}
+#Accessor Socket.dummy RW: B{$dummy} @ B{$dummy} 
 
 
 typedef int (*socket_ctx_cb)(co_obj_t *self, co_obj_t *context);
-//LW: CallBack SocketCtxCB socket_ctx_cb: N{_} @ Socket{self} X{context;NULL}
+static lwCbKey cbKeySocketCtxCB = lwCbKey_ptr;
+#CallBack SocketCtxCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
 
 typedef int (*socket_send_cb)(co_obj_t *self, char *outgoing, size_t length);
-//LW: CallBack SocketSendCB socket_send_cb: N{_} @ Socket{self} L{outgoing;lenght}
+static lwCbKey cbKeySocketSendCB = lwCbKey_ptr;
+#CallBack SocketSendCB{self} socket_send_cb 0: N{_} @ Socket{self} L{outgoing;lenght}
 
-//LW: Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}
+#Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}X
 
-/*LW: Function Socket.receive co_socket_receive:
-        L{incoming;_;4096} N{_} @ Socket{self} Fd{fd} X{length;4096}*/
+#Function Socket.receive co_socket_receive: \
+        L{incoming;_;4096} N{_} @ Socket{self} Fd{fd} X{length;4096}
+        
 
-//LW: Function List.element co_list_element: Obj{_} @ List{list} N{index}
+#Function List.element co_list_element: Obj{_} @ List{list} N{index}
 
 
-//LW: OwnFunction Socket.add Socket_add
+#OwnFunction Socket.add Socket_add
 static int Socket_add(lua_State*L) {
     co_obj_t *o = checkSocket(L1);
     int r = co_loop_add_socket(o, NULL);
@@ -89,5 +84,13 @@ static int Socket_add(lua_State*L) {
     R1;
 }
 
-//LW: Finish co_lua_register
+
+typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
+#CallBack ListIter co_iter_t NULL: Obj{_} @ List{data} Obj{current} 
+
+co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
+#Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL}
+
+#Finish co_lua_register
+
 

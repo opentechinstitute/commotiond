@@ -7,12 +7,12 @@ luawrap.lua parses the original file (.lw) copying it into its outfile
 looking for "LW directives" in comments and replaces them with the
 appropriate C code.
 
-The .lw file is C with special comments that are called directives.
+The .lw file is C with special #preprocessor lines that are called directives.
 
 LuaWrap directives are:
 
 
-//LW: Module <name> [mode="static"|"extern"]
+#Module <name> [mode="static"|"extern"]
    Defines the name of the module to be added to the global namespace and sets
  in which mode luawrap is to operate (defaults to 'static'), it must be the
  first LW command in the file.
@@ -26,8 +26,8 @@ LuaWrap directives are:
 
 
 
-//LW: Class <name> <type>
-//LW: OwnClass <name> <type>
+#Class <name> <type>
+#OwnClass <name> <type>
 
    These define classes to be added to the Lua interface, the name must start with
  a capital and contain only letters, the type is the type of object it points to.
@@ -51,7 +51,7 @@ LwDefinePushDummy(Xxx) and LwDefineChkDummy(Xxx) and LwDefineGCollDummy(C) might
 
 
 
-//LW: Function: <name> <function-name>: <return-list> @ <arguments-list>
+#Function: <name> <function-name>: <return-list> @ <arguments-list>
  These define functions for which code is to be generated.
  <name> can be in either:
         "ClassName.method_name" for a method,
@@ -74,7 +74,7 @@ LwDefinePushDummy(Xxx) and LwDefineChkDummy(Xxx) and LwDefineGCollDummy(C) might
    - L{name;len_name;bufsize} a lstring
         len_name is the var that contains the lenght
         bufsize the size of the buffer used to temporarily hold the output
-   - Name{name;ref} an object of class "Name"
+   - Name{name;ref} an object of class "Name" or a Callback of type "Name"
 
 elems in argument-list can be:
         N{name;type;default} a number
@@ -86,11 +86,11 @@ elems in argument-list can be:
         L{name;len_name;len_type"}, an lstring
             - len_name is the name of the var that contains the length
             - len_type is the optional (dflt: size_t ) type for the var
-        Name{name;default}, either an object or a CallBack function
-          - default (for object)
+        Name{name;arg2}, either an object or a CallBack function
+          - arg2 default for object, key_name for callback
         X{name;value;type} a pseudo-argument 
           these are used to manipulate values in the definition of the function/callback
-        K{name,cb_type} a key for a callback (given in the same order as the CB before)
+        K{name,key} a key for a callback (given in the same order as the CB before)
           - name of the variable
           - type of key generator
           
@@ -107,27 +107,16 @@ elems in argument-list can be:
  [[ a whole chapter about manipulation is missing here ]]
 
 
-//LW: Accessor <name> <mode='RO'|'RW'>: <return-list> @ <arguments-list>
+#Accessor <name> <mode='RO'|'RW'>: <return-list> @ <arguments-list>
     $name ==> ((X*)ptr->)name
+    TO DO
 
 
-
-//LW: CallBack <name> <type-name> <mode:'key'|'closure'>:  <return-list> @ <arguments-list>
-
-    LwCbKey(CmdCb) {
-        return lwFmt("%s%s",type,((co_str8_t*)ptr)->data);
-    }
-
-    typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
-    //LW: CallBack CmdCB co_cb_t key: Obj{output} N{_} @ Obj{self} X{outputp;&output;Obj**} K{CmdCb,self}
-
-    int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
-    //LW: Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CoCB{cb} K{CmdCb;key}
+#CallBack <name>[{key}] <type-name> <mode:'key'|'closure'>:  <return-list> @ <arguments-list>
+   ...
 
 
-
-
-//LW: Alias <name-1> <name-2>
+#Alias <name-1> <name-2> (NYI)
   Creates an alias called <name-1> to the function called <name-2>
 <name-1>,<name-2>
         "ClassName.method_name" for a method,
@@ -135,16 +124,19 @@ elems in argument-list can be:
         "function_name" for funtions not belonging to any class.
 
 
-//LW: ProcFile <in-file> [out-file] 
+#ProcFile <in-file> [out-file] (NYI)
     Process another file in the same batch
     <in-file> use this file as input
     <out-file> if mode is 'extern' the output of this lwfile will go to this file,
                instead of the main output one, error if "static"
 
-//LW: Registration <register-function-name>
+#Finish <register-function-name>
    Adds the  registration function (that is later invoked by Lua to create the classes)
 
    <register-function-name> name given to the registration function
+
+
+
 
 LuaWrap is directly derived from the code used to add Lua to
 Wireshark, and authored by the same person.
