@@ -25,7 +25,7 @@
 //LW: Class CmdKey co_obj_t
 
 int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
-//LW: Function generate_ip co_generate_ip: L{output;_;int} N{_} @ S{base} S{genmask} N{id} N{type} 
+//LW: Function generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id} N{type} 
 
 
 typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);

@@ -9,7 +9,7 @@ appropriate C code.
 
 The .lw file is C with special comments that are called directives.
 
-Possible LuaWrap directives are:
+LuaWrap directives are:
 
 
 //LW: Module <name> [mode="static"|"extern"]
@@ -141,11 +141,12 @@ elems in argument-list can be:
     <out-file> if mode is 'extern' the output of this lwfile will go to this file,
                instead of the main output one, error if "static"
 
-//LW: Finish <register-function-name>
-   Finishes the process (still will go to the end of the file) adding the 
-   registration function (that is later invoked by Lua to create the classes)
+//LW: Registration <register-function-name>
+   Adds the  registration function (that is later invoked by Lua to create the classes)
 
    <register-function-name> name given to the registration function
 
 LuaWrap is directly derived from the code used to add Lua to
 Wireshark, and authored by the same person.
+
+\Lego

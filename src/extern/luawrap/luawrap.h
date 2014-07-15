@@ -168,7 +168,6 @@ LW_MODE int C##__gc (luaState* L) { C#__gcoll(to##C(L,1)); return 0; } \
 _End(C,ClassDefine)
 
 
-
 #define LwDefinePushDummy(C) LW_MODE void C##__push(#C*) {}
 #define LwDefineChkDummy(C) LW_MODE void C##__check(#C*) {}
 #define LwDefineGCollDummy(C) LW_MODE void C##__gcoll(#C*) {}
@@ -187,13 +186,12 @@ LW_MODE int C##__gc (luaState* L)
 
 /* @brief prototype for callback keying functions
  * @param cbname the name of the callback type
- * @param fname the name of the calling function
  * @param ptr the datum passed to the callback that will be used to uniquelly indentify each instance
  *
- * a CbKey must be able to uniquely identify the calling instance
+ * the return of a CbKey must be able to uniquely identify the calling instance
  * of a callback based on a datum passed to the callback
  */
-typedef const char* (*lwCbKey_t)(const char* cbname, const char* fname, void* ptr);
+typedef const char* (*lwCbKey_t)(const char* cbname, void* ptr);
 
 
 /****************************************************************/

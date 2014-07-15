@@ -293,6 +293,10 @@ do
         end,
         F=function(a)
             test = a.name or EF("%s-argument[%d] '%s' without a name",a.type,a.idx);
+            return F("  %{type} %{name} = check%{type}(L, %{idx});  /* arg[%{idx}] %{text} */\n",a)
+        end,
+        K=function(a)
+            test =  a.name or EF("K-argument[%d] '%s' without a name",a.idx);
             return F("  %{type} %{name} = checkF(L, %{idx}, %{cname});  /* arg[%{idx}] %{text} */\n",a)
         end,
     }
@@ -367,19 +371,19 @@ do
         return F("typedef %{type} %{name};\n"..((c.own and "LwDeclareClass(%{name});\n") or "LwDefineClass(%{name});\n"),c)
     end
 
-    local function registration2C() -- I yield C code for registration to Lua of classes and functions 
-        local s = f("extern int %s_register(lua_State* L) {\n",module_name)
+    local function registration2C(fn_name) -- I yield C code for registration to Lua of classes and functions 
+        local s = f("extern int %s(lua_State* L) {\n",fn_name)
         local b =  "  lua_settop(L,0);\n  lua_newtable(L);\n"
-        
+
         for n,c in pairs(classes) do
             s = s .. F("  lual_Reg* %{name}_methods = {\n",c)
-            for name, m in c.methods do
+            for name, m in pairs(c.methods) do
                 s = s .. F('    {"%{name}",%{codename}},\n',m)
             end
             s = s .. "    {NULL,NULL}\n  };\n"
                         
             s = s .. F("  lual_Reg* %{name}_metas = {\n",c)
-            for name, m in c.metas do
+            for name, m in pairs(c.meta) do
                 s = s .. F('    {"%{name}",%{codename}},\n',m)
             end
             s = s .. "    {NULL,NULL}\n  };\n"
@@ -389,13 +393,19 @@ do
         end
         
         s = s .. "  lual_Reg* functions = {\n"
-        for name, f in functions do
+        for name, f in pairs(functions) do
             s = s .. F('    {"%{name}",%{codename}},\n',f)
         end
+        s = s .. "    {NULL,NULL}\n  };\n  lual_Reg* f;\n\n"
+        b = b .. "  \n  for (f=functions;f->name;f++) {\n" ..
+                 "    pushS(L,f->name); lua_pushcfunction(L,f->func); lua_settable(L,1);\n  }\n\n"
+        
         return s .. b .. "  return 1;\n}\n"
     end
 
     local function cb2C(cb) -- given a callback I yield C code for it
+        D(cb)
+        error("XXX");
     end
     
     
@@ -441,24 +451,6 @@ do
     end
     
 
-    local arg_t_opts = { -- options for function arguments part
-        N={"name","type","default"},
-        S={"name","default"},
-        B={"name","default"},
-        L={"name","len_name","len_type"},
-        O={"name","default"},
-        X={"name","value","type"},
-        F={"name","type"}
-    }
-    
-    local ret_t_pars = { -- options for return argument parts
-        N={"name"},
-        S={"name"},
-        B={"name"},
-        L={"name","len_name","bufsize","len_type","len_def"},
-        O={"name","ref"},
-    }        
-
 
     function lw_cmd.Module(params,val,frame)
         if module_name then E("module already defined") end        
@@ -495,7 +487,7 @@ do
     
     local function class (params,val,frame)
         if not module_name then E("no module defined") end        
-        local c = {filename=frame.filename,ln=frame.ln, methods={}}
+        local c = {filename=frame.filename,ln=frame.ln, methods={}, meta = {}}
         local p = params:split("%s"," ","+");
         
         c.name = p[1]:match("^([%a]+)$") or E("Class must have a name [A-Z][A-Za-z0-9]+")
@@ -561,56 +553,73 @@ do
     function lw_cmd.Finish(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'Finish:',params,val)
-        do return end
+        local fname = params:M("^%s*([%a_]+)%s*$") or E("Not a valid registration function name");
+        local s = registration2C(fname);
+        frame.add(s);
     end
     
     local function D(o) log(0,o) end
 
 
-    function lw_cmd.CallBack(params,val,frame)
-        if not module_name then E("no module defined") end        
-        do return end
-        -- 2do: break like Class
-        local cb = lw_cmd.Function(params,val,frame,{
-            is_cb=true,filename=frame.filename, ln=frame.ln, self={t='O'},
-            rets={}, args={}, names={}, params=params, expr=val
-        })
-        
-        callbacks[cb.name] = cb
-    end
     
     local function shift(t) return table.remove(t,1) end
+
     
-    function lw_cmd.Function(params,val,frame)
+
+    local arg_t_opts = { -- options for function arguments part
+        N={"name","type","default"},
+        S={"name","default"},
+        B={"name","default"},
+        L={"name","len_name","len_type"},
+        O={"name","default"},
+        X={"name","value","type"},
+        F={"name","type"},
+        K={"name","key_mode"},
+    }
+    
+    local ret_t_pars = { -- options for return argument parts
+        N={"name"},
+        S={"name"},
+        B={"name"},
+        L={"name","len_name","bufsize","len_type","len_def"},
+        O={"name","ref"},
+    }        
+    
+    function lw_cmd.Function(params,val,frame,m)
         if not module_name then E("no module defined") end        
         log(2,'Function:',params,val)
-        local m = {
+        local m = m or {
             filename=frame.filename, ln=frame.ln, rets={}, args={}, names={}, params=params, expr=val
         }
         
         local pars = params:split("%s"," ",'+');
-        m.fullname = shift(pars) or E("Function must have name parameter")
-        m.fn_name = shift(pars) or E("Function must have fn_name parameter")        
+        m.fullname = shift(pars) or E("Function/Callback must have name parameter")
+        m.fn_name = shift(pars) or E("Function/Callback must have fn_name parameter")        
         m.proto = prototypes[m.fn_name] or E("no prototype found for: " .. v2s(m.fn_name) )
+        m.mode = m.is_cb and shift(pars) or E("No mode parameter for Callback")
         
-    
         local collection
-        
-        if m.fullname:match("%s*(%u[%a]+)[.]([%a_]+)%s*") then
-            m.cname, m.name = m.fullname:match("(%u[%a]+)[.]([%a_]+)")
-            m.codename = m.cname .. "_" .. m.name
-            m.is_meta = m.name:M("^__") and true or false
-            local class = classes[m.cname] or E("no such class: " .. v2s(m.cname))
-        
-            collection = class[m.is_meta and "meta" or "methods"]
-        elseif m.fullname:match("([%a_]+)") then
-            m.name = m.fullname
-            m.codename = module_name .. "_" .. m.name
-            collection = functions
+        if m.is_cb then
+
+            if m.fullname:match("%s*(%u[%a]+)[.]([%a_]+)%s*") then
+                m.cname, m.name = m.fullname:match("(%u[%a]+)[.]([%a_]+)")
+                m.codename = m.cname .. "_" .. m.name
+                m.is_meta = m.name:M("^__") and true or false
+                local class = classes[m.cname] or E("no such class: " .. v2s(m.cname))
+
+                collection = class[m.is_meta and "meta" or "methods"]
+            elseif m.fullname:match("([%a_]+)") then
+                m.name = m.fullname
+                m.codename = module_name .. "_" .. m.name
+                collection = functions
+            else
+                E("Not a good name: "..v2s(m.fullname))
+            end
         else
-            E("Not a good name: "..v2s(m.fullname))
+            test = m.proto.typedef or EF("Callback prototype must be a callback prototype");
+            collection = callbacks
         end
-        
+            
         local i = 0
         local ret, args = val:match("%s*([^@]*)%s*[@]?([^@]*)%s*")
         
@@ -631,10 +640,23 @@ do
         end
         
         collection[m.name] = m
-        local s = function2C(m)
+        local s = (m.is_cb and cb2C or function2C)(m)
         frame.add(s)
         log(3,"Function",m)
     end
+
+    function lw_cmd.CallBack(params,val,frame)
+        if not module_name then E("no module defined") end        
+        do return end
+        -- 2do: break like Class
+        local cb = lw_cmd.Function(params,val,frame,{
+            is_cb=true,filename=frame.filename, ln=frame.ln, self={t='O'},
+            rets={}, args={}, names={}, params=params, expr=val
+        })
+        
+        callbacks[cb.name] = cb
+    end
+    
     
     local function lwcmd(lwc,frame,stack)
         local cmd,params,val = lwc:match("(%u[%a]+)%s*([^:]*)[:]?%s*(.*)%s*")
@@ -806,6 +828,7 @@ do
     log_fd:close();
     
 end 
+
 -- Copyright (C) 2014 Luis E. Garcia Ontanon <luis@ontanon.org>
 -- 
 -- Permission is hereby granted, free of charge, to any person obtaining a copy of this
