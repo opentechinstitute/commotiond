@@ -8,13 +8,13 @@
 --    Compiler  gcc/g++
 --   Copyright  Copyright (c) 2014, Luis E. Garcia Ontanon <luis@ontanon.org>
 --
---   See Copyright notice at bottom of the file
+--   See LICENSE file for for Copyright notice
 do
     local lqw_include="luaqwrap.h"
     local lqw_code="luaqwrap.c"
     
     local verbose = 6 -- I'm the verbosity level
-    local own_prefix  = arg[0]:match("^(.*/)[%a_.]") or '' -- I hold the own prefix to the script (and its files)
+    local own_prefix  = arg[0]:match("^(.*/)[%w_.]") or '' -- I hold the own prefix to the script (and its files)
     local module_name
 
     -- shortcuts
@@ -94,7 +94,7 @@ do
                 return o[m]
             end
         end
-        return s:gsub("%%[{]([%a_.-]+)[}]", replace)
+        return s:gsub("%%[{]([%w_.-]+)[}]", replace)
     end
 
     local F = fmt_o
@@ -428,25 +428,25 @@ do
     
     local cb_ret_t = {
         B=function(a)
-            return a.name:M('^[%a][%a_]*$') and F("  int %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+            return a.name:M('^[%a][%w_]*$') and F("  int %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
                 F("    %{name} = toB(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
         end,
         N=function(a)
-            return a.name:M('^[%a][%a_]*$') and F("  %{type} %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+            return a.name:M('^[%a][%w_]*$') and F("  %{type} %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
                 F("    %{name} = toN(L,%{idx},%{type}); /* ret[%{idx}] %{text} */\n",a)
         end,
         O=function(a)
-            return a.name:M('^[%a][%a_]*$') and F("  %{type}* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+            return a.name:M('^[%a][%w_]*$') and F("  %{type}* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
                 F("    %{name} = to%{type}(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
         end,
         S=function(a)
-            return a.name:M('^[%a][%a_]*$') and F("  const char* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
+            return a.name:M('^[%a][%w_]*$') and F("  const char* %{name};  /* ret[%{idx}] %{text} */\n",a) or "",
                 F("    %{name} = toS(L,%{idx}); /* ret[%{idx}] %{text} */\n",a)
         end,
         L=function(a)
             local len_def, var_def
             
-            if (not a.len_name) or a.len_name:M('^[%a][%a_]*$') then
+            if (not a.len_name) or a.len_name:M('^[%a][%w_]*$') then
                 len_def = '';
             else
                 len_def =  F("%{len_type} %{len_name}; ",a)
@@ -550,7 +550,7 @@ do
         tbl = tbl or {}
         local i = 0
         
-        for ty, par in list:gmatch("(%u[%a]*)[{]%s*([^}]*)%s*[}]") do
+        for ty, par in list:gmatch("(%u[%w]*)[{]%s*([^}]*)%s*[}]") do
             log(0,"%s = %s",ty,par)
             i = i + 1
             local r = {idx = i, text = f("%s{%s}",ty,par)}
@@ -579,7 +579,7 @@ do
         if module_name then E("module already defined") end        
         log(2,'Module:',params)
         local p = params:split("%s"," ","+");
-        module_name = p[1]:M("^(%u%a+)$") or E("no module name given")
+        module_name = p[1]:M("^(%u%w+)$") or E("no module name given")
         mode = M("^(%a+)$",p[1]) or "static"
         test = mode:M("static") or E("only static mode supported")
         local s = "#include <stdio.h>\n#include <lua.h>\n#include <lualib.h>\n#include <lauxlib.h>\n"
@@ -613,8 +613,8 @@ do
         local c = {filename=frame.filename,ln=frame.ln, methods={}, meta = {}}
         local p = params:split("%s"," ","+");
         
-        c.name = p[1]:match("^([%a]+)$") or E("Class must have a name [A-Z][A-Za-z0-9]+")
-        c.type = p[2]:match("^([%a_]+)$") or E("Class must have a type [A-Za-z0-9]+")
+        c.name = p[1]:match("^([%w_]+)$") or E("Class must have a name [A-Z][A-Za-z0-9_]+")
+        c.type = p[2]:match("^([%w_]+)$") or E("Class must have a type [A-Za-z0-9]+")
         c.t = 'O';
         classes[c.name] = c
 
@@ -661,7 +661,7 @@ do
     function lqw_cmd.Finish(params,val,frame)
         if not module_name then E("no module defined") end        
         log(5,'Finish:',params,val)
-        local fname = params:M("^%s*([%a_]+)%s*$") or E("Not a valid registration function name");
+        local fname = params:M("^%s*([%g_]+)%s*$") or E("Not a valid registration function name");
         local s = registration2C(fname);
         frame.add(s);
     end
@@ -705,7 +705,7 @@ do
             test = m.proto.typedef or EF("Callback prototype must be a callback prototype");
             m.ret_def = shift(pars)
             
-            m.name, m.key_name = m.fullname:match("%s*(%u[%a]+)[{]?([%a_]*)[}]?%s*")
+            m.name, m.key_name = m.fullname:match("%s*(%u[%g]+)[{]?([%w_]*)[}]?%s*")
             
             test = m.name or EF("CallBack %s has no good name",m.fullname);
             
@@ -717,14 +717,14 @@ do
             
             collection = callbacks
         else
-            if m.fullname:match("%s*(%u[%a]+)[.]([%a_]+)%s*") then
-                m.cname, m.name = m.fullname:match("(%u[%a]+)[.]([%a_]+)")
+            if m.fullname:match("%s*(%u[%w]+)[.]([%w_]+)%s*") then
+                m.cname, m.name = m.fullname:match("(%u[%w]+)[.]([%w_]+)")
                 m.codename = m.cname .. "_" .. m.name
                 m.is_meta = m.name:M("^__") and true or false
                 local class = classes[m.cname] or E("no such class: " .. v2s(m.cname))
 
                 collection = class[m.is_meta and "meta" or "methods"]
-            elseif m.fullname:match("([%a_]+)") then
+            elseif m.fullname:match("([%w_]+)") then
                 m.name = m.fullname
                 m.codename = module_name .. "_" .. m.name
                 m.is_orphan = true;
@@ -770,7 +770,7 @@ do
     
     
     local function lwcmd(lwc,frame,stack)
-        local cmd,params,val = lwc:match("(%u[%a]+)%s*([^:]*)[:]?%s*(.*)%s*")
+        local cmd,params,val = lwc:match("(%u[%w]+)%s*([^:]*)[:]?%s*(.*)%s*")
         log(1,"LWD:", lwc,cmd,params,val)
         frame.add(f("// %s:%d #%s\n",frame.filename,frame.ln, lwc))
         if cmd == 'ProcFile' then
@@ -844,12 +844,12 @@ do
                     ml_lwc = line:match("^#([%u].*)[\\]$")
                 elseif line:match("^[#][%u].*[^\\]$") then -- one line LuaWrap commands
                     frame = lwcmd(line:match("^[#]([%u].*)$"),frame,stack)
-                elseif line:match('^[#]include%s+["]([[%a_/.]+[.]h)["]') and frame.base then -- #include
-                    local incl = line:match('^[#]include%s+["]([[%a_/.]+[.]h)["]')
+                elseif line:match('^[#]include%s+["]([[%w_/.]+[.]h)["]') and frame.base then -- #include
+                    local incl = line:match('^[#]include%s+["]([[%w_/.]+[.]h)["]')
                     local new_fr = reader(incl,add,vadd,finish);
                     table.insert(stack,new_fr)
                     frame = stack[#stack]
-                elseif line:match("^%a[%a_%s*]*[(].*;%s*$") then -- C function prototypes an typedefs
+                elseif line:match("^%a[%w_%s*]+%s+[%w_%s*]*[(].*;%s*$") then -- C function prototypes an typedefs
                     local proto = {
                             args={},argv={},line=line,file=frame.filename,ln=frame.ln
                         }
@@ -861,7 +861,7 @@ do
                         frame.vadd(1,"// " .. logline)
                         
                         line = line:gsub("^typedef%s+","")
-                        line = line:gsub("[(]%s*[*]%s*([%a_]+)%s*[)]","%1")
+                        line = line:gsub("[(]%s*[*]%s*([%w_]+)%s*[)]","%1")
                         proto.typedef = true
                         what = 'typedef'
                     else
@@ -873,26 +873,33 @@ do
                     local i = 0;
 
                     proto.type, proto.name, proto.arglist =
-                        line:match("%s*([%a_]+%s*[%s*]+)([%a_]+)%s*[(](.*)[)]")
-                    
+                        line:match("%s*([%w_]+%s*)[%s*]+([%w_]+)%s*[(](.*)[)]")
+                    D(proto)
                     if not (proto.type and proto.name and proto.arglist ) then
-                        E("Cannot fetch %s from line...",what)
+                        EF("cannot fetch %s from line...",what)
                     else
-                        for arg in (proto.arglist..','):gmatch("([^,]+),") do
-                            i = i + 1
-                            local t, name = arg:match("%s*([%a_]*%s*[%a_]*%s*[%a_]+[%s*]+)([%a_]+)%s*")
-                            if (t and name) then
-                                local a = {}
-                                a.type, a.name = t, name;
-                                a.idx = i
-                                proto.args[a.name]=a
-                                table.insert(proto.argv,a)
-                            else
-                                E("Cannot fetch %s from line...",what)
+                        if not proto.arglist:M("[.][.][.]$") then
+                            if proto.arglist ~= 'void' and proto.arglist ~= ''  then
+                                for arg in (proto.arglist..','):gmatch("([^,]+),") do
+                                    i = i + 1
+                                    local t, name = arg:match("%s*([%w_]*%s*[%w_]*%s*[%w_]+[%s*]+)([%w_]+)%s*")
+
+                                    if (t and name) then
+                                        local a = {}
+                                        a.type, a.name = t, name;
+                                        a.idx = i
+                                        proto.args[a.name]=a
+                                        table.insert(proto.argv,a)
+                                    else
+                                        EF("Cannot fetch %s from line...",what)
+                                    end
+                                end
+                                log(3,proto)
+                                prototypes[proto.name] = proto;
                             end
+                        else
+                            log(1,"C prototype: has ... ignoring")
                         end
-                        log(3,proto)
-                        prototypes[proto.name] = proto;
                     end
                 end
             end
@@ -943,22 +950,3 @@ do
     log_fd:close();
     
 end 
-
--- Copyright (C) 2014 Luis E. Garcia Ontanon <luis@ontanon.org>
--- 
--- Permission is hereby granted, free of charge, to any person obtaining a copy of this
--- software and associated documentation files (the "Software"), to deal in the Software
--- without restriction, including without limitation the rights to use, copy, modify,
--- merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
--- permit persons to whom the Software is furnished to do so, subject to the following
--- conditions:
--- 
--- The above copyright notice and this permission notice shall be included in all copies
--- or substantial portions of the Software.
--- 
--- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
--- INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
--- PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
--- HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
--- CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
--- THE USE OR OTHER DEALINGS IN THE SOFTWARE. 

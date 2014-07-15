@@ -30,10 +30,9 @@
  * =====================================================================================
  */
 
-#ifdef HAS_LUA
-
-#include "config.h"
-#include "debug.h"
+/* the space between # and include disables parsing of the file */
+# include "config.h"
+# include "debug.h"
 #include "commotion.h"
 #include "obj.h"
 #include "list.h"
@@ -49,148 +48,37 @@
 #include "socket.h"
 #include "util.h"
 
-#include "extern/luawrap.h"
+#Module Commotion static
 
-/****************************************************************/
-/* Macros for callback wrappers (used by Process and Socket) */
-/* C Class 
- * N Name
- * Id Unique Identifier element in struct
- * T type of number
- * O Type of object
- */
-#define _CbErr() { return 0; }  //2do
-#define _CbPrep(C,N,Id) getReg(SelfCbKey(#C,#N,((C*)self)->Id)); checkLF(L,-1); push##C(L,self)
-#define _CbPcall(Nargs,Ret) if(lua_pcall(L,Nargs+1,1)) _sCbErr() else { return (Ret); }
+/* cmd.h */
+#Class Cmd co_str8_t
 
-#define SelfCbKey(C,n1,n2) (cbkey(#C,n1,n2)))
+/* commotion.h */
+#Class Connection co_obj_t
+#Class Request co_obj_t
+#Class Response co_obj_t
 
-#define DefSelfCb_N(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self) \
-    { _CbPrep(C,N,Id);  _CbPcall(0,toN(L,-1,T)); } _End(C,N)
+/* iface.h */
+#Class Iface co_iface_t
 
-#define DefSelfCb_N__O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o) {\
-    { _CbPrep(C,N,Id);  push#O(L,o); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
-
-#define DefSelfCb_N__S(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, const char *s) { \
-    { _CbPrep(C,N,Id);  pushS(L,s); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
-
-#define DefSelfCb_N__L(C,N,Id,T) static T C##_##N##_cb(co_obj_t *self, char *s, size_t len) { \
-    { _CbPrep(C,N,Id);   pushL(L,s,len); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
-
-#define DefSelfCb_N__O_L(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, char *s, size_t len) { \
-    { sCbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _CbPcall(1,toN(L,-1,T)); } _End(C,N)
-
-#define DefSelfCb_O(C,N,Id,T,O) static T C##_##N##_cb(co_obj_t *self, co_obj_t *o, co_obj_t *unused) { \
-    { _CbPrep(C,N,Id);   push##O(L,o); pushL(L,s,len); _CbPcall(0,to##O(L,-1)); } _End(C,N)
-
-#define DefSelfCb_N__N_N_L(C,N,Id,T,T1,T2,PT,LT) static T C##_##N##_cb(C*o, T1 i1, T2 i2, PT *s, LT len) { \
-    { _CbPrep(C,N,Id);  pushN(L,i1,T1);  pushN(L,i2,T2); pushL(L,s,len); _CbPcall(3,toN(L,-1,T)); } _End(C,N)
-
-
-
-LuaWrapDefinitions();
-
-/****************************************************************/
-/*
- * typedefs for Lua classes
- */
-
-typedef co_obj_t Obj;
-typedef co_iface_t Iface;
-typedef ListIteration Ifaces;
-typedef co_cmd_t Cmd;
-
-typedef union List {
-    co_list16_t list16;
-    co_list32_t list32;
-} List;
-
-typedef co_timer_t Timer;
-typedef co_process_t Process;
-
-
-//2do
-typedef union Tree {
-    co_tree16_t tree16;
-    co_tree32_t tree32;
-} Tree;
-
-typedef co_plugin_t Plugin;
-typedef co_cbptr_t CallBack;
-typedef co_profile_t Profile;
-typedef co_socket_t Socket;
-typedef unix_socket_t USock;
-typedef co_fd_t FileDes;
-
-typedef struct Sys {
-    co_exttype_t _header;
-} Sys;
-
-
-/****************************************************************/
-/*
- * Class Definitions
- */
-
-ClassDefine(Iface,NOP,NOP);
-ClassDefine(Ifaces,NOP,NOP);
-ClassDefine(Cmd,NOP,NOP);
-ClassDefine(Iterator,NOP,NOP);
-ClassDefine(List,NOP,NOP);
-ClassDefine(ListIteration,NOP,NOP);
-ClassDefine(Timer,NOP,NOP);
-
-//2do
-ClassDeclare(Plugin);
-ClassDeclare(Process);
-ClassDeclare(CallBack);
-ClassDeclare(Profile);
-ClassDeclare(Socket);
-ClassDeclare(USock);
-ClassDeclare(FileDes);
-
-ClassDeclare(Sys);
-
-/****************************************************************/
-/* internal types*/
-typedef struct VS {
-    int v,
-    const char* s
-} VS;
+/* list.h */
+#Class List co_obj_t
+#Class Timer co_obj_t
+#Class Plugin co_obj_t
+#Class Process co_process_t
+#Class ProcessProf co_process_t
+#Class Profile co_obj_t
+#Class Soket co_socket_t
+#Class USocket co_socket_t
+#Class Fd co_fd_t
+#OwnClass Obj co_obj_t
 
 /****************************************************************/
 /*
  *  file globals;
  */
-static lua_State* gL = NULL;
 static co_obj_t* nil_obj = NULL;
 static const char* err = NULL;
-
-
-#define pushFmtS(ARGS) ( lua_pushstring(L, tmpFmt ARGS ) )
-#define cbkey(a, b, c) tmpFmt("%s_%s_%s", a, b, c);
-#define cat(a,b) tmpFmt("%s%s", a, b);
-
-static int do_nothing(lua_State* L) { return 0; }
-
-void checkCbs(lua_State* L,int idx,const char* key,const char* name,const char* fn_names[]) {
-    void* fn_name;
-   
-    checkT(L,idx);
-    
-    for (fn_name = (void*)fn_names; *((const char*)fn_name); fn_name++) {
-        pushS(L,(const char*)fn_name);
-        lua_gettable(L, idx);
-        
-        if (! isF(L,-1)) {
-            lua_pop(L1);
-            lua_pushcfunction(L,do_nothing);
-            // 2do error...
-        }
-        
-        setReg(SelfCbKey(key,name,fn_name));
-    }
-}
 
 
 /****************************************************************/
@@ -211,12 +99,12 @@ static co_obj_t* toObj(lua_State* L, int idx) {
             return co_float64_create(lua_tonumber(L,idx),CO_FLAG_LUAGC);
         case LUA_TBOOLEAN:
             return co_bool_create(lua_toboolean(L,idx),CO_FLAG_LUAGC);
-        case LUA_TSTRING: do {
+        case LUA_TSTRING: {
                 size_t len=0;
                 const char * s = lua_tolstring(L, idx, &len);
                 return co_str32_create(s,len,CO_FLAG_LUAGC);
-            } while(0);
-            break;
+                break;
+            } 
         case LUA_TUSERDATA:
             return lua_touserdata(L,idx);
         case LUA_TTABLE:
@@ -387,175 +275,162 @@ static int pushObj(lua_State* L, co_obj_t* o) {
 }
 
 
-/**
- iterator invoking lua code
-    the function to be called must be on top of the stack
-*/
-static co_obj_t* luawrap_iter(co_obj_t *data, co_obj_t *current, void *context) {
-    lua_State* L = (lua_State*)context;
-    pushObj(L,current); 
-    if(lua_pcall(L1,1)){ err = toS(L,-1); return NULL; }
-    lua_pop(L1);
-    return current;
-}
 
-/** callback **/
 
-/* for registered callback */
 
-/* function on top of the stack */
-static int luawrap_quick_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-    co_str8_t s = ((co_str8_t)self);
-    pushObj(gL,params);
-    if(lua_pcall(L1,1)){err=toS(gL,-1); return 0;}
-    *output = shiftObj(gL1);
-    rerurn *output?1:0;
-}
+
+
+
+
 
 
 
 
 /****************************************************************/
+/*! @class Commotion
+ *  @brief a mechanism for registering and controlling display of commands
+
+/** @fn init
+ * @brief initializes API
+ */
+#Function init co_init: N{_} @
+
+/** @fn shutdown
+ * @brief shuts down the API
+ */
+#Function shutdown co_shutdown: N{_} @
+extern int co_shutdown(void);
+
+
+/** @fn Connection.connect(uri)
+ * @brief creates a connection to Commotion daemon at the given URI
+ * @param uri URI string
+ */
+#Function connect co_connect: Connection{_} @ L{uri;ulen}
+
+/** @fn Request.create()
+ * @brief closes connection to Commotion daemon
+ * @param connection context object for active connection
+ */
+#Function Request.create co_request_create: Request{_} @
+
+/** @fn Request.append
+ * @brief appends object to request
+ * @param request request object to append to
+ * @param object object to append
+ */
+#Function Request.append co_request_append: N{_} @ Request{request} Obj{object}
+
+/** Request.append_str(request, s)
+ * @brief appends string to request
+ * @param request request object to append to
+ * @param s string to append
+ */
+#Function Request.append_str co_request_append_str: N{_} @ Request{request} L{s,slen}
+
+/** @fn Request.append_bin(request, s)
+ * @brief appends byte array to request
+ * @param request request object to append to
+ * @param s array to append
+ */
+#Function Request.append_bin co_request_append_bin: N{_} @ Request{request} L{s,slen}
+
+/** @fn Request.append_int(request, i)
+ * @brief appends int to request
+ * @param request request object to append to
+ * @param i integer to append
+ */
+#Function Request.append_int co_request_append_int: N{_} @ Request{request} N{i;int}
+
+/**
+ * @brief appends unsigned int to request
+ * @param request request object to append to
+ * @param i integer to append
+ */
+#Function Request.append_uint co_request_append_uint: N{_} @ Request{request} N{i;const unsigned int}
+
+/** Connection.call(connection,method,request)
+ * @brief sense procedure call to daemon
+ * @param connection context object for connection
+ * @param method method name
+ * @param request request object to send
+ */
+#Function Connection.call co_call: \
+    Response{resp} N{_} @ Connection{} L{method,mlen} Request{request} X{resp;*response;Obj*}
+
+/** Response.__index(response, key)
+ * @brief retrieve object from response
+ * @param response pointer to response object
+ * @param key identifier for response element to retrieve
+ */
+#Function Response.__index co_response_get: Obj{_} @ Response{response} L{key;klen}
+
+/****************************************************************/
 /*! @class Cmd
  *  @brief a mechanism for registering and controlling display of commands
+
+/** @fn Cmd.new(name)
  */
-// ASSUMING that the co_cmd_t* persists over time
-// XXX i.e. if the implementation moves the data around this is broken
+co_obj_t *co_str8_create(const char *input,  const size_t input_size, const uint8_t flags);
+#Function CmdKey.new(name) co_str8_create: CmdKey{_} @ L{input;input_size}
 
-static int cmd_cb(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-    lua_State* L = (lua_State*)context;
-    co_str8_t s = ((co_str8_t)self);
-    const char* name = (char*)s->data;
-    const char* nlen = (char*)s->len;
-    
-    pushCmd(co_cmd_get(name, nlen));
-    pushObj(gL,params);
-    lua_getfield(gL, LUA_REGISTRYINDEX, cbkey("Cmd","-",name)); // function_name
-
-    if(lua_pcall(L2,1)){err=toS(gL,-1); return 0;}
-    *output = shiftObj(gL1);
-    rerurn *output?1:0;
+LQW_MODE const char* cbKeyCmdCB(void* ptr) {
+    return lqwFmt("CmdCB:%s",((co_str8_t*)ptr)->data);
 }
+#CallBack CmdCB{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Cmd{self} List{params}
 
-/** @constructor new
- * @brief creates and registers a new command
- * @param name: of the command
- * @param usage: of the command
- * @param desc: of the command
- * @param action: function(self,params) to be called when executed
+/** @fn Cmd.register(key,usage,desc,handler)
+ * @brief registers a command
+ * @param key the key of the command
+ * @param usage the usage of the command
+ * @param desc the description of command
+ * @param handler the callback that handles the command
  */
-Constructor Cmd_register(lua_State* L) {
-    size_t nlen, ulen, dlen;    
-    const char *name = luaL_checklstring(L1,&nlen);
-    const char *usage = luaL_checklstring(L2,&ulen);
-    const char *desc = luaL_checklstring(L3,&dlen);
-    int r;
-    isF(L4);
+#Function Cmd.register co_cmd_register: \
+    N{_} @ CmdKey{k} L{usage,ulen} L{desc,dlen} CmdCB{handler,name} X{name;k->data;const char*} X{nlen;k->_len;size_t}
 
-    lua_setfield(L,LUA_REGISTRYINDEX, cbkey("Cmd","-",name));
-    
-    if (( r = co_cmd_register(name, nlen, usage, ulen, desc, dlen, cmd_cb) != 0 )) {
-            pushCmd(L,co_cmd_get(name, nlen));
-            R1;
-    }
-    
-    Error(tmpFmt("Cmd.register: fail_code=%d",r));
-    return 0;
-}
-
-/** @constructor get
- * @brief loads a registered command
- * @param name: of the command
+/** @fn CmdKey.exec
+ * @brief executes a command by running the function linked to in the command struct
+ * @param key the name of the command
+ * @param output return object of command
  */
-Constructor Cmd_get(lua_State* L) {
-    size_t nlen = 0;
-    const char *name = luaL_checklstring(L1,&nlen);
-    pushCmd(L,co_cmd_get(name, nlen));
-    R1;
-}
+#Function Cmd.exec co_cmd_exec: Obj{out} N{_} @ CmdKey{key} Obj{param} X{output;&out;Obj**}
 
-/** @method exec
- * @brief executes a command
- * @param params: the parameters to the command
- * returns the output of the excution
+/**
+ * @brief returns command usage format
+ * @param key command key
  */
-Method Cmd_exec(lua_State* L) {
-    Cmd* c = checkCmd(L1);
-    Obj* param = checkObj(L2);
-    Obj* key = co_str8_create(c->name, strlen(c->name), 0);
-    
-    if (co_cmd_exec(key, &output, param) != 0) {
-        co_obj_free(key);
-        pushObj(L,output);
-        R1;
-    }
+#Function Cmd.usage co_cmd_usage: Obj{out} @ CmdKey{key}
 
-    co_obj_free(key);
-    return 0;
-}
-
-/** @method usage
- * @brief returns the usage of the command
+/** @fn CmdKey.desc(key)
+ * @brief returns command description (what the command does)
+ * @param key the name of the command
  */
-DefAccessorR_S(Cmd,usage,co_cmd);
-           
-/** @method desc
- * @brief returns the description of the command
- */
-DefAccessorR_S(Cmd,desc,co_cmd);
+#Function Cmd.desc co_cmd_desc: Obj{out} @ CmdKey{key}
 
-/** @method hook
- * @brief adds a callback to a command
- * @param action: function to be called
+/**@fn Cmd.hook(key,cb)
+ * @brief hooks callback function into a command
+ * @param key the name of the command
+ * @param cb callback function
  */
-Method Cmd_hook(lua_State* L) {
-    Cmd* c = checkCmd(L1);
-    Obj* key = co_str8_create(c->name, strlen(c->name), 0);
-    
-    luaL_checktype(L2, LUA_TFUNCTION);
-    lua_setfield (L, LUA_REGISTRYINDEX, cbkey("Cmd","",c->name));
-    
-    lua_pushboolean(L,co_cmd_hook(key, luawrap_cb));
-    R1;
-}
+#Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CmdCB{cb;key}
 
-/** @method __tostring
- * @brief returns the name of the command
- */
-MetaMethod Cmd__tostring(lua_State* L) {
-    Cmd* c = checkCmd(L1);
-    pushFmtS(("Cmd:%s",c->name));
-    R1;
-}
-
-/** @fn process
- * @brief processes all registered commands with given iterator
+/**
+ * @brief process all registered commands with given iterator
  * @param iter iterator function reference
+ * @param context other parameters passed to iterator
  */
-Function Cmd_process(lua_State* L) {
-    luaL_checkfunction(L1)
-    luawrap_iter_check(L);
-    co_cmd_process(luawrap_iter, L);
-    R0;
-}
+#CallBack CmdIter co_iter_t NULL: Obj{_} @ Cmd{current}
+#Function Cmd.process co_cmd_process: N{_} @ CmdIter{iter} X{context;NULL;void*}
 
-//2do: remove? GC?
-           
-static const luaL_Reg Cmd_methods[] = {
-    {"register", Cmd_new},
-    {"get", Cmd_get},
-    {"exec", Cmd_exec},
-    {"usage", Cmd_usage},
-    {"desc", Cmd_desc},
-    {"hook", Cmd_hook},
-    { NULL, NULL }
-};
+#Function Cmd.__gc co_obj_free: @ CmdKey{key}
 
-static const luaL_Reg Cmd_meta[] = {
-    {"__tostring", Cmd__tostring},
-    {"__call", Cmd_exec},
-    { NULL, NULL }
-};
+
+
+
+
+
+
 
 
 /****************************************************************/
@@ -563,174 +438,116 @@ static const luaL_Reg Cmd_meta[] = {
  *  @brief Commotion double linked-list implementation
  */
 
-/** @method length
- * @brief returns the number of elements in the list
+/**
+ * @brief return length (number of objects) of given list
+ * @param list list object
  */
-DefMethod_N(List,lenght,co_list);
+#Function List.__len co_list_len(list): N{_} @ List{list}
+size_t co_list_length(co_obj_t *list);
 
-/** @method get_first
- * @brief returns the fisrt element of the list
+/**
+ * @brief return first element of given list
+ * @param list list object
  */
-DefMethod_O(List,get_first,co_list,Obj);
+#Funcion List.first co_list_get_first: Obj{_} @ List{list}
 
-/** @method get_first
- * @brief returns the last element of the list
+/**
+ * @brief return last element of given list
+ * @param list list object
  */
-DefMethod_O(List,get_last,co_list,Obj);
+#Funcion List.last co_list_get_last: Obj{_} @ List{list}
 
-/** @method contains
- * @brief returns true if the list contains the given elem
- * @param elem: the element to be looked for
+/**
+ * @brief returns each element of the list in succesive calls, NULL when done
+ * @param list list object
+ * @param pointer to a cookie to mantain state, must be NULL on first call
  */
-Defmethod_B__O(List,contains,co_list,Obj);
+co_obj_t * co_list_foreach(co_obj_t *list, void** state);
 
-/** @method delete
-* @brief returns true if the given elem was removed from the list
-* @param elem: the element to be deleted
-*/
-DefMethod_O__O(List,delete,co_list,Obj);
-
-/** @method insert_before
- * @brief inserts an element before the given element
- * @param elem: the element before which to insert
- * @param new_elem: the element to be inserted
+/**
+ * @brief process list with given iterator function
+ * @param list list object to process
+ * @param iter iterator function
+ * @param context additional arguments to iterator
  */
-DefMethod_N__O_O(List,insert_before,co_list,Obj,Obj);
+#CallBack ListIter co_iter_t NULL: Obj{_} @ Obj{current} 
+#Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL}
 
-/** @method insert_after
- * @brief inserts an element after the given element
- * @param elem: the element after which to insert
- * @param new_elem: the element to be inserted
+/**
+ * @brief determine if list contains specified item
+ * @param list list object to process
+ * @param item item to search for
  */
-DefMethod_N__O_O(List,insert_after,co_list,Obj,Obj);
+#Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
 
-/** @method prepend
- * @brief inserts an element at the start of the list
- * @param new_elem: the element to be inserted
+/**
+ * @brief insert new item in list before specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert before
  */
-DefMethod_N__O(List,prepend,co_list,Obj);
+#Function List.insert_before co_list_insert_before: B{_} @ List{list} Obj{new_obj} Obj{this_obj}
 
-/** @method append
- * @brief inserts an element at the end of the list
- * @param new_elem: the element to be inserted
+/**
+ * @brief insert new item in list after specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert after
  */
-DefMethod_N__O(List,append,co_list,Obj);
+#Function List.insert_after co_list_insert_after: B{_} @ List{list} Obj{new_obj} Obj{this_obj}
 
-/** @method element
- * @brief returns the indexth element of the list
- * @param index: the element
+/**
+ * @brief insert new item at beginning of list
+ * @param list list object to process
+ * @param new_obj item to insert
  */
-DefMethod_O__O_N(List,element,co_list,Obj,int);
+#Function List.prepend co_list_prepend: N{_} @ List{list} Obj{new_obj}
+
+/**
+ * @brief insert new item at end of list
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
+#Function List.append co_list_prepend: N{_} @ List{list} Obj{new_obj}
+
+/**
+ * @brief delete specified item from list
+ * @param list list object to process
+ * @param item item to delete
+ */
+#Function List.delete co_list_delete: N{_} @ List{list} Obj{item}
+
+/**
+ * @brief return item at specified position in list
+ * @param list list object to process
+ * @param index number of item to return
+ */
+#Function List.element co_list_delete: Obj{_} @ List{list} N{index,const unsigned int}
+
+/**
+ * @brief dump raw representation of list
+ * @param output output buffer
+ * @param olen length of output buffer
+ * @param list list object to process
+ */
+#Function List.raw co_list_raw: L{output;_;524288} @ List{list} X{olen;524288;size_t}
+
+/**
+ * @brief import list from raw representation
+ * @param list target pointer to new list object
+ * @param input input buffer
+ * @param ilen length of input buffer
+ */
+#Function List.import co_list_import: List{listo} @ L{input;ilen} X{list;&listo;List**}
 
 
 /** @method __tostring
  * @brief returns a string representation of the list
  */
-MetaMethod List__tostring(lua_State* L) {
-    co_obj_t* list = checkList(L1);
-   
-    size_t olen = 255;
-    char buff[olen];
-    
-    olen = co_list_raw(buff, olen, list)
-    lua_pushlstring(L,buff,olen);
-    R1;
-}
+#Alias List.__tostring  List.raw
 
-/** @method foreach
- * @brief calls the given function for each element of the list
- * @param action: function to be called for each object
- * returns a boolean true if all elements were processed
- * action takes the current object and returns a boolean (true to continue)
- */
-int List_foreach(lua_State* L) {
-    int cont = 0;
-    co_obj_t* list = checkList(L1);
-    co_obj_t* cur;
-    void* cookie = NULL;
-    luaL_checkfunction(L2);
-    
-    while( cur = co_list_foreach(list, &cookie) ) {
-        pushObj(cur);
-        lua_call(L1,1);
-        cont = lua_toboolean(L,-1);
-        lua_pop (L1);
-        if (!cont) break; 
-    }
-    
-    lua_pushboolean(L,cont);
-    R1;
-}
 
-/** @method __call
- * @brief returns an iterator function
- * function will return next element of the list at each call, nil when done
- */
-/** @method iter
- * @brief returns an iterator function
- * function will return next element of the list at each call, nil when done
- */
-MetaMethod List__call (lua_State *L) {
-  co_obj_t* list = checkList(L1);
-  lua_pushlightudata(L, NULL);
-  lua_pushcclosure(L, _List_iter, 2);
-  R0;
-}
 
-/** @constructor List.import(str)
- * @brief constructs a list given its string representation
- */
-Constructor List_import(lua_State* L) {
-    size_t ilen=0;
-    co_obj_t* list = NULL;
-    const char* buff = luaL_checklstring (L2, &ilen);
-
-    size_t olen = co_list_import(&list, buff, list);
-        
-    if (list) pushList(L,markList(list)); else lua_pushnil(L);
-    R1;
-}
-
-Function _List_iter(lua_State *L) {
-  co_obj_t* list = toList(L1);
-  void* next = lua_touserdata(L2);
-  co_obj_t* item = co_list_foreach(list,&next);
-  lua_pop(L1);
-  lua_pushlightuserdata(L, next);
-
-  if (item) {
-    pushObj(L,item);
-    R1;
-  } else {
-    R0;
-  }
-}
-
-static const luaL_Reg List_methods[] = {
-    {"lenght", List_length},
-    {"get_first", List_get_first},
-    {"get_last", List_get_last},
-    {"for_each", List_ForEach},
-    {"contains", List_contains},
-    {"delete", List_delete},
-    {"insert_before", List_insert_before},
-    {"insert_after", List_insert_after},
-    {"prepend", List_prepend},
-    {"append", List_append},
-    {"element", List_element},
-    {"import", List_import},
-    {"iter", List__call},
-    { NULL, NULL }
-};
-
-static const luaL_Reg List_meta[] = {
-    {"__tostring", List__tostring},
-    {"__call", List__call},
-    {"__index", List_element},
-    {"__len", List_length},
-    {"__gc", gcList},
-    { NULL, NULL }
-};
 
 
 /****************************************************************/
@@ -906,34 +723,6 @@ Constructor Iface_add(lua_State *L) {
     return 0;
   }
 }
-
-// 2do: int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
-
-static const luaL_Reg Iface_methods[] = {
-    {"get", Iface_get},
-    {"add", Iface_add},
-    {"iter", Iface_iter},
-    {"foreach", Iface_foreach},
-    {"wpa_connect", Iface_wpa_connect},
-    {"wpa_disconnect", Iface_wpa_disconnect},
-    {"set_ip", Iface_set_ip},
-    {"unset_ip", Iface_unset_ip},
-    {"set_ssid", Iface_set_ssid},
-    {"set_bssid", Iface_set_bssid},
-    {"set_frequency", Iface_set_frequency},
-    {"set_encription", Iface_set_encription},
-    {"set_key", Iface_set_key},
-    {"set_mode", Iface_set_mode},
-    {"set_apscan", Iface_set_apscan},
-    {"wireless_enable", Iface_wireless_enable},
-    {"wireless_disable", Iface_wireless_disable},
-    {"set_dns", Iface_set_dns},
-    {"get_mac", Iface_get_mac},
-    {"status", Iface_status},
-    {"wpa_id", Iface_wpa_id},
-    {"wireless", Iface_wireless},
-    { NULL, NULL }
-};
 
 
 /*! @class Timer 

@@ -138,7 +138,7 @@ elems in argument-list can be:
 
 
 
-LuaQWrap is directly derived from the code used to add Lua to
-Wireshark, and authored by the same person.
+LuaQWrap's C code is directly derived from the code used to add Lua to
+Wireshark.
 
 \Lego

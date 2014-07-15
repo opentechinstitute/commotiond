@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include "debug.h"
 #include "extern/halloc.h"
-
 typedef struct _listnode_t _listnode_t;
 
 /* Type "list" declaration macros */
@@ -46,6 +45,7 @@ typedef struct _listnode_t _listnode_t;
 
 _DECLARE_LIST(16);
 _DECLARE_LIST(32);
+
 
 /**
  * @brief return length (number of objects) of given list
@@ -93,8 +93,7 @@ int co_list_contains(co_obj_t *list, co_obj_t *item);
  * @param new_obj item to insert
  * @param this_obj item to insert before
  */
-int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
-    co_obj_t *this_obj);
+int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
 /**
  * @brief insert new item in list before specified item without the list managing the item's memory
@@ -102,8 +101,7 @@ int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
  * @param new_obj item to insert
  * @param this_obj item to insert before
  */
-int co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, \
-    co_obj_t *this_obj);
+int co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
 /**
  * @brief insert new item in list after specified item
@@ -170,6 +168,7 @@ co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
  * @param list list object to process
  */
 size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
+
 
 /**
  * @brief import list from raw representation
