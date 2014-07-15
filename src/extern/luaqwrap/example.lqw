@@ -43,7 +43,7 @@ typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
 #Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CmdCB{cb;key}
 
-#Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;co_obj_t**}
+#Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;Obj**}
 #Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
 #Function List.len co_list_length: N{_} @ List{list}
 #Alias List.__len List.len
