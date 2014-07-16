@@ -93,7 +93,18 @@ elems in argument-list can be:
         K{name,key} a key for a callback (given in the same order as the CB before)
           - name of the variable
           - type of key generator
-          
+
+        C-Trigraphs
+        ??= 	#
+        ??/ 	\
+        ??' 	^
+        ??( 	[
+        ??) 	]
+        ??! 	|
+        ??< 	{
+        ??> 	}
+        ??- 	~
+
  Function Examples:
     int co_list_contains(co_obj_t *list, co_obj_t *item);
     //LW: Function List.contains co_list_contains: B{_} @ List{list} Obj{item}

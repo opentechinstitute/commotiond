@@ -48,6 +48,9 @@
 #include "socket.h"
 #include "util.h"
 
+#include <sys/socket.h> // AF_INET
+#include <math.h> // floor()
+
 #Module Commotion static
 
 /* cmd.h */
@@ -71,6 +74,10 @@
 #Class Soket co_socket_t
 #Class USocket co_socket_t
 #Class Fd co_fd_t
+
+tyepdef struct dummy {int i;} dummy_t;
+#OwnClass Loop dummy_t
+
 #OwnClass Obj co_obj_t
 
 /****************************************************************/
@@ -372,7 +379,7 @@ extern int co_shutdown(void);
 /** @fn Cmd.new(name)
  */
 co_obj_t *co_str8_create(const char *input,  const size_t input_size, const uint8_t flags);
-#Function CmdKey.new(name) co_str8_create: CmdKey{_} @ L{input;input_size}
+#Function Cmd.new(name) co_str8_create: CmdKey{_} @ L{input;input_size}
 
 LQW_MODE const char* cbKeyCmdCB(void* ptr) {
     return lqwFmt("CmdCB:%s",((co_str8_t*)ptr)->data);
@@ -555,261 +562,296 @@ co_obj_t * co_list_foreach(co_obj_t *list, void** state);
  * @brief interface handling for the Commotion daemon
  */
 
+/** @fn Iface.create()
+ * @brief checks for available interfaces
+ */
+#Function Iface.create co_ifaces_create: @
 
-/** @method Iface.wpa_connect()
-  * @brief connects the commotion interface to wpa supplicant
-  */
-DefMethod_N(Iface,wpa_connect,co_iface);
+/** @fn Iface.shutdown()
+ * @brief removes all interfaces
+ */
+#Function Iface.shutdown co_ifaces_shutdown: @
 
-/** @method Iface.wpa_disconnect()
-  */
-DefMethod_N(Iface,wpa_disconnect,co_iface);
 
-/** @method Iface.set_ip(addr,mask)
-  */
-DefMethod_N__S_S(Iface,set_ip,co_iface);
+/** Iface.foreach(iter)
+ * @brief invokes cb for each interface
+ * @param iter iterator taking the current interface and returning nothing
+ */
+#Callback IfaceIter co_iface_iter_t: @ Iface{iface} 
+#Function Iface.foreach  co_ifaces_foreach: @ IfaceIter{iter} X{ctx;NULL}
 
-/** @method Iface.unset_ip()
-  */
-DefMethod_N(Iface,unset_ip,co_iface);
 
-/** @method Iface.set_ssid(ssid)
-  */
-DefMethod_N__S(Iface,set_ssid,co_iface);
 
-/** @method Iface.set_bssid(bssid)
-  */
-DefMethod_N__S(Iface,set_bssid,co_iface);
+/** @fn Iface.remove(iface_name)
+ * @brief removes an interface from the list of available interfaces
+ * @param iface_name name of interface to be removed
+ */
+#Function Iface.remove co_iface_remove: N{_} @ S{iface_name}
 
-/** @method Iface.set_frequency(freq)
-  */
-DefMethod_N__N(Iface,set_frequency,co_iface,int);
+/** @fn Iface.add(iface_name,family)
+ * @brief adds a new interface to the list of interfaces, checks if it is IPv4 and IPv6 capable, and or wireless
+ * @param iface_name name of the interface
+ * @param family address family of the interface. Must be AF_INET (IPv4) or AF_INET6 (IPv6), which uses host and port number for addressing
+ */
+#Value Iface.AF_INET AF_INET  
+#Value Iface.AF_INET6 AF_INET6
+#Function Iface.add co_iface_add: Iface{_} @ S{iface_name} N{family;int}
 
-/** @method Iface.set_encription(enc)
-  */
-DefMethod_N__N(Iface,set_encription,co_iface,int);
+/** @fn Iface.wpa_connect(iface)
+ * @brief connects the commotion interface to wpa supplicant
+ * @param iface interface object
+ */
+#Function Iface.wpa_connect co_iface_wpa_connect: N{_} @ Iface{iface}
 
-/** @method Iface.set_key(key)
-  */
-DefMethod_N__S(Iface,set_key,co_iface);
+/** @fn Iface.wpa_disconnect(iface)
+ * @brief turns off wpa supplicant
+ * @param iface interface object
+ */
+#Function Iface.wpa_disconnect co_iface_wpa_connect: N{_} @ Iface{iface}
 
-/** @method Iface.set_mode(mode)
-  */
-DefMethod_N__S(Iface,set_mode,co_iface);
+/** Iface.get_mac(iface)
+ * @brief get mac address of inetrface
+ * @param iface interface object
+ */
+#Function Iface.get_mac co_iface_get_mac: L{output;64;_} N{_} @ Iface{iface} X{output_size;6;int}
 
-/** @method Iface.set_apscan(apscan_mode)
-  */
-DefMethod_N__N(Iface,set_apscan,co_iface);
+/**
+ * @brief sets ip address and netmask for commotion interface
+ * @param iface interface object
+ * @param ip_addr ip address for the socket
+ * @param netmask netmask for the socket
+ */
+#Function Iface.set_ip co_iface_set_ip: N{_} @ Iface{iface} S{ip_addr} S{netmask} 
 
-/** @method Iface.wireless_enable()
-  */
-DefMethod_N(Iface,wireless_enable,co_iface);
+/** @fn Iface.unset_ip(iface)
+ * @brief Resets ip address of chosen interface
+ * @param iface interface object
+ */
+#Function Iface.unset_ip co_iface_unset_ip: N{_} @ Iface{iface} 
 
-/** @method Iface.wireless_disable()
-  */
-DefMethod_N(Iface,wireless_disable,co_iface);
+/** @fn Iface.set_ssid(iface,ssid)
+ * @brief sets SSID from profile or uses default
+ * @param iface interface object
+ * @param ssid desired SSID
+ */
+#Function Iface.set_ssid co_iface_set_ssid: N{_} @ Iface{iface} S{ssid}
 
-/** @method Iface.set_dns(a,b,c)
-  */
-DefMethod_N__S_S_S(Iface,set_dns,co_iface);
+/** @fn Iface.set_bssid(iface,bssid)
+ * @brief sets BSSID from profile or uses default
+ * @param iface interface object
+ * @param bssid desired BSSID
+ */
+#Function Iface.set_bssid co_iface_set_bssid: N{_} @ Iface{iface} S{bssid}
 
-/** @method Iface.get_mac()
-  */
-//DefMethod_GET_BUF(Iface,get_mac,co_iface,6);
-//2do: fix macro
+/** @fn Iface.set_frequency(iface,frequency)
+ * @brief sets wireless frequency (eg. channel) from profile or uses default
+ * @param iface interface object
+ * @param frequency desired frequency
+ */
+#Function Iface.set_frequency co_iface_set_frequency: N{_} @ Iface{iface} N{frequency}
+
+/** @fn Iface.set_encryption(iface,proto)
+ * @brief specifies the wpa encryption protocol
+ * @param iface interface object
+ * @param proto desired protocol
+ */
+#Function Iface.set_encryption co_iface_set_encryption: N{_} @ Iface{iface} S{proto}
+
+/** @fn Iface.set_key(iface,key)
+ * @brief specifies the wpa encryption key
+ * @param iface interface object
+ * @param key desired key
+ */
+#Function Iface.set_key co_iface_set_key: N{_} @ Iface{iface} S{key}
+
+/** @fn Iface.set_mode(iface,mode)
+ * @brief specifies the Wi-Fi mode
+ * @param iface interface object
+ * @param mode desired mode
+ */
+#Function Iface.set_mode co_iface_set_mode: N{_} @ Iface{iface} S{mode}
+
+/** @fn Iface.set_apscan(iface,value)
+ * @brief sets AP_SCAN value
+ * @param iface interface object
+ * @param value desired value for AP_SCAN
+ */
+#Function Iface.set_apscan co_iface_set_apscan: N{_} @ Iface{iface} N{value;int}
+
+/** @fn Iface.wireless_enable(iface)
+ * @brief enables specified wireless network
+ * @param iface interface object
+ */
+#Function Iface.wireless_enable co_iface_wireless_enable: N{_} @ Iface{iface}
+
+/** @fn Iface.wireless_disable(iface)
+ * @brief disables specified wireless network
+ * @param iface interface object
+ */
+#Function Iface.wireless_disable co_iface_wireless_disable: N{_} @ Iface{iface}
+
+/** @fn Iface.set_dns(dnsserver,searchdomain,resolvpath)
+ * @brief sets DNS name server and sets search domain
+ * @param dnsserver IP addresss of DNS server
+ * @param searchdomain desired search domain
+ * @param resolvpath filepath to resolv.conf
+ */
+#Function Iface.set_dns co_set_dns: N{_} @ S{dnsserver} S{searchdomain} S{resolvpath}
+
+/** @fn Iface.gen_ip(base,genmask,id,type)
+ * @brief generates an ip table for a commotion interface
+ * @param base base address
+ * @param genmask genmask
+ * @param id the node id
+ * @param type whether the device is a gateway (1) or not (0)
+ */
+#Function Iface.generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id;uint32_t} N{type}
+
+/**
+ * @brief sets node configuration profile
+ * @param iface_name name of interface
+ */
+#Function Iface.profile co_iface_profile: S{_} @ S{iface_name}
+
+/**
+ * @brief retrieves node configuration profile
+ * @param iface_name name of interface
+ */
+#Function Iface.get co_iface_get: Iface{_} @ S{iface_name}
+
+
+
 
 /** @method Iface.status()
   */
+#Value Iface.UP 1
+#Value Iface.DOWN 0
+#Accessor Iface.status RO: N{$status}
 
-DefAccessorRO_B(Iface,status);
 
 /** @method Iface.wpa_id()
   */
-DefAccessorRO_N(Iface,wpa_id)
+#Accessor Iface.wpa_id RO: N{$wpa_id}
 
 /** @method Iface.wireless()
   */
-DefAccessorRO_B(Iface,wireless)
-    
+#Accessor Iface.wireless RO: B{$wireless}
+
 // 2do struct ifreq ifr;
 // 2do  struct wpa_ctrl *ctrl;
 
 
-/** @fn Iface.iter()
-  * @brief returns an iterator for all interfaces
-  */
-Function Iface_iter (lua_State *L) {
-  pushList(L,co_ifaces_list());
-  lua_pushlightuserdata(L, NULL);
-  lua_pushcclosure(L, _List_iter, 2);
-  R1;
-}
-
-/** @fn Iface.foreach(action)
-  * @brief invokes a function for each interface
-  * @param action: function taking each object returning true to continue
-  * returns true if it has gone through all interfaces
-  */
-Function Iface_foreach (lua_State *L) {
-    int cont = 0;
-    co_obj_t* list = co_ifaces_list();
-    co_obj_t* cur;
-    void* cookie = NULL;
-    
-    luaL_checkfunction(L,lua_gettop(L));
-    
-    while( cur = co_list_foreach(list, &cookie) ) {
-        pushIface(cur);
-        lua_call(L1,1);
-        cont = lua_toboolean(L,-1);
-        lua_pop(L1);
-        if (!cont) break; 
-    }
-    
-    lua_pushboolean(L,cont);
-    R1;
-}
-
-/** @fn Iface.remove(iface_name)
-  * @brief remove an interface
-  * @param iface_name: the name of the interface to be removed
-  */
-Function luawrap_iface_remove(lua_State* L) {
-  const char *iface_name = checkS(L1);
-  lua_pushnumber(L,co_iface_remove(iface_name));
-  R1;
-}
-
-/** @fn Iface.profile(iface_name)
-  * @brief remove an interface
-  * @param iface_name: the name of the interface to be removed
-  */
-Function luawrap_iface_profile(lua_State* L) {
-  const char *iface_name = checkS(L1);
-  pushS(L,co_iface_profile(iface_name));
-  R1;
-}
-
-/** @constructor Iface.get(name)
-  * @brief get an interface by name
-  * @param name: iface_name the name of the interface
-  */
-Constructor Iface_get(lua_State *L) {
-  const char *iface_name = checkS(L1);
-  Iface* iface = (Iface*) co_iface_get(iface_name);
-  if (iface) {
-    pushIface(L,iface);
-    R1;
-  } else {
-    return 0;
-  }
-}
-
-/** @constructor Iface.add(name,family)
-  * @brief add an interface by name
-  * @param name: the name of the interface
-  * @param family: AF_INET or AF_INET6 defaults to AF_INET
-  */
-Constructor Iface_add(lua_State *L) {
-  const char *iface_name = checkS(L1);
-// XXX remove if nil...
-  int family = (int)luaL_optnumber(L2,(luaNumber)(AF_INET));
-  Iface* iface = (Iface*) co_iface_add(iface_name, family);
-
-  if (iface) {
-    pushIface(L,iface);
-    R1;
-  } else {
-    return 0;
-  }
-}
-
-
-/*! @class Timer 
+/**
+ * @brief sets up the event loop
  */
 
-/** @method timer.add()
-  */           
-Method Timer_add(lua_State*L) {
-    co_obj_t *o = checkTimer(L1);
-    int r = co_loop_add_timer(o, NULL);
-    lua_pushnumber(r);
-R1;
-}
+#Function Loop.create co_loop_create: @
 
-/** @method timer.remove()
-  */           
-Method Timer_remove(lua_State*L) {
-    co_obj_t *o = checkTimer(L1);
-    int r = co_loop_remove_timer(o, NULL);
-    lua_pushnumber(r);
-    R1;
-}
+/**
+ * @brief closes the event loop
+ */
+#Function Loop.destroy co_loop_destroy: @
 
+/**
+ * @brief starts the event loop, listening for messages on sockets via _co_loop_poll_sockets
+ */
+#Function Loop.start co_loop_start: @
 
-/** @method timer.set(milis)
-  */           
-Method Timer_set(lua_State*L) {
-    co_obj_t *t = checkTimer(L1);
-    long m = (long)luaL_checknumber(L2);
-    int r = co_loop_set_timer(t,m,NULL);
-    R1;
-}
+/**
+ * @brief stops the event loop
+ */
+#Function Loop.stop co_loop_stop: @
 
-           
-/** @constructor Timer.get(timer_id)
-  */
-Constructor Timer_get(lua_State*L) {
-    char* timer_id = checkS(L1); // BUG: 2do  make sure this key persists (anchor to a registry variable?)
-    pushTimer(co_loop_get_timer(timer_id,NULL));
-    R1;
-}
+/**
+ * @brief adds a process to the event loop (for it to listen for)
+ * @param proc the process to be added
+ */
+#Function Loop.add_process co_loop_add_process: N{_} @ Process{proc}
+int co_loop_add_process(co_obj_t *proc);
 
-               
-/** @constructor Timer.create(timer_id,time)
-  */           
-Constructor Timer_create(lua_State* L) {
-    struct timeval deadline;
-    const char* timer_id = checkS(L1); // this works because in lua strings are unique
-                                            // but it needs not to be __gc d 
-    double tv = luaL_checknumber(L2);
-    luaL_checktype (L3, LUA_TFUNCTION);
-    
-    ++timer_id;
-    deadline.tv_sec = (long)floor(tv);
-    deadline.tv_usec = (long)floor((tv - deadline.tv_sec)*1000000.00);
-    lua_setfield (L, LUA_REGISTRYINDEX, timer_id);
-    pushTimer(co_timer_create(deadline, luawrap_co_cb, (void*)timer_id));
-    R1;
-}
+/**
+ * @brief removes a process from the event loop
+ * @param pid the id of the process to be removed
+ */
+#Function Loop.remove_process co_loop_remove_process: N{_} @ N{pid;pid_t}
+
+/**
+ * @brief adds a new socket to the event loop (for it to listen on)
+ * @param new_sock the new socket to be added
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.add_socket co_loop_add_socket: N{_} @ Socket{new_sock} X{context;NULL;Obj*}
+
+/**
+ * @brief removes a socket from the event loop
+ * @param old_sock the socket to be removed
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.remove_socket co_loop_remove_socket: N{_} @ Socket{old_sock} X{context;NULL;Obj*}
+
+/**
+ * @brief gets a socket that is registered with the event loop
+ * @param uri a URI to match against the available sockets
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.get_socket co_loop_remove_socket: Socket{_} @ S{uri} X{context;NULL;Obj*}
+co_obj_t *co_loop_get_socket(char *uri, co_obj_t *context);
+
+/**
+ * @brief schedules a new timer with the event loop
+ * @param timer the timer to schedule
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.add co_loop_add_timer: N{_} @ Timer{new_timer} X{context;NULL;Obj*}
+
+/**
+ * @brief removes a timer from the event loop
+ * @param old_timer the timer to remove from list
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.remove co_loop_remove_timer: N{_} @ Timer{old_timer} X{context;NULL;Obj*}
+
+/**
+ * @brief sets timer to expire in msecs from now
+ * @param timer the timer to set
+ * @param msecs number of milliseconds
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.set co_loop_set_timer: N{_} @ Timer{timer} N{msecs;long} X{context;NULL;Obj*}
+
+/**
+ * @brief gets a socket that is registered with the event loop
+ * @param ptr void pointer to match against the available timers
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+// #Function Timer.get co_loop_get_timer: N{_} @ Timer{ptr} N{msecs;long} X{context;NULL;Obj*}
+// co_obj_t *co_loop_get_timer(void *ptr, co_obj_t *context);
+
+/**
+ * @brief malloc and initialize a timer
+ * @param size timer struct size
+ * @param proto timer protocol
+ */
+LqwCbKeyPtr(TimerCB);
+#CallBack TimerCb{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Timer{self} List{params}
+#Function Timer.create co_timer_create:  Timer{_} @ \
+   N{tv;luaNumber} TimerCb{timer_cb} S{name} \
+   X{ptr;(void*)lqwPermStr(name);void*}    X{sec;(long)floor(tv);long} \
+   X{deadline;??<sec,(long)floor((tv-(double)sec)*1000000.00)??>;struct timeval} 
            
 /** @method timer.__tostring()
-  */           
-MetaMethod Timer__tostring(lua_State* L) {
+  */     
+#OwnFunction Timer.__tostring  
+LQW_MODE int Timer__tostring(lua_State* L) {
     co_timer_t* t = checkTimer(L1);
     pushS(L,(char*)t->ptr);
-    R1;
+    return 1;
 }
-
-static const luaL_Reg Timer_methods[] = {
-    {"get",Timer_get},
-    {"create",Timer_create},
-    {"remove",Timer_remove},
-    {"set",Timer_set},
-    {"remove",Timer_remove},
-    {"add",Timer_add},
-    { NULL, NULL }
-};
-
-static const luaL_Reg Timer_meta[] = {
-    {"__tostring", Timer__tostring},
-    { NULL, NULL }
-};
 
 /****************************************************************/
 /*! @class Process
  */
-
+#if 0
 /* Process callbacks */
 DefSelfCb_N(Process,init,name);
 DefSelfCb_N(Process,destroy,name);
@@ -842,7 +884,8 @@ static int proc_start(co_obj_t *self, char *argv[]) {
   * all callbacks are passed the process object and return an integer (0 on success, else is fail)
   * start callback takes also a table of strings as second argument 
   */
-Constructor Process_create(lua_State* L) {
+#OwnFunction Process.start
+LQW_MODE int Process_create(lua_State* L) {
     co_process_t proto = {
         {  CO_FLAG_LUAGC,NULL,NULL,0,_ext8 },
         _process, sizeof(co_process_t), 0, false, false, _STARTING,
@@ -872,7 +915,8 @@ Constructor Process_create(lua_State* L) {
 /** @method process.start(argv)
   * @param argv an optional table containing the string arguments to the start procedure
   */
-Method Process_start(lua_State* L) {
+#OwnFunction Process.start
+LQW_MODE int Process_start(lua_State* L) {
     co_obj_t *self = checkProcess(L1);
     char* argv[255];
     argv[0]=NULL;
@@ -894,80 +938,11 @@ Method Process_start(lua_State* L) {
 
 /** @method process.__tostring()
   */
-Method Process__tostring(lua_State* L) {
+#OwnFunction Process.__tostring
+LQW_MODE int Process___tostring(lua_State* L) {
     pushFmtS(("Process:%s", checkProcess(L1)->name ));
-    R1;
+    return 1;
 }
-
-/** @method process.add()
-  */
-Method Process_add(lua_State*L) {
-    co_obj_t *proc = checkProcess(L1);
-    co_obj_unsetflags(proc,CO_FLAG_LUAGC);
-    int pid = co_loop_add_process(proc);
-    lua_pushnumber(L,(luaNumber)pid);
-    R1;
-}
-
-/** @fn Process.remove(pid)
-  */
-Function Process_remove(lua_State*L) {
-    int pid = (int)luaL_checknumber(L1);
-    int res = co_loop_remove_process(pid);
-    lua_pushnumber(res);
-    R1;
-}
-
-/** @method process.destroy()
-  */
-Method_N(Process,destroy,co_process);
-
-/** @method process.stop()
-  */
-Method_N(Process,stop,co_process);
-
-/** @method process.restart()
-  */
-Method_N(Process,restart,co_process);
-
-/** @method process.name()
-  */
-DefRead_S(Process,name);
-
-/** @method process.pid_file()
-  */
-DefRead_S(Process,pid_file);
-
-/** @method process.exec_path()
-  */
-DefRead_S(Process,exec_path);
-
-/** @method process.run_path()
-  */
-DefRead_S(Process,run_path);
-
-static const luaL_Reg Process_methods[] = {
-    {"add",Process_add},
-    {"remove",Process_remove},
-    {"pid_file",Process_pid_file},
-    {"exec_path",Process_exec_path},
-    {"run_path",Process_run_path},
-    {"create",Process_create},
-    {"destroy",Process_destroy},
-    {"start",Process_start},
-    {"restart",Process_restart},
-    {"stop",Process_stop},
-    { NULL, NULL }
-};
-
-static const luaL_Reg Process_meta[] = {
-    {"__call", Process_start},
-    {"__tostring", Process__tostring},
-    {"__gc",gcProcess},
-    { NULL, NULL }
-};
-
-
 
 
 /*! @class Socket
@@ -1177,33 +1152,9 @@ Function Plugin_load(lua_State* L) {
     R1;
 }
 
-
-static const luaL_Reg orphan_functions[] = {
-    {"node_id_get",NodeId_get},
-    {"plugin_load",Plugin_load},
-    {NULL,NULL}
-}
-
 static void init_globals(lua_State* L) {
     nil_obj = co_nil_create(0);
     gL = L;
-}
-
-extern int luawrap_register(lua_State *L) {
-    ClassRegister(Cmd);
-    ClassRegisterMeta(Cmd);
-    ClassRegister(List);
-    ClassRegisterMeta(List);
-    ClassRegister(Iface);
-    ClassRegister(Process);
-    ClassRegisterMeta(Process);
-    ClassRegister(Timer);
-    ClassRegisterMeta(Timer);
-    ClassRegisterMeta(Socket);
-    ClassRegisterMeta(UnixSocket);
-    // 2do AF_INET or AF_INET6
-    return 0;
-
 }
 
 #endif
