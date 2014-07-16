@@ -104,7 +104,10 @@ error:
   return 0;
 }
 
-
+co_obj_t *co_cmd_get(const char *kstr, size_t klen) {
+  return co_tree_find(_cmds, kstr, klen);
+}
+    
 int
 co_cmd_exec(co_obj_t *key, co_obj_t **output, co_obj_t *param) 
 {

@@ -12,18 +12,18 @@
  *     Company  The Open Technology Institute
  *   Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -53,6 +53,8 @@ typedef enum {
 
 typedef struct co_iface_t co_iface_t;
 
+typedef void (*co_iface_iter_t)(co_obj_t *iface, void* ctx);
+
 /**
  * @struct co_iface_t
  * @brief contains the file descriptor, interface status (up or down), profile name, interface frequency struct, wpa control struct, wpa id, and a bool to indicare whether the interface is wireless or not
@@ -81,6 +83,16 @@ int co_ifaces_create(void);
 void co_ifaces_shutdown(void);
 
 /**
+ * @brief invokes cb for each interface
+ */
+void co_ifaces_foreach(co_iface_iter_t cb, void* context);
+
+/**
+ * @brief returns the list of interfaces
+ */
+co_obj_t *co_ifaces_list(void);
+
+/**
  * @brief removes an interface from the list of available interfaces
  * @param iface_name name of interface to be removed
  */
@@ -106,7 +118,7 @@ int co_iface_wpa_connect(co_obj_t *iface);
 int co_iface_wpa_disconnect(co_obj_t *iface);
 
 /**
- * @brief 
+ * @brief
  * @param iface interface object
  * @param output output of hardware MAC address lookup
  * @param output_size size of MAC address. Must be six bytes
@@ -210,15 +222,16 @@ int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, cha
 //int co_iface_status(const char *iface_name);
 
 /**
- * @brief sets node configuration profile 
+ * @brief sets node configuration profile
  * @param iface_name name of interface
  */
 char *co_iface_profile(char *iface_name);
 
 /**
- * @brief retrieves node configuration profile 
+ * @brief retrieves node configuration profile
  * @param iface_name name of interface
  */
 co_obj_t *co_iface_get(char *iface_name);
+
 
 #endif

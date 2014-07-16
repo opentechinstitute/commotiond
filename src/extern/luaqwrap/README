@@ -1,0 +1,155 @@
+LuaQWrap an API wrapper for Lua
+Copyright (c) 2014, Luis Enrique Garcia Ontanon
+
+LuaQWrap is a code generator to quickly create Lua bindings for C APIs.
+
+luawrap.lua parses the original file (.lqw) copying it into its outfile
+looking for directives in #Directives and replaces them with the
+appropriate C code. The .lqw file is C with special #preprocessor lines
+that are called directives.
+
+LuaWrap directives are:
+
+#Module <name> [mode="static"|"extern"]
+   Defines the name of the module to be added to the global namespace and sets
+ in which mode luawrap is to operate (defaults to 'static'), it must be the
+ first LW command in the file.
+ 
+ name: first letter uppercase, only alphanumeric afterwards
+
+ mode:  In 'static' mode it parses and generates a single .c file and all functions
+ are created static.
+
+   In 'extern' mode the main file is seed to a .h and tells which .lw files are
+ to be used for generating .c files, functions (apart from methods) are extern.
+
+
+
+
+#Class <name> <type>
+#OwnClass <name> <type>
+
+   These define classes to be added to the Lua interface, the name must start with
+ a capital and contain only letters, the type is the type of object it points to.
+OwnClass declares only the "primitives" (pushX,checkX,optX,...) leaving up to you
+to define them while Class defines them as well.
+
+the "primitives" are:
+ * toXxx(L,idx) gets a Xxx from an index (Doesn't throw if fails)
+ * checkXxx(L,idx) gets a Xxx from an index after calling check_code (throws on fail)
+ * optXxx(L,idx,dflt) gets an Xxx from an index, dflt if it is nil or unexistent 
+ * pushXxx(L,xxx) pushes an Xxx into the stack
+ * isXxx(L,idx) tests whether we have an Xxx at idx
+ * shiftXxx(L,idx) removes and rets an Xxx from idx only if it has a type of Xxx, rets NULL otherwise
+ * dumpXxx(L,idx) returns a cheap string representation of the Xxx at pos idx 
+
+for each class (X) you have to define three functions:
+ void X__push(X*);  // to be called when pushing an object into Lua
+ void X__check(X*); // to be called to check an object (throws if invalid)
+ void X__gcoll(X*); // to be called by the __gc
+LwDefinePushDummy(Xxx) and LwDefineChkDummy(Xxx) and LwDefineGCollDummy(C) might help
+
+
+
+#Function: <name> <function-name>: <return-list> @ <arguments-list>
+ These define functions for which code is to be generated.
+ <name> can be in either:
+        "ClassName.method_name" for a method,
+        "ClassName.__meta_name" for a metamethod
+        "function_name" for funtions not belonging to any class.
+ 
+ <function-name> the function arround which this call is being generated. 
+        For obvious reasons this should appear after the prototype of the
+        function whose argument names will be used in the sythesis.
+ 
+ <return-list> the return values of the function (and how to get them)
+ 
+ <argument-list> the argument list of the function (and how to get them)
+  
+ return-list is made of a sequence of the following "elements":
+   - N{name} a number 
+        name is the varname that will contain it use _ for the return value
+   - B{name} a boolean
+   - S{name} a string
+   - L{name;len_name;bufsize} a lstring
+        len_name is the var that contains the lenght
+        bufsize the size of the buffer used to temporarily hold the output
+   - Name{name;ref} an object of class "Name" or a Callback of type "Name"
+
+elems in argument-list can be:
+        N{name;type;default} a number
+            - name the name of the variable
+            - type the optional type of the object (defaults to ``double'' )
+            - default an optional default value
+        B{name;default}, a boolean
+        S{name;default}, a string
+        L{name;len_name;len_type"}, an lstring
+            - len_name is the name of the var that contains the length
+            - len_type is the optional (dflt: size_t ) type for the var
+        Name{name;arg2}, either an object or a CallBack function
+          - arg2 default for object, key_name for callback
+        X{name;value;type} a pseudo-argument 
+          these are used to manipulate values in the definition of the function/callback
+        K{name,key} a key for a callback (given in the same order as the CB before)
+          - name of the variable
+          - type of key generator
+
+        C-Trigraphs
+        ??= 	#
+        ??/ 	\
+        ??' 	^
+        ??( 	[
+        ??) 	]
+        ??! 	|
+        ??< 	{
+        ??> 	}
+        ??- 	~
+
+ Function Examples:
+    int co_list_contains(co_obj_t *list, co_obj_t *item);
+    //LW: Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
+
+    size_t co_list_import(co_obj_t **listp, const char *input, const size_t ilen);
+    //LW: Function List.import co_list_import: List{list} N{_} @ L{input;ilen} X{listp;&list;co_obj_t**}
+    
+    size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);    
+    //LW: Function List.raw co_list_raw: L{output,olen;4096} @ List{list}
+    
+ [[ a whole chapter about manipulation is missing here ]]
+
+
+#Accessor <name> <mode='RO'|'RW'>: <return-list> @ <arguments-list>
+    $name ==> ((X*)ptr->)name
+    TO DO
+
+
+#CallBack <name>[{key}] <type-name> <mode:'key'|'closure'>:  <return-list> @ <arguments-list>
+   ...
+
+
+#Alias <name-1> <name-2> (NYI)
+  Creates an alias called <name-1> to the function called <name-2>
+<name-1>,<name-2>
+        "ClassName.method_name" for a method,
+        "ClassName.__meta_name" for a metamethod
+        "function_name" for funtions not belonging to any class.
+
+
+#ProcFile <in-file> [out-file] (NYI)
+    Process another file in the same batch
+    <in-file> use this file as input
+    <out-file> if mode is 'extern' the output of this lwfile will go to this file,
+               instead of the main output one, error if "static"
+
+#Finish <register-function-name>
+   Adds the  registration function (that is later invoked by Lua to create the classes)
+
+   <register-function-name> name given to the registration function
+
+
+
+
+LuaQWrap's C code is directly derived from the code used to add Lua to
+Wireshark.
+
+\Lego

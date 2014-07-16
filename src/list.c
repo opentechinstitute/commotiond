@@ -11,18 +11,18 @@
  * Organization  The Open Technology Institute
  *    Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -101,8 +101,8 @@ _co_list_get_first_node(const co_obj_t *list)
   if(CO_TYPE(list) == _list16)
   {
     n = ((co_list16_t *)list)->_first;
-  } 
-  else if(CO_TYPE(list) == _list32) 
+  }
+  else if(CO_TYPE(list) == _list32)
   {
     n = ((co_list32_t *)list)->_first;
   }
@@ -126,8 +126,8 @@ _co_list_set_first(co_obj_t *list, _listnode_t *node)
   if(CO_TYPE(list) == _list16)
   {
     ((co_list16_t *)list)->_first = node;
-  } 
-  else if(CO_TYPE(list) == _list32) 
+  }
+  else if(CO_TYPE(list) == _list32)
   {
     ((co_list32_t *)list)->_first = node;
   }
@@ -146,8 +146,8 @@ _co_list_get_last_node(const co_obj_t *list)
   if(CO_TYPE(list) == _list16)
   {
     n = ((co_list16_t *)list)->_last;
-  } 
-  else if(CO_TYPE(list) == _list32) 
+  }
+  else if(CO_TYPE(list) == _list32)
   {
     n = ((co_list32_t *)list)->_last;
   }
@@ -171,8 +171,8 @@ _co_list_set_last(co_obj_t *list, _listnode_t *node)
   if(CO_TYPE(list) == _list16)
   {
     ((co_list16_t *)list)->_last = node;
-  } 
-  else if(CO_TYPE(list) == _list32) 
+  }
+  else if(CO_TYPE(list) == _list32)
   {
     ((co_list32_t *)list)->_last = node;
   }
@@ -185,7 +185,7 @@ error:
 
 static ssize_t  /* Done */
 _co_list_change_length(co_obj_t *list, const int delta)
-{ 
+{
   if(CO_TYPE(list) == _list16)
   {
     ((co_list16_t *)list)->_len += delta;
@@ -200,23 +200,23 @@ _co_list_change_length(co_obj_t *list, const int delta)
 
 static ssize_t  /* Done */
 _co_list_increment(co_obj_t *list)
-{ 
+{
   return _co_list_change_length(list, 1);
 }
 
 static ssize_t /* Done */
 _co_list_decrement(co_obj_t *list)
-{ 
+{
   return _co_list_change_length(list, -1);
 }
 
 ssize_t /* Done */
 co_list_length(co_obj_t *list)
-{ 
+{
   return _co_list_change_length(list, 0);
 }
 
-static _listnode_t * /* Done */ 
+static _listnode_t * /* Done */
 _co_list_parse_node(co_obj_t *root, _listiter_t iter, void *context)
 {
   _listnode_t *result = NULL;
@@ -228,6 +228,18 @@ _co_list_parse_node(co_obj_t *root, _listiter_t iter, void *context)
   }
   return result;
 }
+
+co_obj_t *
+co_list_for(co_obj_t *list, void** cookie) {
+  _listnode_t *next;
+
+  if (*cookie == NULL) next = _co_list_get_first_node(root);
+  else next = (_listnode_t *) *cookie;
+
+  *cookie = (void*) _LIST_NEXT(next);
+  return next;
+}
+
 
 co_obj_t * /* Done */
 co_list_parse(co_obj_t *list, co_iter_t iter, void *context)
@@ -458,14 +470,14 @@ co_list_delete(co_obj_t *list, co_obj_t *item)
 {
   co_obj_t *ret = NULL;
   _listnode_t *current = _co_list_find_node(list, item);
-  if(current != NULL) 
+  if(current != NULL)
   {
-    if(_LIST_PREV(current) != NULL) 
+    if(_LIST_PREV(current) != NULL)
       _LIST_NEXT(_LIST_PREV(current)) = _LIST_NEXT(current);
     else
       _co_list_set_first(list, _LIST_NEXT(current));
 
-    if(_LIST_NEXT(current) != NULL) 
+    if(_LIST_NEXT(current) != NULL)
       _LIST_PREV(_LIST_NEXT(current)) = _LIST_PREV(current);
     else
       _co_list_set_last(list, _LIST_PREV(current));
@@ -555,7 +567,7 @@ co_list_raw(char *output, const size_t olen, const co_obj_t *list)
   return written;
 error:
   return -1;
-  
+
 }
 
 ssize_t
@@ -607,10 +619,10 @@ static co_obj_t *
 _co_list_print_i(co_obj_t *list, co_obj_t *current, void *_indent)
 {
   if (current == list) return NULL;
-  
+
   char *val = NULL;
   int indent = *(int*)_indent;
-  
+
   if ((CO_TYPE(current) == _tree16) || (CO_TYPE(current) == _tree32))
   {
     co_tree_print_indent(current, indent);
@@ -659,7 +671,7 @@ _co_list_print_i(co_obj_t *list, co_obj_t *current, void *_indent)
   if (co_list_get_last(list) != current)
     printf(",");
   printf("\n");
-  
+
   return NULL;
 }
 
@@ -676,13 +688,13 @@ co_list_print_indent(co_obj_t *list, int indent)
   if (!indent) printf("\n");
 }
 
-int 
+int
 co_list_print(co_obj_t *list)
 {
   CHECK_MEM(list);
 
   co_list_print_indent(list,0);
-  
+
   return 1;
 error:
   return 0;

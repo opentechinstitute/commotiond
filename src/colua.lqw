@@ -1,0 +1,1160 @@
+/* vim: set ts=2 expandtab: */
+/**
+ *       @file  colua.c
+ *      @brief  a Commontiond API for the Lua programming Language
+ *
+ *     @author  Luis E. Garcia Ontanon <luis@ontanon.org>
+ *
+ *   @internal
+ *     Created  01/07/2014
+ *    Revision  $Id:  $
+ *    Compiler  gcc/g++
+ *     Company  The Open Technology Institute
+ *   Copyright  Copyright (c) 2013, Josh King
+ *
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
+ * Commotion is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * Commotion is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * =====================================================================================
+ */
+
+/* the space between # and include disables parsing of the file */
+# include "config.h"
+# include "debug.h"
+#include "commotion.h"
+#include "obj.h"
+#include "list.h"
+#include "tree.h"
+#include "cmd.h"
+#include "msg.h"
+#include "iface.h"
+#include "id.h"
+#include "loop.h"
+#include "plugin.h"
+#include "process.h"
+#include "profile.h"
+#include "socket.h"
+#include "util.h"
+
+#include <sys/socket.h> // AF_INET
+#include <math.h> // floor()
+
+#Module Commotion static
+
+/* cmd.h */
+#Class Cmd co_str8_t
+
+/* commotion.h */
+#Class Connection co_obj_t
+#Class Request co_obj_t
+#Class Response co_obj_t
+
+/* iface.h */
+#Class Iface co_iface_t
+
+/* list.h */
+#Class List co_obj_t
+#Class Timer co_obj_t
+#Class Plugin co_obj_t
+#Class Process co_process_t
+#Class ProcessProf co_process_t
+#Class Profile co_obj_t
+#Class Soket co_socket_t
+#Class USocket co_socket_t
+#Class Fd co_fd_t
+
+tyepdef struct dummy {int i;} dummy_t;
+#OwnClass Loop dummy_t
+
+#OwnClass Obj co_obj_t
+
+/****************************************************************/
+/*
+ *  file globals;
+ */
+static co_obj_t* nil_obj = NULL;
+static const char* err = NULL;
+
+
+/****************************************************************/
+/* Class Obj: the undeclared class for generic co_obj_t* pointers
+   a catch all handler of all userdata...
+   every pointer that is not a co_obj_t* is to be dealt as lightuserdata
+  */
+
+#define isObj(L,idx) (lua_type(L,idx)==LUA_TUSERDATA)
+#define checkObj(L, idx) ( isObj(L,idx)?lua_touserdata(L,idx):luaL_checkudata(L,idx,"MustBeAnObject")) )
+#define optObj(L,idx,dflt) ( (lua_gettop(L)<idx || isNil(L,idx)) ? dflt : checkObj(L,idx) )
+
+static co_obj_t* toObj(lua_State* L, int idx) {
+    co_obj_t* o = NULL;
+
+    switch(lua_type(L,idx)) {
+        case LUA_TNUMBER:
+            return co_float64_create(lua_tonumber(L,idx),CO_FLAG_LUAGC);
+        case LUA_TBOOLEAN:
+            return co_bool_create(lua_toboolean(L,idx),CO_FLAG_LUAGC);
+        case LUA_TSTRING: {
+                size_t len=0;
+                const char * s = lua_tolstring(L, idx, &len);
+                return co_str32_create(s,len,CO_FLAG_LUAGC);
+                break;
+            } 
+        case LUA_TUSERDATA:
+            return lua_touserdata(L,idx);
+        case LUA_TTABLE:
+        case LUA_TFUNCTION:
+        case LUA_TTHREAD:
+        case LUA_TLIGHTUSERDATA:    
+        default:
+            Warn("Unimplemented");
+        case LUA_TNIL:
+            o = co_nil_create(CO_FLAG_LUAGC);
+            break;
+    }           
+    return o;
+}
+
+static co_obj_t* shiftObj(lua_State* L, int idx) {
+    co_obj_t* p;
+    
+    if(!lua_isuserdata(L,idx))
+        return NULL;
+    
+    p = toObj(L,idx);
+    lua_remove(L,idx);
+    
+    return *p;
+}
+
+static int gcObj(lua_State* L,int idx) {
+    co_obj_t* o = NULL;
+    
+    if(lua_type(L,idx) == LUA_TUSERDATA) 
+        o = lua_touserdata(L,idx);
+    else {
+        Error()
+        return 0;
+    }
+    
+    if ( o && (o->flags & CO_FLAG_LUAGC) ) switch (o->type) {
+        case _nil: 
+        case _true: 
+        case _false: 
+        case _float32: 
+        case _float64:
+        case _uint8:
+        case _uint16:
+        case _uint32:
+        case _int8:
+        case _int16:
+        case _int32:
+        case _bin8:
+        case _bin16:
+        case _bin32:
+        case _str8:
+        case _str16:
+        case _str32:
+        case _list16:
+        case _list32:
+        case _tree16:
+        case _tree32:
+        case _int64:
+        case _uint64:        
+        case _fixext1:
+        case fixext2:
+        case _fixext4:
+        case _fixext8:
+        case _fixext16:
+        
+        case _ext8:
+            switch( ((co_ext8_t)o)->_exttype) {
+                case _cmd: 
+                case _iface: 
+                case _plug:
+                case _profile:
+                case _cbptr:
+                case _fd: 
+                case _sock:
+                case _co_timer:
+                case _process:
+                case _ptr:
+                    co_obj_free(o);
+                    return 0;
+                default: goto error;
+            }
+        case _ext16:
+        case _ext32:
+            co_obj_free(o);
+            return 0;
+
+        default: goto error;
+    }
+    
+    error:
+    return 0;
+}
+
+static int pushObj(lua_State* L, co_obj_t* o) {
+#define PUSH_N_DATA(T, L) lua_pushnumber(L,(luaNumber)(((T##L##_t)o)->data))
+#define PUSH_C_DATA(T, L) lua_pushlstring(L,(((T##L##_t)o)->len),(((T##L##_t)o)->data))
+    
+    int len = 0;
+    char* data;
+    switch (o->type) {
+        
+        case _nil: lua_pushnil(L); R1;
+        case _true: lua_pushbool(L1); R1;
+        case _false: lua_pushbool(L,0); R1;
+
+        case _float32: PUSH_N_DATA(float,32); R1;
+        case _float64: PUSH_N_DATA(float,64); R1;
+        
+        case _uint8: PUSH_N_DATA(uint,8); R1;
+        case _uint16: PUSH_N_DATA(uint,16); R1;
+        case _uint32: PUSH_N_DATA(uint,32); R1;
+        
+        case _int8: PUSH_N_DATA(int,8); R1;
+        case _int16: PUSH_N_DATA(int,16); R1;
+        case _int32: PUSH_N_DATA(int,32); R1;
+
+        case _bin8: PUSH_C_DATA(bin, 8); R1;
+        case _bin16: PUSH_C_DATA(bin, 16); R1;
+        case _bin32: PUSH_C_DATA(bin, 32); R1;
+        
+        case _str8: PUSH_C_DATA(str, 8); R1;
+        
+        case _str16: PUSH_C_DATA(str, 16); R1;
+        case _str32: PUSH_C_DATA(str, 32); R1;
+        
+        case _list16:
+        case _list32:
+            pushList(L,o);
+            R1;
+        
+        case _tree16:
+        case _tree32:
+            pushTree(L,o);
+            R1;
+        
+        case _ext8:
+        case _ext16:
+        case _ext32:
+            switch( ((co_ext8_t)o)->_exttype) {
+                case _cmd: pushCmd(L,o); R1;
+                case _iface: pushIface(L,o); R1;                    
+                case _plug:  pushPlug(L,o); R1;
+                case _profile: pushProfile(L,o); R1;
+                case _cbptr:  pushCallBack(L,o); R1;
+                case _fd:  pushFd(L,o); R1;
+                case _sock: pushSock(L,o); R1;
+                case _co_timer: pushTimer(L,o); R1;
+                case _process: pushProcess(L,o); R1;
+                case _ptr: return 0;
+                default: goto error;
+            }
+        
+        case _int64:
+        case _uint64:        
+        case _fixext1:
+        case fixext2:
+        case _fixext4:
+        case _fixext8:
+        case _fixext16:
+        default:
+        goto error;
+    }
+    error:
+        lua_pushnil(L);
+        R1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/****************************************************************/
+/*! @class Commotion
+ *  @brief a mechanism for registering and controlling display of commands
+
+/** @fn init
+ * @brief initializes API
+ */
+#Function init co_init: N{_} @
+
+/** @fn shutdown
+ * @brief shuts down the API
+ */
+#Function shutdown co_shutdown: N{_} @
+extern int co_shutdown(void);
+
+
+/** @fn Connection.connect(uri)
+ * @brief creates a connection to Commotion daemon at the given URI
+ * @param uri URI string
+ */
+#Function connect co_connect: Connection{_} @ L{uri;ulen}
+
+/** @fn Request.create()
+ * @brief closes connection to Commotion daemon
+ * @param connection context object for active connection
+ */
+#Function Request.create co_request_create: Request{_} @
+
+/** @fn Request.append
+ * @brief appends object to request
+ * @param request request object to append to
+ * @param object object to append
+ */
+#Function Request.append co_request_append: N{_} @ Request{request} Obj{object}
+
+/** Request.append_str(request, s)
+ * @brief appends string to request
+ * @param request request object to append to
+ * @param s string to append
+ */
+#Function Request.append_str co_request_append_str: N{_} @ Request{request} L{s,slen}
+
+/** @fn Request.append_bin(request, s)
+ * @brief appends byte array to request
+ * @param request request object to append to
+ * @param s array to append
+ */
+#Function Request.append_bin co_request_append_bin: N{_} @ Request{request} L{s,slen}
+
+/** @fn Request.append_int(request, i)
+ * @brief appends int to request
+ * @param request request object to append to
+ * @param i integer to append
+ */
+#Function Request.append_int co_request_append_int: N{_} @ Request{request} N{i;int}
+
+/**
+ * @brief appends unsigned int to request
+ * @param request request object to append to
+ * @param i integer to append
+ */
+#Function Request.append_uint co_request_append_uint: N{_} @ Request{request} N{i;const unsigned int}
+
+/** Connection.call(connection,method,request)
+ * @brief sense procedure call to daemon
+ * @param connection context object for connection
+ * @param method method name
+ * @param request request object to send
+ */
+#Function Connection.call co_call: \
+    Response{resp} N{_} @ Connection{} L{method,mlen} Request{request} X{resp;*response;Obj*}
+
+/** Response.__index(response, key)
+ * @brief retrieve object from response
+ * @param response pointer to response object
+ * @param key identifier for response element to retrieve
+ */
+#Function Response.__index co_response_get: Obj{_} @ Response{response} L{key;klen}
+
+/****************************************************************/
+/*! @class Cmd
+ *  @brief a mechanism for registering and controlling display of commands
+
+/** @fn Cmd.new(name)
+ */
+co_obj_t *co_str8_create(const char *input,  const size_t input_size, const uint8_t flags);
+#Function Cmd.new(name) co_str8_create: CmdKey{_} @ L{input;input_size}
+
+LQW_MODE const char* cbKeyCmdCB(void* ptr) {
+    return lqwFmt("CmdCB:%s",((co_str8_t*)ptr)->data);
+}
+#CallBack CmdCB{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Cmd{self} List{params}
+
+/** @fn Cmd.register(key,usage,desc,handler)
+ * @brief registers a command
+ * @param key the key of the command
+ * @param usage the usage of the command
+ * @param desc the description of command
+ * @param handler the callback that handles the command
+ */
+#Function Cmd.register co_cmd_register: \
+    N{_} @ CmdKey{k} L{usage,ulen} L{desc,dlen} CmdCB{handler,name} X{name;k->data;const char*} X{nlen;k->_len;size_t}
+
+/** @fn CmdKey.exec
+ * @brief executes a command by running the function linked to in the command struct
+ * @param key the name of the command
+ * @param output return object of command
+ */
+#Function Cmd.exec co_cmd_exec: Obj{out} N{_} @ CmdKey{key} Obj{param} X{output;&out;Obj**}
+
+/**
+ * @brief returns command usage format
+ * @param key command key
+ */
+#Function Cmd.usage co_cmd_usage: Obj{out} @ CmdKey{key}
+
+/** @fn CmdKey.desc(key)
+ * @brief returns command description (what the command does)
+ * @param key the name of the command
+ */
+#Function Cmd.desc co_cmd_desc: Obj{out} @ CmdKey{key}
+
+/**@fn Cmd.hook(key,cb)
+ * @brief hooks callback function into a command
+ * @param key the name of the command
+ * @param cb callback function
+ */
+#Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CmdCB{cb;key}
+
+/**
+ * @brief process all registered commands with given iterator
+ * @param iter iterator function reference
+ * @param context other parameters passed to iterator
+ */
+#CallBack CmdIter co_iter_t NULL: Obj{_} @ Cmd{current}
+#Function Cmd.process co_cmd_process: N{_} @ CmdIter{iter} X{context;NULL;void*}
+
+#Function Cmd.__gc co_obj_free: @ CmdKey{key}
+
+
+
+
+
+
+
+
+
+/****************************************************************/
+/*! @class List
+ *  @brief Commotion double linked-list implementation
+ */
+
+/**
+ * @brief return length (number of objects) of given list
+ * @param list list object
+ */
+#Function List.__len co_list_len(list): N{_} @ List{list}
+size_t co_list_length(co_obj_t *list);
+
+/**
+ * @brief return first element of given list
+ * @param list list object
+ */
+#Funcion List.first co_list_get_first: Obj{_} @ List{list}
+
+/**
+ * @brief return last element of given list
+ * @param list list object
+ */
+#Funcion List.last co_list_get_last: Obj{_} @ List{list}
+
+/**
+ * @brief returns each element of the list in succesive calls, NULL when done
+ * @param list list object
+ * @param pointer to a cookie to mantain state, must be NULL on first call
+ */
+co_obj_t * co_list_foreach(co_obj_t *list, void** state);
+
+/**
+ * @brief process list with given iterator function
+ * @param list list object to process
+ * @param iter iterator function
+ * @param context additional arguments to iterator
+ */
+#CallBack ListIter co_iter_t NULL: Obj{_} @ Obj{current} 
+#Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL}
+
+/**
+ * @brief determine if list contains specified item
+ * @param list list object to process
+ * @param item item to search for
+ */
+#Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
+
+/**
+ * @brief insert new item in list before specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert before
+ */
+#Function List.insert_before co_list_insert_before: B{_} @ List{list} Obj{new_obj} Obj{this_obj}
+
+/**
+ * @brief insert new item in list after specified item
+ * @param list list object to process
+ * @param new_obj item to insert
+ * @param this_obj item to insert after
+ */
+#Function List.insert_after co_list_insert_after: B{_} @ List{list} Obj{new_obj} Obj{this_obj}
+
+/**
+ * @brief insert new item at beginning of list
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
+#Function List.prepend co_list_prepend: N{_} @ List{list} Obj{new_obj}
+
+/**
+ * @brief insert new item at end of list
+ * @param list list object to process
+ * @param new_obj item to insert
+ */
+#Function List.append co_list_prepend: N{_} @ List{list} Obj{new_obj}
+
+/**
+ * @brief delete specified item from list
+ * @param list list object to process
+ * @param item item to delete
+ */
+#Function List.delete co_list_delete: N{_} @ List{list} Obj{item}
+
+/**
+ * @brief return item at specified position in list
+ * @param list list object to process
+ * @param index number of item to return
+ */
+#Function List.element co_list_delete: Obj{_} @ List{list} N{index,const unsigned int}
+
+/**
+ * @brief dump raw representation of list
+ * @param output output buffer
+ * @param olen length of output buffer
+ * @param list list object to process
+ */
+#Function List.raw co_list_raw: L{output;_;524288} @ List{list} X{olen;524288;size_t}
+
+/**
+ * @brief import list from raw representation
+ * @param list target pointer to new list object
+ * @param input input buffer
+ * @param ilen length of input buffer
+ */
+#Function List.import co_list_import: List{listo} @ L{input;ilen} X{list;&listo;List**}
+
+
+/** @method __tostring
+ * @brief returns a string representation of the list
+ */
+#Alias List.__tostring  List.raw
+
+
+
+
+
+/****************************************************************/
+/*! @class Iface 
+ * @brief interface handling for the Commotion daemon
+ */
+
+/** @fn Iface.create()
+ * @brief checks for available interfaces
+ */
+#Function Iface.create co_ifaces_create: @
+
+/** @fn Iface.shutdown()
+ * @brief removes all interfaces
+ */
+#Function Iface.shutdown co_ifaces_shutdown: @
+
+
+/** Iface.foreach(iter)
+ * @brief invokes cb for each interface
+ * @param iter iterator taking the current interface and returning nothing
+ */
+#Callback IfaceIter co_iface_iter_t: @ Iface{iface} 
+#Function Iface.foreach  co_ifaces_foreach: @ IfaceIter{iter} X{ctx;NULL}
+
+
+
+/** @fn Iface.remove(iface_name)
+ * @brief removes an interface from the list of available interfaces
+ * @param iface_name name of interface to be removed
+ */
+#Function Iface.remove co_iface_remove: N{_} @ S{iface_name}
+
+/** @fn Iface.add(iface_name,family)
+ * @brief adds a new interface to the list of interfaces, checks if it is IPv4 and IPv6 capable, and or wireless
+ * @param iface_name name of the interface
+ * @param family address family of the interface. Must be AF_INET (IPv4) or AF_INET6 (IPv6), which uses host and port number for addressing
+ */
+#Value Iface.AF_INET AF_INET  
+#Value Iface.AF_INET6 AF_INET6
+#Function Iface.add co_iface_add: Iface{_} @ S{iface_name} N{family;int}
+
+/** @fn Iface.wpa_connect(iface)
+ * @brief connects the commotion interface to wpa supplicant
+ * @param iface interface object
+ */
+#Function Iface.wpa_connect co_iface_wpa_connect: N{_} @ Iface{iface}
+
+/** @fn Iface.wpa_disconnect(iface)
+ * @brief turns off wpa supplicant
+ * @param iface interface object
+ */
+#Function Iface.wpa_disconnect co_iface_wpa_connect: N{_} @ Iface{iface}
+
+/** Iface.get_mac(iface)
+ * @brief get mac address of inetrface
+ * @param iface interface object
+ */
+#Function Iface.get_mac co_iface_get_mac: L{output;64;_} N{_} @ Iface{iface} X{output_size;6;int}
+
+/**
+ * @brief sets ip address and netmask for commotion interface
+ * @param iface interface object
+ * @param ip_addr ip address for the socket
+ * @param netmask netmask for the socket
+ */
+#Function Iface.set_ip co_iface_set_ip: N{_} @ Iface{iface} S{ip_addr} S{netmask} 
+
+/** @fn Iface.unset_ip(iface)
+ * @brief Resets ip address of chosen interface
+ * @param iface interface object
+ */
+#Function Iface.unset_ip co_iface_unset_ip: N{_} @ Iface{iface} 
+
+/** @fn Iface.set_ssid(iface,ssid)
+ * @brief sets SSID from profile or uses default
+ * @param iface interface object
+ * @param ssid desired SSID
+ */
+#Function Iface.set_ssid co_iface_set_ssid: N{_} @ Iface{iface} S{ssid}
+
+/** @fn Iface.set_bssid(iface,bssid)
+ * @brief sets BSSID from profile or uses default
+ * @param iface interface object
+ * @param bssid desired BSSID
+ */
+#Function Iface.set_bssid co_iface_set_bssid: N{_} @ Iface{iface} S{bssid}
+
+/** @fn Iface.set_frequency(iface,frequency)
+ * @brief sets wireless frequency (eg. channel) from profile or uses default
+ * @param iface interface object
+ * @param frequency desired frequency
+ */
+#Function Iface.set_frequency co_iface_set_frequency: N{_} @ Iface{iface} N{frequency}
+
+/** @fn Iface.set_encryption(iface,proto)
+ * @brief specifies the wpa encryption protocol
+ * @param iface interface object
+ * @param proto desired protocol
+ */
+#Function Iface.set_encryption co_iface_set_encryption: N{_} @ Iface{iface} S{proto}
+
+/** @fn Iface.set_key(iface,key)
+ * @brief specifies the wpa encryption key
+ * @param iface interface object
+ * @param key desired key
+ */
+#Function Iface.set_key co_iface_set_key: N{_} @ Iface{iface} S{key}
+
+/** @fn Iface.set_mode(iface,mode)
+ * @brief specifies the Wi-Fi mode
+ * @param iface interface object
+ * @param mode desired mode
+ */
+#Function Iface.set_mode co_iface_set_mode: N{_} @ Iface{iface} S{mode}
+
+/** @fn Iface.set_apscan(iface,value)
+ * @brief sets AP_SCAN value
+ * @param iface interface object
+ * @param value desired value for AP_SCAN
+ */
+#Function Iface.set_apscan co_iface_set_apscan: N{_} @ Iface{iface} N{value;int}
+
+/** @fn Iface.wireless_enable(iface)
+ * @brief enables specified wireless network
+ * @param iface interface object
+ */
+#Function Iface.wireless_enable co_iface_wireless_enable: N{_} @ Iface{iface}
+
+/** @fn Iface.wireless_disable(iface)
+ * @brief disables specified wireless network
+ * @param iface interface object
+ */
+#Function Iface.wireless_disable co_iface_wireless_disable: N{_} @ Iface{iface}
+
+/** @fn Iface.set_dns(dnsserver,searchdomain,resolvpath)
+ * @brief sets DNS name server and sets search domain
+ * @param dnsserver IP addresss of DNS server
+ * @param searchdomain desired search domain
+ * @param resolvpath filepath to resolv.conf
+ */
+#Function Iface.set_dns co_set_dns: N{_} @ S{dnsserver} S{searchdomain} S{resolvpath}
+
+/** @fn Iface.gen_ip(base,genmask,id,type)
+ * @brief generates an ip table for a commotion interface
+ * @param base base address
+ * @param genmask genmask
+ * @param id the node id
+ * @param type whether the device is a gateway (1) or not (0)
+ */
+#Function Iface.generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id;uint32_t} N{type}
+
+/**
+ * @brief sets node configuration profile
+ * @param iface_name name of interface
+ */
+#Function Iface.profile co_iface_profile: S{_} @ S{iface_name}
+
+/**
+ * @brief retrieves node configuration profile
+ * @param iface_name name of interface
+ */
+#Function Iface.get co_iface_get: Iface{_} @ S{iface_name}
+
+
+
+
+/** @method Iface.status()
+  */
+#Value Iface.UP 1
+#Value Iface.DOWN 0
+#Accessor Iface.status RO: N{$status}
+
+
+/** @method Iface.wpa_id()
+  */
+#Accessor Iface.wpa_id RO: N{$wpa_id}
+
+/** @method Iface.wireless()
+  */
+#Accessor Iface.wireless RO: B{$wireless}
+
+// 2do struct ifreq ifr;
+// 2do  struct wpa_ctrl *ctrl;
+
+
+/**
+ * @brief sets up the event loop
+ */
+
+#Function Loop.create co_loop_create: @
+
+/**
+ * @brief closes the event loop
+ */
+#Function Loop.destroy co_loop_destroy: @
+
+/**
+ * @brief starts the event loop, listening for messages on sockets via _co_loop_poll_sockets
+ */
+#Function Loop.start co_loop_start: @
+
+/**
+ * @brief stops the event loop
+ */
+#Function Loop.stop co_loop_stop: @
+
+/**
+ * @brief adds a process to the event loop (for it to listen for)
+ * @param proc the process to be added
+ */
+#Function Loop.add_process co_loop_add_process: N{_} @ Process{proc}
+int co_loop_add_process(co_obj_t *proc);
+
+/**
+ * @brief removes a process from the event loop
+ * @param pid the id of the process to be removed
+ */
+#Function Loop.remove_process co_loop_remove_process: N{_} @ N{pid;pid_t}
+
+/**
+ * @brief adds a new socket to the event loop (for it to listen on)
+ * @param new_sock the new socket to be added
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.add_socket co_loop_add_socket: N{_} @ Socket{new_sock} X{context;NULL;Obj*}
+
+/**
+ * @brief removes a socket from the event loop
+ * @param old_sock the socket to be removed
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.remove_socket co_loop_remove_socket: N{_} @ Socket{old_sock} X{context;NULL;Obj*}
+
+/**
+ * @brief gets a socket that is registered with the event loop
+ * @param uri a URI to match against the available sockets
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Loop.get_socket co_loop_remove_socket: Socket{_} @ S{uri} X{context;NULL;Obj*}
+co_obj_t *co_loop_get_socket(char *uri, co_obj_t *context);
+
+/**
+ * @brief schedules a new timer with the event loop
+ * @param timer the timer to schedule
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.add co_loop_add_timer: N{_} @ Timer{new_timer} X{context;NULL;Obj*}
+
+/**
+ * @brief removes a timer from the event loop
+ * @param old_timer the timer to remove from list
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.remove co_loop_remove_timer: N{_} @ Timer{old_timer} X{context;NULL;Obj*}
+
+/**
+ * @brief sets timer to expire in msecs from now
+ * @param timer the timer to set
+ * @param msecs number of milliseconds
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+#Function Timer.set co_loop_set_timer: N{_} @ Timer{timer} N{msecs;long} X{context;NULL;Obj*}
+
+/**
+ * @brief gets a socket that is registered with the event loop
+ * @param ptr void pointer to match against the available timers
+ * @param context a co_obj_t context pointer (currently unused)
+ */
+// #Function Timer.get co_loop_get_timer: N{_} @ Timer{ptr} N{msecs;long} X{context;NULL;Obj*}
+// co_obj_t *co_loop_get_timer(void *ptr, co_obj_t *context);
+
+/**
+ * @brief malloc and initialize a timer
+ * @param size timer struct size
+ * @param proto timer protocol
+ */
+LqwCbKeyPtr(TimerCB);
+#CallBack TimerCb{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Timer{self} List{params}
+#Function Timer.create co_timer_create:  Timer{_} @ \
+   N{tv;luaNumber} TimerCb{timer_cb} S{name} \
+   X{ptr;(void*)lqwPermStr(name);void*}    X{sec;(long)floor(tv);long} \
+   X{deadline;??<sec,(long)floor((tv-(double)sec)*1000000.00)??>;struct timeval} 
+           
+/** @method timer.__tostring()
+  */     
+#OwnFunction Timer.__tostring  
+LQW_MODE int Timer__tostring(lua_State* L) {
+    co_timer_t* t = checkTimer(L1);
+    pushS(L,(char*)t->ptr);
+    return 1;
+}
+
+/****************************************************************/
+/*! @class Process
+ */
+#if 0
+/* Process callbacks */
+DefSelfCb_N(Process,init,name);
+DefSelfCb_N(Process,destroy,name);
+DefSelfCb_N(Process,stop,name);
+DefSelfCb_N(Process,restart,name);
+    
+static int proc_start(co_obj_t *self, char *argv[]) {
+    int i = 0;
+    
+    getReg(SelfCbKey("Process","start",(Process*)->name));
+    lua_settop(L1);
+    pushProcess(L,self);
+    pushT(L);
+    
+    for (;*(argv);argv++) {
+        pushN(L,++i);
+        pushS(L,*argv);
+        lua_rawset(L, 3);
+    }
+    
+    if(lua_pcall(L2,1)) {
+        //2do: error
+        return 0;
+    } else 
+        return toN(L,-1,int);
+}
+
+/** @constructor process.create(name, pid_file, exec_path, run_path, prof)  
+  * @param prof a table for callbacks: init, destroy, start, stop, restart
+  * all callbacks are passed the process object and return an integer (0 on success, else is fail)
+  * start callback takes also a table of strings as second argument 
+  */
+#OwnFunction Process.start
+LQW_MODE int Process_create(lua_State* L) {
+    co_process_t proto = {
+        {  CO_FLAG_LUAGC,NULL,NULL,0,_ext8 },
+        _process, sizeof(co_process_t), 0, false, false, _STARTING,
+        "LuaProc", "./pidfile", "./", "./", 0, 0,
+        proc_init, proc_destroy, proc_start, proc_stop, proc_restart
+    };
+
+    static const char* fn_names[] = {"init","destroy","start","stop","restart",NULL};
+    co_process_t* p;
+
+    proto.name = checkS(L1);
+    proto.pid_file = checkS(L2);
+    proto.exec_path = checkS(L3);
+    proto.run_path = checkS(L4);
+    checkCbs(L,5,"Process",name,fn_names);
+    
+    p = co_process_create(sizeof(lua_process), proto, proto.name, proto.pid_file, proto.exec_path, proto.run_path);
+    
+    if (p) 
+        pushProcess(L,p);
+    else
+        lua_pushnil(L);
+    
+    R1;
+}
+
+/** @method process.start(argv)
+  * @param argv an optional table containing the string arguments to the start procedure
+  */
+#OwnFunction Process.start
+LQW_MODE int Process_start(lua_State* L) {
+    co_obj_t *self = checkProcess(L1);
+    char* argv[255];
+    argv[0]=NULL;
+    
+    if (lua_type(L2) == LUA_TTABLE) {
+        lua_pushnil(L);
+        while (lua_next(L2) != 0) {
+            if (i>255) break;
+            argv[i] = toS(L, -1);
+            lua_pop(L1);
+            if (argv[i] == NULL) break;
+            argv[++i] = NULL;
+        }
+    }
+    
+    pushN(L,co_process_start(self,argv));
+    R1;
+}
+
+/** @method process.__tostring()
+  */
+#OwnFunction Process.__tostring
+LQW_MODE int Process___tostring(lua_State* L) {
+    pushFmtS(("Process:%s", checkProcess(L1)->name ));
+    return 1;
+}
+
+
+/*! @class Socket
+ */
+DefGC(Socket);
+
+/** @method socket.add()
+  */
+Method Socket_add(lua_State*L) {
+    co_obj_t *o = checkSocket(L1);
+    int r = co_loop_add_socket(o, NULL);
+    unmarkSocket(o);
+    pushN(r);
+    R1;
+}
+
+/** @method socket.remove()
+  */
+Method Socket_remove(lua_State*L) {
+    co_obj_t *o = checkSocket(L1);
+    int r = co_loop_remove_socket(o, NULL);
+    markSocket(o);
+    pushN(r);
+    R1;
+}
+
+/** @constructror Socket.get(uri)
+  */
+Constructor Socket_get(lua_State*L) {
+    char *uri = checkS(L1);
+    co_obj_t *o = co_loop_get_socket(uri, NULL);
+    pushSocket(L,o);
+    R1;
+}
+
+DefSelfCb_N(Socket,init,uri);
+DefSelfCb_N(Socket,destroy,uri);
+DefSelfCb_N__S(Socket,bind,uri,int);
+DefSelfCb_N__S(Socket,connect,uri,int);
+DefSelfCb_N__B(Socket,send,uri,int);
+DefSelfCb_L__O(Socket,receive,uri,FileDes);
+DefSelfCb_N__Oo(Socket,hangup,uri,Obj,NULL);
+DefSelfCb_N__Oo(Socket,poll,uri,Obj,NULL);
+DefSelfCb_N__Oo(Socket,register,uri,Obj,NULL);
+DefSelfCb_N__L_N_N(Socket,setopt,uri);
+DefSelfCb_L__N_N(Socket,getopt,uri);
+
+/** @constructror Socket.create(uri, listen, proto)
+ * @brief creates a socket from specified values or initializes defaults
+ * @param uri uri describing the socket
+ * @param listen (defaults to FALSE) 
+ * @param proto a table with the callbacks to be invoked
+ * callback functions: 
+ *  status_int = init(socket) 
+ *  status_int = destroy(socket) 
+ *  status_int = bind(socket,opt_ctx) 
+ *  status_int = connect(socket,opt_ctx) 
+ *  status_int = hangup(socket,opt_ctx)
+ *  status_int = send(socket,data_buf)
+ *  received_buf = receive(socket,fd_int)
+ *  status_int = setopt(socket,level_int,option_id_int,optval_buf): 
+ *  optval_buf = getopt(socket,level_int,option_id_int): 
+ *  status_int = register(socket,opt_ctx): 
+*/
+Method Socket_create(uri,listen){
+    static const char* fn_names[] = {"init","destroy","hangup","bind","connect","send","setopt","getopt","register",NULL};
+    const char* fn_name;
+    Socket* s;
+    Socket proto = {
+        {CO_FLAG_LUAGC,NULL,NULL,0,_ext8},_sock,sizeof(Socket),
+        "URI",NULL,NULL,FALSE,NULL,NULL,FALSE,
+        Socket_init_cb, Socket_destroy_cb, Socket_hangup_cb,
+        Socket_bind_cb, Socket_connect_cb, Socket_send_cb, Socket_setopt_cb, Socket_setopt_cb,
+        Socket_getopt_cb, Socket_register_cb,
+        0
+    };
+
+    proto.uri = checkS(L1);
+    proto.listen = optB(L2,0);
+    
+    checkCbs(L,5,"Socket",proto.uri,fn_names);
+    
+    pushSocket(L,co_socket_create(sizeof(Socket), proto));
+    R1;
+}
+
+/** @method socket.init()
+ * @brief creates a socket from specified values or initializes defaults
+ */
+DefMethod_N(Socket,init,co_socket,int);
+
+/** @method socket.hangup(opt_context)
+ * @brief closes a socket and changes its state information
+ * @brief opt_context unused
+ */
+DefMethod_N__Oo(Socket,hangup,co_socket,int,Obj,NULL);
+
+/** @method socket.send(buf)
+ * @brief sends a message on a specified socket
+ * @param buf to be sent
+ * @param outgoing message to be sent
+ * @param length length of message
+ */
+DefMethod_N_L(Socket,send,co_socket,int);
+
+/** @method socket.receive()
+ * @brief receives a message on the listening socket
+ */
+// 2do: int co_socket_receive(co_obj_t *self, char *outgoing, size_t length);
+
+/** @methos socket.setopt(level,option,value)
+ * @brief sets custom socket options, if specified by user
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ * @param value the value for the new option
+ */
+DefMethod_N__N_N_L(Socket,setopt,co_socket,int,int,int);
+
+/** @method socket.getopt()
+ * @brief gets custom socket options specified from the user
+ * @param level the networking level to be customized
+ * @param option the option to be changed
+ */
+DefMethod_L__N_N(Socket,setopt,co_socket,int,int);
+
+/** @method socket.__gc()
+ * @brief closes a socket and removes it from memory
+ */
+Method_N(Socket,destroy,co_socket);
+
+
+/*! @class UnixSocket 
+ */
+// dealt with a str8
+
+/** @constructor UnixSocket.unix(name)
+ * @brief initializes a unix socket
+ * @param self socket name
+ */
+Constructor UnixSocket__unix(lua_State* L) {
+    size_t nlen;
+    const char* name = checkL(L1,&nlen);
+    Obj* key = co_str8_create(name, nlen, 0); 
+    int r = unix_socket_init(key);
+    if (r==0) {
+        pushUnixSocket(L,key);
+        R1;
+    }
+}
+
+/** @method unix_socket.bind(endpoint)
+ * @brief binds a unix socket to a specified endpoint
+ * @param endpoint specified endpoint for socket (file path)
+ */
+DefMethod_N__S(UnixSocket,bind,unix_socket);
+
+/**
+ * @brief connects a socket to specified endpoint
+ * @param self socket name
+ * @param endpoint specified endpoint for socket (file path)
+ */
+DefMethod_N__S(UnixSocket,connect,unix_socket);
+
+
+static const luaL_Reg Socket_methods[] = {
+    { NULL, NULL }
+};
+
+static const luaL_Reg Socket_metamethods[] = {
+    {"__gc",Socket_destroy},
+    { NULL, NULL }
+};
+
+static const luaL_Reg UnixSocket_methods[] = {
+    { NULL, NULL }
+};
+
+static const luaL_Reg UnixSocket_metamethods[] = {
+    {"__gc",UnixSocket__gc},
+    { NULL, NULL }
+};
+
+
+
+
+//2do profile.h
+//2do tree.h
+//2do util.h
+
+// id.h
+/** @fn  Sys.node_id_get()
+ * @brief Returns nodeid
+ */
+Function NodeId_get(lua_State* L) {
+    nodeid_t id = co_id_get(void);
+    pushN(L,id.id);
+    R1;
+}
+
+// plugin.h
+/** @fn Sys.plugin_load()
+ * @brief loads all plugins in specified path
+ * @param dir_path directory to load plugins from
+ */
+Function Plugin_load(lua_State* L) {
+    pushN(L, co_plugins_load(checkS(L1)));
+    R1;
+}
+
+static void init_globals(lua_State* L) {
+    nil_obj = co_nil_create(0);
+    gL = L;
+}
+
+#endif

@@ -11,18 +11,18 @@
  * Organization  The Open Technology Institute
  *    Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include "debug.h"
 #include "extern/halloc.h"
-
 typedef struct _listnode_t _listnode_t;
 
 /* Type "list" declaration macros */
@@ -46,6 +45,7 @@ typedef struct _listnode_t _listnode_t;
 
 _DECLARE_LIST(16);
 _DECLARE_LIST(32);
+
 
 /**
  * @brief return length (number of objects) of given list
@@ -64,6 +64,13 @@ co_obj_t * co_list_get_first(const co_obj_t *list);
  * @param list list object
  */
 co_obj_t * co_list_get_last(const co_obj_t *list);
+
+/**
+ * @brief returns each element of the list in succesive calls, NULL when done
+ * @param list list object
+ * @param pointer to a cookie to mantain state, must be NULL on first call
+ */
+co_obj_t * co_list_foreach(co_obj_t *list, void** state);
 
 /**
  * @brief process list with given iterator function
@@ -86,8 +93,7 @@ int co_list_contains(co_obj_t *list, co_obj_t *item);
  * @param new_obj item to insert
  * @param this_obj item to insert before
  */
-int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
-    co_obj_t *this_obj);
+int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
 /**
  * @brief insert new item in list before specified item without the list managing the item's memory
@@ -95,8 +101,7 @@ int co_list_insert_before(co_obj_t *list, co_obj_t *new_obj, \
  * @param new_obj item to insert
  * @param this_obj item to insert before
  */
-int co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, \
-    co_obj_t *this_obj);
+int co_list_insert_before_unsafe(co_obj_t *list, co_obj_t *new_obj, co_obj_t *this_obj);
 
 /**
  * @brief insert new item in list after specified item
@@ -158,17 +163,18 @@ co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
 
 /**
  * @brief dump raw representation of list
- * @param output output buffer 
- * @param olen length of output buffer 
+ * @param output output buffer
+ * @param olen length of output buffer
  * @param list list object to process
  */
 ssize_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
 
+
 /**
  * @brief import list from raw representation
  * @param list target pointer to new list object
- * @param input input buffer 
- * @param ilen length of input buffer 
+ * @param input input buffer
+ * @param ilen length of input buffer
  */
 ssize_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
 

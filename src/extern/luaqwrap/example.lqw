@@ -1,0 +1,122 @@
+/** @file example.lqw
+ *  @brief an example of a LuaWrap wrapper
+ */
+
+#Module Commotion static
+
+
+#include "../../obj.h"
+#include "../../list.h"
+#include "../../socket.h"
+
+/* just declare the class operations, our own code will define them */
+#OwnClass Obj co_obj_t
+
+/* the Obj is used as a catch all for all other classes
+    toObj, optObj and checkObj unwrap whatever the object is without checking its lua class
+    pushObj finds out what is the adequate class or data type to push into the stack.
+*/
+
+/* these classes are fully declared */
+#Class List co_obj_t
+#Class Socket co_socket_t
+#Class Fd co_fd_t
+#Class Cmd co_cmd_t
+#Class CmdKey co_obj_t
+
+int co_generate_ip(const char *base, const char *genmask, const nodeid_t id, char *output, int type);
+#Function generate_ip co_generate_ip: L{output;_;4096} N{_} @ S{base} S{genmask} N{id} N{type} 
+
+
+/* @brief typedef for a Callback Id generator
+ * @param type a string that identifies the type of callback (the name of the CallBack)
+ * @param ptr a pointer that can yield an unique id (and that will be passed to the cb)
+ */
+
+static const char* cbKeyCmdCB(void* ptr) {
+    return lqwFmt("CmdCB%s",((co_str8_t*)ptr)->data);
+}
+
+typedef int (*co_cb_t)(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+#CallBack CmdCB{self} co_cb_t 0: Obj{if(output) *output} N{_} @ Obj{self} List{params}
+
+int co_cmd_hook(const co_obj_t *key, co_obj_t *cb);
+#Function Cmd.hook co_cmd_hook: N{_} @ CmdKey{key} CmdCB{cb;key}
+
+#Function List.import co_list_import: List{listo} N{_} @ L{input;ilen} X{list;&listo;Obj**}
+#Function List.contains co_list_contains: B{_} @ List{list} Obj{item}
+#Function List.len co_list_length: N{_} @ List{list}
+#Alias List.__len List.len
+
+
+#Accessor Socket.fd RO: Fd{$fd}
+#Accessor Socket.accept_fds RO: List{$rfd_lst}
+#Accessor Socket.registered_fd RO: B{$fd_registered}
+#Accessor Socket.local RO: S{sockaddr_tostr($local)}
+#Accessor Socket.remote RO: S{sockaddr_tostr($local)}
+#Accessor Socket.listen RO : B{$listen}
+#Accessor Socket.dummy RW: B{$dummy} @ B{$dummy} 
+
+
+typedef int (*socket_cb)(co_obj_t *self, co_obj_t *context);
+LqwCbKeyPtr(SocketInitCB);
+#CallBack SocketInitCB{self} socket_cb 0: N{_} @ Socket{self}
+LqwCbKeyPtr(SocketDestroyCB);
+#CallBack SocketDestroyCB{self} socket_cb 0: N{_} @ Socket{self}
+
+typedef int (*socket_ctx_cb)(co_obj_t *self, co_obj_t *context);
+LqwCbKeyPtr(SocketHangupCB);
+#CallBack SocketHangupCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+LqwCbKeyPtr(SocketPollCB);
+#CallBack SocketPollCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+LqwCbKeyPtr(SocketRegisterCB);
+#CallBack SocketRegisterCB{self} socket_ctx_cb 0: N{_} @ Socket{self} X{context;NULL}
+
+typedef int (*socket_send_cb)(co_obj_t *self, char *outgoing, size_t length);
+LqwCbKeyPtr(SocketSendCB);
+#CallBack SocketSendCB{self} socket_send_cb 0: N{_} @ Socket{self} L{outgoing;lenght}
+
+typedef int (*socket_ep_cb)(co_obj_t *self, const char *endpoint);
+#CallBack SocketBindCB{self} socket_ep_cb 0: N{_} @ Socket{self} S{endpoint}
+#CallBack SocketConnectCB{self} socket_ep_cb 0: N{_} @ Socket{self} S{endpoint}
+
+typedef int (*socket_receive_cb)(co_obj_t *self, co_obj_t *fd, char *incoming, size_t length);
+#CallBack SocketReceiveCB{self} socket_receive_cb 0: L{incoming;_;65536} N{_} @ Socket{self} Fd{fd}
+
+
+typedef int (*socket_opt_cb)(co_obj_t *self, int level, int option, void *optval, socklen_t optvallen);
+#CallBack SocketSetOptCB{self} socket_opt_cb 0:\
+    L{optval;_;65536} N{_} @ Socket{self} N{level;int} N{option;int} X{optvallen;65536;socklen_t}
+#CallBack SocketGetOptCB{self} socket_opt_cb 0: \
+    L{optval;_;65536} N{_} @ Socket{self} N{level;int} N{option;int} X{optvallen;65536;socklen_t}
+
+
+
+#Function Socket.send co_socket_send: B{_} @ Socket{self} L{outgoing;length}
+
+#Function Socket.receive co_socket_receive: \
+        L{incoming;_;4096} N{_} @ Socket{self} Fd{fd} X{length;4096}
+        
+
+#Function List.element co_list_element: Obj{_} @ List{list} N{index}
+
+
+#OwnFunction Socket.add Socket_add
+static int Socket_add(lua_State*L) {
+    co_obj_t *o = checkSocket(L1);
+    int r = co_loop_add_socket(o, NULL);
+    unmarkSocket(o);
+    pushN(r);
+    R1;
+}
+
+
+typedef co_obj_t *(*co_iter_t)(co_obj_t *data, co_obj_t *current, void *context);
+#CallBack ListIter co_iter_t NULL: Obj{_} @ List{data} Obj{current} 
+
+co_obj_t * co_list_parse(co_obj_t *list, co_iter_t iter, void *context);
+#Function List.__call co_list_parse: Obj{_} @ List{list} ListIter{iter} X{context;NULL}
+
+#Finish co_lua_register
+
+

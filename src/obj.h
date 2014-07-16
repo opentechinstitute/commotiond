@@ -11,18 +11,18 @@
  * Organization  The Open Technology Institute
  *    Copyright  Copyright (c) 2013, Josh King
  *
- * This file is part of Commotion, Copyright (c) 2013, Josh King 
- * 
+ * This file is part of Commotion, Copyright (c) 2013, Josh King
+ *
  * Commotion is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * Commotion is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with Commotion.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -187,7 +187,7 @@ _DECLARE_EXT(32);
 */
 
 /*-----------------------------------------------------------------------------
- *  Integer-types Declaration Macros 
+ *  Integer-types Declaration Macros
  *-----------------------------------------------------------------------------*/
 #define _DECLARE_INTEGER(T, L) typedef struct __attribute__((packed)) { co_obj_t _header; T##L##_t data; }\
   co_##T##L##_t; int co_##T##L##_alloc(co_obj_t *output, \
@@ -289,5 +289,6 @@ int co_str_cmp(const co_obj_t *a, const co_obj_t *b);
   int i = co_str_cmp(J,s); co_obj_free(s); i; })
 
 #define co_str_len(J) ({ char *v = NULL; co_obj_data(&v,J); })
+
 
 #endif

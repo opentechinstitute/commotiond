@@ -52,7 +52,7 @@ co_obj_t *co_process_create(const size_t size, co_process_t proto, const char *n
   new_proc->_header._type = _ext8;
   new_proc->_exttype = _process;
   new_proc->_len = size;
-
+   
   CHECK_MEM(new_proc);
   
   new_proc->name = h_strdup(name); 

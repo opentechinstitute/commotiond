@@ -74,6 +74,15 @@ size_t strlcpy(char *dest, const char *src, const size_t size);
 size_t snprintfcat(char *str, size_t size, const char *format, ...);
 
 /**
+ * @brief prints output from string "str" in a specified format
+ * @param str string to be printed
+ * @param size size of string
+ * @param format output format
+ * @param args a va_list
+ */
+size_t vsnprintfcat(char *str, size_t size, const char *format, va_list args);
+
+/**
  * @brief removes white space from a given string (to parse for arguments)
  * @param s string to parse
  * @param out output from the string (with white space removed)
