@@ -254,32 +254,6 @@ error:
 }
 
 int
-olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
-{
-  svl_crypto_ctx *ctx = NULL;
-  CHECK(IS_LIST(params) && co_list_length(params) == 2, "Invalid params");
-  
-  size_t sid_len = co_str_len(co_list_element(params, 1));
-  char *sid_str = _LIST_ELEMENT(params, 1);
-  
-  CHECK(sid_len == (2 * SID_SIZE) + 1 && str_is_subscriber_id(sid_str) == 1, "Invalid SID");
-  
-  ctx = svl_crypto_ctx_new();
-  
-  stowSid(ctx->sid, 0, sid_str);
-  
-  ctx->keyring_path = _LIST_ELEMENT(params, 0);
-  ctx->keyring_len = co_str_len(co_list_element(params, 0)) - 1;
-  CHECK_ERR(ctx->keyring_len < PATH_MAX,"Keyring path too long");
-  
-  CHECK(serval_init_keyring(ctx), "Failed to initialize Serval keyring");
-  
-  CMD_OUTPUT("key", co_bin8_create((char*)ctx->sas_private, crypto_sign_SECRETKEYBYTES, 0));
-  
-  return 1;
-}
-
-int
 serval_create_signature(svl_crypto_ctx *ctx)
 {
   CHECK(ctx
