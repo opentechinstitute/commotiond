@@ -356,7 +356,7 @@ serval_sign_client(svl_crypto_ctx *ctx)
   CHECK(co_conn, "Failed to connect to commotiond management socket");
   
   CHECK_MEM((co_req = co_request_create()));
-  CHECK(co_request_append_str(co_req,"sign",sizeof("sign")),"Failed to append to request")
+  CHECK(co_request_append_str(co_req,"sign",sizeof("sign")),"Failed to append to request");
   if (!iszero(ctx->sid,SID_SIZE))
     CHECK(co_request_append_str(co_req,
 				alloca_tohex(ctx->sid, SID_SIZE),

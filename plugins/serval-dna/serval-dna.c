@@ -85,7 +85,6 @@ extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
 
 co_socket_t co_socket_proto = {};
-svl_crypto_ctx *global_ctx = NULL;
 
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
@@ -531,8 +530,6 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   svl_crypto_ctx_free(serval_dna_ctx);
   
   daemon_started = false;
-  
-  svl_crypto_ctx_free(global_ctx);
   
   return 1;
 }
