@@ -90,7 +90,7 @@
 #define LOG_DEBUG "LOG_DEBUG"
 #endif
 
-#if defined(NDEBUG) && !defined(OPENWRT)
+#if defined(NDEBUG)
 #define DEBUG(M, ...)
 #else
 #define DEBUG(M, ...) LOG(LOG_DEBUG, "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
@@ -104,12 +104,12 @@
 
 #define INFO(M, ...) LOG(LOG_INFO, "(%s:%d) " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
-#define CHECK(A, M, ...) if(!(A)) { ERROR(M, ##__VA_ARGS__); errno=0; goto error; }
+#define CHECK(A, M, ...) do { if(!(A)) { ERROR(M, ##__VA_ARGS__); errno=0; goto error; } } while (0)
 
 #define SENTINEL(M, ...)  { ERROR(M, ##__VA_ARGS__); errno=0; goto error; }
 
 #define CHECK_MEM(A) CHECK((A), "Out of memory.")
 
-#define CHECK_DEBUG(A, M, ...) if(!(A)) { DEBUG(M, ##__VA_ARGS__); errno=0; goto error; }
+#define CHECK_DEBUG(A, M, ...) do { if(!(A)) { DEBUG(M, ##__VA_ARGS__); errno=0; goto error; } } while(0)
 
 #endif

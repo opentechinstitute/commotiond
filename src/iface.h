@@ -76,6 +76,11 @@ struct co_iface_t {
 int co_ifaces_create(void);
 
 /**
+ * @brief removes all interfaces
+ */
+void co_ifaces_shutdown(void);
+
+/**
  * @brief removes an interface from the list of available interfaces
  * @param iface_name name of interface to be removed
  */

@@ -85,6 +85,7 @@ extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
 
 co_socket_t co_socket_proto = {};
+svl_crypto_ctx *global_ctx = NULL;
 
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
@@ -430,6 +431,7 @@ error:
 
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   char *enabled = NULL;
+  
   co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
   if (strcmp(enabled,"disabled") == 0) return 1;
 
@@ -529,6 +531,8 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   svl_crypto_ctx_free(serval_dna_ctx);
   
   daemon_started = false;
+  
+  svl_crypto_ctx_free(global_ctx);
   
   return 1;
 }

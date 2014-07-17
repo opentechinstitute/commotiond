@@ -51,7 +51,7 @@ _DECLARE_LIST(32);
  * @brief return length (number of objects) of given list
  * @param list list object
  */
-size_t co_list_length(co_obj_t *list);
+ssize_t co_list_length(co_obj_t *list);
 
 /**
  * @brief return first element of given list
@@ -162,7 +162,7 @@ co_obj_t *co_list_element(co_obj_t *list, const unsigned int index);
  * @param olen length of output buffer 
  * @param list list object to process
  */
-size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
+ssize_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
 
 /**
  * @brief import list from raw representation
@@ -170,7 +170,7 @@ size_t co_list_raw(char *output, const size_t olen, const co_obj_t *list);
  * @param input input buffer 
  * @param ilen length of input buffer 
  */
-size_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
+ssize_t co_list_import(co_obj_t **list, const char *input, const size_t ilen);
 
 /**
  * @brief print list with indent

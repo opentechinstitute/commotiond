@@ -619,7 +619,7 @@ error:
   return;
 }
 
-size_t
+ssize_t
 co_tree_raw(char *output, const size_t olen, const co_obj_t *tree)
 {
   char *out = output;
@@ -655,7 +655,7 @@ error:
 }
 
 
-size_t
+ssize_t
 co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
 {
   size_t length = 0, olen = 0, read = 0, klen = 0;
