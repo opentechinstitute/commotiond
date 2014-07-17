@@ -113,6 +113,8 @@ co_profiles_shutdown(void)
 {
   if(_profiles != NULL) co_obj_free(_profiles);
   if(_profile_global != NULL) co_obj_free(_profile_global);
+  if(_schemas != NULL) co_obj_free(_schemas);
+  if(_schemas_global != NULL) co_obj_free(_schemas_global);
   return;
 }
 
@@ -233,8 +235,11 @@ static char *_co_json_token_stringify(char *json, const jsmntok_t *token)
 }
 
 static int _co_profile_import_files_i(const char *path, const char *filename) {
+  int ret = 0;
   char path_tmp[PATH_MAX] = {};
   FILE *config_file = NULL;
+  jsmntok_t *tokens = NULL;
+  char *buffer = NULL;
 
   DEBUG("Importing file %s at path %s", filename, path);
 
@@ -246,12 +251,13 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
   fseek(config_file, 0, SEEK_END);
   long fsize = ftell(config_file);
   rewind(config_file);
-  char *buffer = h_calloc(1, fsize + 1);
+  buffer = h_calloc(1, fsize + 1);
   CHECK(fread(buffer, fsize, 1, config_file) != 0, "Failed to read from file.");
   fclose(config_file);
+  config_file = NULL;
   
   buffer[fsize] = '\0';
-  jsmntok_t *tokens = _co_json_string_tokenize(buffer);
+  tokens = _co_json_string_tokenize(buffer);
 
   typedef enum { START, KEY, VALUE, STOP } parse_state;
   parse_state state = START;
@@ -329,12 +335,14 @@ static int _co_profile_import_files_i(const char *path, const char *filename) {
 
   co_list_append(_profiles, new_profile);
 
-  return 1;
+  ret = 1;
 
 error:
   if(config_file != NULL) fclose(config_file);
-  if(new_profile != NULL) co_obj_free(new_profile);
-  return 0;
+  if(!ret && new_profile != NULL) co_obj_free(new_profile);
+  if (tokens) h_free(tokens);
+  if (buffer) h_free(buffer);
+  return ret;
 }
 
 int co_profile_import_files(const char *path) {
@@ -348,7 +356,9 @@ error:
 }
 
 int co_profile_import_global(const char *path) {
+  int ret = 0;
   FILE *config_file = NULL;
+  jsmntok_t *tokens = NULL;
 
   if(_profile_global == NULL)
   {
@@ -366,9 +376,10 @@ int co_profile_import_global(const char *path) {
   char *buffer = h_calloc(1, fsize + 1);
   CHECK(fread(buffer, fsize, 1, config_file) != 0, "Failed to read from file.");
   fclose(config_file);
+  config_file = NULL;
   
   buffer[fsize] = '\0';
-  jsmntok_t *tokens = _co_json_string_tokenize(buffer);
+  tokens = _co_json_string_tokenize(buffer);
 
   typedef enum { START, KEY, VALUE, STOP } parse_state;
   parse_state state = START;
@@ -442,11 +453,13 @@ int co_profile_import_global(const char *path) {
     }
   }
 
-  return 1;
+  ret = 1;
 
 error:
   if(config_file != NULL) fclose(config_file);
-  return 0;
+  if (buffer) h_free(buffer);
+  if (tokens) h_free(tokens);
+  return ret;
 }
 
 co_obj_t *

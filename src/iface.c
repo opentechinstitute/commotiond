@@ -159,6 +159,10 @@ error:
   return 0;
 }
 
+void co_ifaces_shutdown(void) {
+  co_obj_free(ifaces);
+}
+
 int co_iface_remove(char *iface_name) {
   co_obj_t *iface = NULL;
   CHECK((iface = co_list_parse(ifaces, _co_iface_match_i, iface_name)) != NULL, "Failed to delete interface %s!", iface_name);

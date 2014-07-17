@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <sys/socket.h>
 #include "obj.h"
 
 #define MAX_IPPROTO 255
@@ -68,7 +69,7 @@ struct co_socket_t {
   uint8_t _len;
   char *uri;
   co_fd_t *fd; //socket file descriptor
-  co_obj_t *rfd_lst; //list of accept socket file descriptors
+  co_obj_t *rfd_lst; //list of accepted socket file descriptors
   bool fd_registered;
   struct sockaddr* local;
   struct sockaddr* remote;
@@ -116,7 +117,7 @@ int co_socket_hangup(co_obj_t *self, co_obj_t *context);
 
 /**
  * @brief sends a message on a specified socket
- * @param self socket name
+ * @param self commotion file descriptor
  * @param outgoing message to be sent
  * @param length length of message
  */

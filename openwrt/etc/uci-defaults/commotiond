@@ -10,7 +10,7 @@
 [ -f "/etc/crontabs/root" ] || touch /etc/crontabs/root
 
 grep -q "commotiond" /etc/crontabs/root || { \
-  echo '* * * * *   /etc/init.d/commotiond enabled && ( ps w | grep -q ^\ *$(cat /var/run/commotiond.pid) || /etc/init.d/commotiond restart )' >> /etc/crontabs/root
+  echo '* * * * *   /etc/init.d/commotiond cron' >> /etc/crontabs/root
   /etc/init.d/cron restart
 }
 

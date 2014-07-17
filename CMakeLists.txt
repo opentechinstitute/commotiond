@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
-set(PROJECT_NAME_STR commotion)
+SET(PROJECT_NAME_STR commotion)
 PROJECT(${PROJECT_NAME_STR})
-SET(NO_OPTIMIZE ON CACHE BOOL "Disable optimization flags.")
-SET(DEBUG ON CACHE BOOL "Turn on debugging.")
-SET(OPENWRT ON CACHE BOOL "Disable subsystems that are unnecessary for OpenWRT platform.")
+SET(NO_OPTIMIZE OFF CACHE BOOL "Disable optimization flags.")
+SET(DEBUG OFF CACHE BOOL "Turn on debugging.")
+SET(OPENWRT OFF CACHE BOOL "Disable subsystems that are unnecessary for OpenWRT platform.")
 SET(TEST ON CACHE BOOL "Build unit tests.")
 SET(PLUGINS ON CACHE BOOL "Build plugins.")
 SET(COMMOTION_VERSION_MAJOR 0)
@@ -25,13 +25,14 @@ CONFIGURE_FILE( "${CMAKE_SOURCE_DIR}/src/config.h.in" "${CMAKE_SOURCE_DIR}/src/c
 ADD_DEFINITIONS(-Os -Wall --std=gnu99 -Wmissing-declarations -DNDEBUG)
 
 IF(OPENWRT)
-  ADD_DEFINITIONS(-D_OPENWRT)
+  ADD_DEFINITIONS(-D_OPENWRT -DUSESYSLOG)
 ENDIF()
 
 IF(DEBUG)
   ADD_DEFINITIONS(-g3)
   REMOVE_DEFINITIONS(-DNDEBUG)
   IF(NO_OPTIMIZE)
+    REMOVE_DEFINITIONS(-Os)
     ADD_DEFINITIONS(-O0)
   ENDIF()
 ENDIF()
@@ -47,17 +48,27 @@ IF(PLUGINS)
   ADD_SUBDIRECTORY(plugins)
 ENDIF()
 
-if(NOT OPENWRT)
-  find_package(Doxygen)
-  if(DOXYGEN_FOUND)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-    add_custom_target(doc ALL
+IF(NOT OPENWRT)
+  FIND_PACKAGE(Doxygen)
+  IF(DOXYGEN_FOUND)
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+    ADD_CUSTOM_TARGET(doc ALL
       ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
-  endif(DOXYGEN_FOUND)
-endif()
+  ENDIF(DOXYGEN_FOUND)
+ENDIF()
 
-INSTALL(FILES files/commotiond.conf DESTINATION etc/commotion)
-INSTALL(DIRECTORY files/profiles.d DESTINATION etc/commotion)
+INSTALL(FILES files/commotiond.conf DESTINATION /etc/commotion)
+INSTALL(DIRECTORY files/profiles.d DESTINATION /etc/commotion)
+
+# uninstall target
+CONFIGURE_FILE(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+
+ADD_CUSTOM_TARGET(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+

@@ -71,7 +71,9 @@ proto_commotion_setup() {
 	json_get_vars profile type class ipaddr netmask dns domain announce lease_zone nolease_zone
 
 	logger -t commotion.proto "Running protocol handler."
-	[ "$class" == "mesh" ] && commotion_up "$iface" $(uci_get network $config profile)
+	[ "$class" == "mesh" ] && {
+		commotion_up "$iface" $(uci_get network $config profile)
+	}
 	case "$class" in
  	"mesh")
 		logger -t "commotion.proto" "Class: $class"
@@ -96,11 +98,11 @@ proto_commotion_setup() {
         "auto")
 	      	local dhcp_status
 	      	local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
-          logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
+		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	
 	      	logger -t "commotion.proto" "Removing $iface from bridge $client_bridge"
 	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
-          brctl delif br-"$client_bridge" "$iface"
+		brctl delif br-"$client_bridge" "$iface"
 	      	logger -t "commotion.proto" "Successfully removed $iface from bridge $client_bridge"
 	      	export DHCP_INTERFACE="$config"
 	      	udhcpc -q -i ${iface} -p /var/run/udhcpc-${iface}.pid -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
@@ -134,6 +136,9 @@ proto_commotion_setup() {
 	      		uci_set network "$client_bridge" netmask "$bridge_netmask"
 	      		uci_set_state network "$client_bridge" netmask "$bridge_netmask"
 
+			logger -t "commotion.proto" "Restarting dnsmasq..."
+			/etc/init.d/dnsmasq restart
+
 			have_ip=1
 	      	fi
         ;;
@@ -142,7 +147,7 @@ proto_commotion_setup() {
 	      	uci_commit firewall
 	      	set_bridge "$client_bridge" "$iface"
 	      	logger -t "commotion.proto" "Adding $iface to bridge $client_bridge"
-          logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
+		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	
 	      	logger -t "commotion.proto" "Restarting $client_bridge interface"
 	      	ubus call network.interface."$client_bridge" down
@@ -152,7 +157,11 @@ proto_commotion_setup() {
 	      	logger -t "commotion.proto" "Bridge: $client_bridge, IP: $bridge_ip, Netmask: $bridge_netmask"
 	      	uci_set network "$client_bridge" ipaddr "$bridge_ip"
 	      	uci_set network "$client_bridge" netmask "$bridge_netmask"
-          have_ip=1
+
+		logger -t "commotion.proto" "Restarting dnsmasq..."
+		/etc/init.d/dnsmasq restart
+
+		have_ip=1
         ;;
         "client")
 	      	local dhcp_status
@@ -160,13 +169,13 @@ proto_commotion_setup() {
 	      	
 	      	logger -t "commotion.proto" "Removing $iface from bridge $client_bridge"
 	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
-          brctl delif br-"$client_bridge" "$iface"
+		brctl delif br-"$client_bridge" "$iface"
 	      	logger -t "commotion.proto" "Successfully removed $iface from bridge $client_bridge"
 	      	logger -t "commotion.proto" "Restarting $client_bridge interface"
 	      	ubus call network.interface."$client_bridge" down
 	      	ubus call network.interface."$client_bridge" up
 	      	proto_export "DHCP_INTERFACE=$config"
-          logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
+		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	proto_run_command "$config" udhcpc -i ${iface} -f -T "$dhcp_timeout" -t 0 -p /var/run/udhcpc-"$iface".pid -s /lib/netifd/commotion.dhcp.script
 		return
         ;;

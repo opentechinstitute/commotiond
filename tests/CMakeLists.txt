@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 2.8.8)
-project(gtest_builder C CXX)
-include(ExternalProject)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+REMOVE_DEFINITIONS("--std=gnu99")
+PROJECT(gtest_builder C CXX)
+INCLUDE(ExternalProject)
 
 ExternalProject_Add(googletest
     SVN_REPOSITORY http://googletest.googlecode.com/svn/trunk
@@ -15,30 +16,34 @@ ExternalProject_Add(googletest
 
 # Specify include dir
 ExternalProject_Get_Property(googletest source_dir)
-set(GTEST_INCLUDE_DIRS ${source_dir}/include)
+SET(GTEST_INCLUDE_DIR ${source_dir}/include)
 
 # Specify MainTest's link libraries
 ExternalProject_Get_Property(googletest binary_dir)
-set(GTEST_LIBS_DIR ${binary_dir})
+SET(GTEST_LIBRARY ${binary_dir}/libgtest.a)
+SET(GTEST_MAIN_LIBRARY ${binary_dir}/libgtest_main.a)
 
 #-------------------
 # Test
 #-------------------
-enable_testing()
-set(PROJECT_TEST_NAME ${PROJECT_NAME_STR}_test)
-include_directories(${GTEST_INCLUDE_DIRS} ${COMMON_INCLUDES})
+ENABLE_TESTING()
+INCLUDE(FindGTest QUIETLY)
+SET(PROJECT_TEST_NAME ${PROJECT_NAME_STR}_test)
+INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIR} ${COMMON_INCLUDES})
 
-file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
-add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
-add_dependencies(${PROJECT_TEST_NAME} googletest)
+FILE(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/*.cpp)
+ADD_EXECUTABLE(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
+ADD_DEPENDENCIES(${PROJECT_TEST_NAME} googletest)
 
-target_link_libraries(${PROJECT_TEST_NAME} commotion)
-target_link_libraries(${PROJECT_TEST_NAME}
-	${GTEST_LIBS_DIR}/libgtest.a
-	${GTEST_LIBS_DIR}/libgtest_main.a)
-target_link_libraries(${PROJECT_TEST_NAME} pthread)
+TARGET_LINK_LIBRARIES(${PROJECT_TEST_NAME} commotion)
+TARGET_LINK_LIBRARIES(${PROJECT_TEST_NAME}
+	${GTEST_LIBRARY}
+	${GTEST_MAIN_LIBRARY})
+TARGET_LINK_LIBRARIES(${PROJECT_TEST_NAME} pthread)
 
-add_test(test1 ${PROJECT_TEST_NAME})
+GTEST_ADD_TESTS(${PROJECT_TEST_NAME} "" ${TEST_SRC_FILES})
+
+ADD_CUSTOM_COMMAND(TARGET ${PROJECT_TEST_NAME} POST_BUILD COMMAND ${PROJECT_TEST_NAME})
 
 #get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})

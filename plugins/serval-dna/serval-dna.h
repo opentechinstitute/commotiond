@@ -44,7 +44,7 @@
       err_msg = co_list16_create(); \
     char *msg = NULL; \
     int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-    msg = calloc(len,sizeof(char)); \
+    msg = calloc(len + 1,sizeof(char)); \
     sprintf(msg, M, ##__VA_ARGS__); \
     if (len < UINT8_MAX) { \
       co_list_append(err_msg, co_str8_create(msg,len+1,0)); \
@@ -65,7 +65,7 @@
       co_obj_free(err_msg); \
     char *msg = NULL; \
     int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-    msg = calloc(len,sizeof(char)); \
+    msg = calloc(len + 1,sizeof(char)); \
     sprintf(msg, M, ##__VA_ARGS__); \
     if (len < UINT8_MAX) { \
       err_msg = co_str8_create(msg,len+1,0); \
@@ -78,7 +78,7 @@
     goto error; \
   }
 
-#define CLEAR_ERR() if (err_msg) { co_obj_free(err_msg); err_msg = NULL; }
+#define CLEAR_ERR() err_msg = NULL;
 
 #define INS_ERROR() if (err_msg) { CMD_OUTPUT("errors",err_msg); }
 
