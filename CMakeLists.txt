@@ -2,7 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 SET(PROJECT_NAME_STR commotion)
 PROJECT(${PROJECT_NAME_STR})
-SET(NO_OPTIMIZE OFF CACHE BOOL "Disable optimization flags.")
+SET(NO_OPTIMIZE ON CACHE BOOL "Disable optimization flags.")
 SET(DEBUG ON CACHE BOOL "Turn on debugging.")
 SET(OPENWRT OFF CACHE BOOL "Disable subsystems that are unnecessary for OpenWRT platform.")
 SET(TEST ON CACHE BOOL "Build unit tests.")
