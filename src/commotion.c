@@ -227,11 +227,9 @@ co_call(co_obj_t *connection, co_obj_t **response, const char *method, const siz
   }
   else SENTINEL("Failed to receive data.");
 
-  co_obj_free(m);
-  if(params != request) co_obj_free(params);
-  return retval;
-  
 error:
+  if (rlist)
+    co_obj_free(rlist);
   co_obj_free(m);
   if(params != request) co_obj_free(params);
   return retval;
