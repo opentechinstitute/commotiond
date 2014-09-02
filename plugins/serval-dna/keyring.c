@@ -94,6 +94,19 @@ error:
   return 0;
 }
 
+static svl_keyring *
+_svl_keyring_remove(svl_keyring *list, svl_keyring *keyring)
+{
+  for (; list; list = list->_next) {
+    if (list->_next == keyring) {
+      list->_next = keyring->_next;
+      keyring->_next = NULL;
+      return keyring;
+    }
+  }
+  return NULL;
+}
+
 static int
 _svl_keyring_open(svl_keyring *keyring)
 {
@@ -113,13 +126,13 @@ error:
 }
 
 /* Public */
-
 void
 serval_close_keyring(svl_crypto_ctx *ctx)
 {
   if (ctx && ctx->keyring) {
     ctx->keyring->refs--;
     if (ctx->keyring->refs <= 0) {
+      _svl_keyring_remove(keyring_list, ctx->keyring);
       keyring_free(ctx->keyring->keyring_file);
       h_free(ctx->keyring);
     }
