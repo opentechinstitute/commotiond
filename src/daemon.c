@@ -713,21 +713,25 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *fd) {
   char respbuf[RESPONSE_MAX];
   memset(respbuf, '\0', sizeof(respbuf));
   size_t resplen = 0;
-  co_obj_t *request = NULL;
+  co_obj_t *request = NULL, *response = NULL;
   uint8_t *type = NULL;
   uint32_t *id = NULL;
+  int ret = 0;
   co_obj_t *nil = co_nil_create(0);
+  CHECK_MEM(nil);
 
   /* Incoming message on socket */
   reqlen = sock->receive((co_obj_t*)sock, fd, reqbuf, sizeof(reqbuf));
   DEBUG("Received %d bytes.", (int)reqlen);
   if(reqlen == 0) {
     INFO("Received connection.");
+    co_obj_free(nil);
     return 1;
   }
   if (reqlen < 0) {
     INFO("Connection recvd() -1");
     sock->hangup((co_obj_t*)sock, fd);
+    co_obj_free(nil);
     return 1;
   }
   /* If it's a commotion message type, parse the header, target and payload */
@@ -735,32 +739,28 @@ int dispatcher_cb(co_obj_t *self, co_obj_t *fd) {
   co_obj_data((char **)&type, co_list_element(request, 0)); 
   CHECK(*type == 0, "Not a valid request.");
   CHECK(co_obj_data((char **)&id, co_list_element(request, 1)) == sizeof(uint32_t), "Not a valid request ID.");
-  co_obj_t *ret = NULL;
-  if(co_cmd_exec(co_list_element(request, 2), &ret, co_list_element(request, 3)))
+  if(co_cmd_exec(co_list_element(request, 2), &response, co_list_element(request, 3)))
   {
-    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, ret);
+    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, nil, response);
     sock->send(fd, respbuf, resplen);
   }
   else
   {
-    if(ret == NULL)
+    if(response == NULL)
     {
-      ret = co_tree16_create();
-      co_tree_insert(ret, "error", sizeof("error"), co_str8_create("Incorrect command.", sizeof("Incorrect command."), 0));
+      response = co_tree16_create();
+      co_tree_insert(response, "error", sizeof("error"), co_str8_create("Incorrect command.", sizeof("Incorrect command."), 0));
     }
-    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, ret, nil);
+    resplen = co_response_alloc(respbuf, sizeof(respbuf), *id, response, nil);
     sock->send(fd, respbuf, resplen);
   }
 
-  co_obj_free(nil);
-  co_obj_free(request);
-  co_obj_free(ret);
-  return 1;
+  ret = 1;
 error:
-  co_obj_free(nil);
-  co_obj_free(request);
-  co_obj_free(ret);
-  return 1;
+  if (nil) co_obj_free(nil);
+  if (request) co_obj_free(request);
+  if (response) co_obj_free(response);
+  return ret;
 }
 
  /**
