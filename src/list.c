@@ -561,20 +561,20 @@ error:
 ssize_t
 co_list_import(co_obj_t **list, const char *input, const size_t ilen)
 {
-  ssize_t length = 0, olen = 0, read = 0;
-  co_obj_t *obj = NULL;
+  ssize_t length = 0, olen = 0, read = 0, i;
+  co_obj_t *obj = NULL, *_list = NULL;
   const char *cursor = input;
   switch((uint8_t)input[0])
   {
     case _list16:
       length = *((uint16_t *)(input + 1));
-      *list = co_list16_create();
+      _list = co_list16_create();
       cursor += sizeof(uint16_t) + 1;
       read = sizeof(uint16_t) + 1;
       break;
     case _list32:
       length = *((uint32_t *)(input + 1));
-      *list = co_list32_create();
+      _list = co_list32_create();
       cursor += sizeof(uint32_t) + 1;
       read = sizeof(uint32_t) + 1;
       break;
@@ -582,7 +582,7 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
       SENTINEL("Not a list.");
       break;
   }
-  for(int i = 0; (i < length && read <= ilen); i++)
+  for(i = 0; (i < length && read <= ilen); i++)
   {
     if(((uint8_t)cursor[0] == _list16) || ((uint8_t)cursor[0] == _list32))
     {
@@ -596,10 +596,15 @@ co_list_import(co_obj_t **list, const char *input, const size_t ilen)
     CHECK(olen > 0, "Failed to import object.");
     cursor +=olen;
     read += olen;
-    CHECK(co_list_append(*list, obj), "Failed to add object to list.");
+    CHECK(co_list_append(_list, obj), "Failed to add object to list.");
+    obj = NULL;
   }
+  CHECK(length == i, "Length of imported list not accurate.");
+  *list = _list;
   return read;
 error:
+  if (obj) co_obj_free(obj);
+  if (_list) co_obj_free(_list);
   return -1;
 }
 
