@@ -1,7 +1,6 @@
 /**
- *       @file  sas_request.h
- *      @brief  library for fetching a Serval SAS key over the MDP
- *                overlay network
+ *       @file  commands.h
+ *      @brief  command registration
  *
  *     @author  Dan Staples (dismantl), danstaples@opentechinstitute.org
  *
@@ -29,18 +28,11 @@
  * =====================================================================================
  */
 
-#include "serval-config.h"
-#include <serval.h>
+#ifndef __CO_SERVAL_COMMANDS_H
+#define __CO_SERVAL_COMMANDS_H
 
-#ifndef __CO_SERVAL_SAS_REQUEST_H
-#define __CO_SERVAL_SAS_REQUEST_H
-
-#define SID_SIZE 32
-#define SAS_SIZE 32
-
-int keyring_send_sas_request_client(const char *sid_str, 
-				    const size_t sid_len,
-				    char *sas_buf,
-				    const size_t sas_buf_len);
+int serval_daemon_register(void);
+int serval_crypto_register(void);
+int olsrd_mdp_register(void);
 
 #endif

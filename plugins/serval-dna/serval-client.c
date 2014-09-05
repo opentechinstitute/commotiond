@@ -38,19 +38,28 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/conf.h>
 #include <serval/mdp_client.h>
 #include <serval/rhizome.h>
 #include <serval/crypto.h>
+#include <serval/dataformats.h>
+#include <serval/overlay_address.h>
 
+#include "config.h" // COMMOTION_MANAGESOCK
 #include "debug.h"
 #include "util.h"
 #include "socket.h"
 #include "obj.h"
-#include "crypto.h"
+#include "tree.h"
+#include "commotion.h"
 
-#include "serval-dna.h"
+#include "serval-config.h"
+#include "crypto.h"
+#include "keyring.h"
+
+char bind_uri[PATH_MAX] = {0};
 
 typedef enum {
   SERVAL_SIGN = 0,
@@ -58,7 +67,7 @@ typedef enum {
   SERVAL_CRYPTO = 2
 } serval_client_cmd;
 
-#define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, void *context);
+#define _DECLARE_SERVAL(F) extern int F(const struct cli_parsed *parsed, struct cli_context *context);
 _DECLARE_SERVAL(commandline_usage);
 _DECLARE_SERVAL(app_echo);
 _DECLARE_SERVAL(app_log);
@@ -196,7 +205,7 @@ static struct cli_schema command_line_options[]={
 //   {app_pa_phone,{"phone",NULL}, 0,
 //    "Run phone test application"},
 // #endif
-  {commandline_usage,{"sign","[<SID>]","<message>","[--keyring=<keyring_path>]",NULL},0,
+  {commandline_usage,{"sign","[<SID>]","<message>","[--bind=<commotiond socket>]","[--keyring=<keyring_path>]",NULL},0,
    "Sign any arbitrary text using a Serval ID (if none is given, an identity is created)"},
   {commandline_usage,{"verify","<SID>","<signature>","<message>",NULL},0,
    "Verify a signed message using the given Serval ID"},
@@ -207,7 +216,7 @@ static int print_usage(serval_client_cmd cmd) {
   printf("Serval client\n");
   printf("Usage:\n");
   if (cmd == SERVAL_SIGN || cmd == SERVAL_CRYPTO) {
-    printf(" sign [<SID>] <message> [--keyring=<keyring_path>]\n");
+    printf(" sign [<SID>] <message> [--bind=<commotiond socket>] [--keyring=<keyring_path>]\n");
     printf("   Sign any arbitrary text using a Serval ID (if none is given, an identity is created)\n");
   } 
   if (cmd == SERVAL_VERIFY || cmd == SERVAL_CRYPTO) {
@@ -215,6 +224,192 @@ static int print_usage(serval_client_cmd cmd) {
     printf("   Verify a signed message using the given Serval ID\n");
   }
   return 1;
+}
+
+static int
+keyring_send_sas_request_client(struct subscriber *subscriber)
+{
+  int ret = 0, mdp_sockfd = -1;
+  sid_t srcsid;
+  unsigned char *plain = NULL;
+  time_ms_t now = gettime_ms();
+  
+  CHECK((mdp_sockfd = overlay_mdp_client_socket()) >= 0,"Cannot create MDP socket");
+  
+  CHECK(overlay_mdp_getmyaddr(mdp_sockfd, 0, &srcsid) == 0, "Could not get local address");
+  
+  if (subscriber->sas_valid)
+    return 1;
+  
+  CHECK(now >= subscriber->sas_last_request + 100, "Too soon to ask for SAS mapping again");
+  
+  CHECK(my_subscriber, "Couldn't request SAS (I don't know who I am)");
+  
+  DEBUG("Requesting SAS mapping for SID=%s", alloca_tohex(subscriber->sid.binary, SID_SIZE));
+  
+  int client_port = 32768 + (random() & 32767);
+  CHECK(overlay_mdp_bind(mdp_sockfd, &srcsid, client_port) == 0,
+	"Failed to bind to client socket");
+  
+  /* request mapping (send request auth-crypted). */
+  overlay_mdp_frame mdp;
+  memset(&mdp,0,sizeof(mdp));  
+  
+  mdp.packetTypeAndFlags=MDP_TX;
+  mdp.out.queue=OQ_MESH_MANAGEMENT;
+  memmove(mdp.out.dst.sid.binary,subscriber->sid.binary,SID_SIZE);
+  mdp.out.dst.port=MDP_PORT_KEYMAPREQUEST;
+  mdp.out.src.port=client_port;
+  memmove(mdp.out.src.sid.binary,srcsid.binary,SID_SIZE);
+  mdp.out.payload_length=1;
+  mdp.out.payload[0]=KEYTYPE_CRYPTOSIGN;
+  
+  int sent = overlay_mdp_send(mdp_sockfd, &mdp, 0,0);
+  if (sent) {
+    DEBUG("Failed to send SAS resolution request: %d", sent);
+    CHECK(mdp.packetTypeAndFlags != MDP_ERROR,"MDP Server error #%d: '%s'",mdp.error.error,mdp.error.message);
+  }
+  
+  time_ms_t timeout = now + 5000;
+  
+  while(now < timeout) {
+    time_ms_t timeout_ms = timeout - gettime_ms();
+    int result = overlay_mdp_client_poll(mdp_sockfd, timeout_ms);
+    
+    if (result > 0) {
+      int ttl = -1;
+      if (overlay_mdp_recv(mdp_sockfd, &mdp, client_port, &ttl) == 0) {
+	int found = 0;
+	switch(mdp.packetTypeAndFlags & MDP_TYPE_MASK) {
+	  case MDP_ERROR:
+	    ERROR("overlay_mdp_recv: %s (code %d)", mdp.error.message, mdp.error.error);
+	    break;
+	  case MDP_TX:
+	    DEBUG("Received SAS mapping response");
+	    found = 1;
+	    break;
+	  default:
+	    DEBUG("overlay_mdp_recv: Unexpected MDP frame type 0x%x", mdp.packetTypeAndFlags);
+	    break;
+	}
+	if (found)
+	  break;
+      }
+    }
+    now = gettime_ms();
+    if (servalShutdown)
+      break;
+  }
+  
+  unsigned keytype = mdp.out.payload[0];
+  
+  CHECK(keytype == KEYTYPE_CRYPTOSIGN, "Ignoring SID:SAS mapping with unsupported key type %u", keytype);
+  
+  CHECK(mdp.out.payload_length >= 1 + SAS_SIZE,
+	    "Truncated key mapping announcement? payload_length: %d",
+	    mdp.out.payload_length);
+  
+  plain = (unsigned char*)calloc(mdp.out.payload_length,sizeof(unsigned char));
+  CHECK_MEM(plain);
+  unsigned long long plain_len = 0;
+  unsigned char *sas_public = &mdp.out.payload[1];
+  unsigned char *compactsignature = &mdp.out.payload[SAS_SIZE + 1];
+  
+  /* reconstitute signed SID for verification */
+  unsigned char signature[SID_SIZE + crypto_sign_edwards25519sha512batch_BYTES];
+  memmove(&signature[0], &compactsignature[0], 64);
+  memmove(&signature[64], &mdp.out.src.sid.binary[0], SID_SIZE);
+  
+  int sign_ret = crypto_sign_edwards25519sha512batch_open(plain,
+							  &plain_len,
+							  signature,
+							  SID_SIZE + crypto_sign_edwards25519sha512batch_BYTES,
+							  sas_public);
+  CHECK(sign_ret == 0, "SID:SAS mapping verification signature does not verify");
+  
+  /* These next two tests should never be able to fail, but let's just check anyway. */
+  CHECK(plain_len == SID_SIZE, "SID:SAS mapping signed block is wrong length");
+  CHECK(memcmp(plain, mdp.out.src.sid.binary, SID_SIZE) == 0, "SID:SAS mapping signed block is for wrong SID");
+  
+  memmove(subscriber->sas_public, sas_public, SAS_SIZE);
+  subscriber->sas_valid = 1;
+  subscriber->sas_last_request = now;
+  ret = 1;
+  
+error:
+  if (plain)
+    free(plain);
+  if (mdp_sockfd != -1)
+    overlay_mdp_client_close(mdp_sockfd);
+  return ret;
+}
+
+static int
+serval_sign_client(svl_crypto_ctx *ctx)
+{
+  int ret = 0;
+  co_obj_t *co_conn = NULL, *co_req = NULL, *co_resp = NULL;
+  
+  CHECK(ctx && ctx->msg && ctx->keyring_path && ctx->keyring_len, "Invalid ctx");
+
+  co_conn = co_connect(bind_uri,strlen(bind_uri)+1);
+  CHECK(co_conn, "Failed to connect to commotiond management socket");
+  
+  CHECK_MEM((co_req = co_request_create()));
+  CHECK(co_request_append_str(co_req,"sign",sizeof("sign")),"Failed to append to request");
+  if (!iszero(ctx->sid,SID_SIZE))
+    CHECK(co_request_append_str(co_req,
+				alloca_tohex(ctx->sid, SID_SIZE),
+				2 * SID_SIZE + 1),
+	  "Failed to append to request");
+  CHECK(co_request_append_str(co_req,(char*)ctx->msg,ctx->msg_len + 1),"Failed to append to request");
+  char keyring_path[PATH_MAX] = {0};
+  strcpy(keyring_path, "keyring=");
+  strncat(keyring_path,ctx->keyring_path,ctx->keyring_len);
+  CHECK(co_request_append_str(co_req, keyring_path, strlen(keyring_path) + 1),"Failed to append to request");
+  
+  CHECK(co_call(co_conn,&co_resp,"serval-crypto",sizeof("serval-crypto"),co_req),
+	"Failed to dispatch signing request");
+  
+  co_tree_print(co_resp);
+  
+  ret = 1;
+error:
+  if (co_req)
+    co_free(co_req);
+  if (co_resp)
+    co_free(co_resp);
+  if (co_conn)
+    co_disconnect(co_conn);
+  return ret;
+}
+
+static int
+serval_verify_client(svl_crypto_ctx *ctx)
+{
+  CHECK(ctx
+	&& !iszero(ctx->sid,SID_SIZE)
+	&& ctx->msg
+	&& !iszero(ctx->signature,SIGNATURE_BYTES)
+	&& ctx->keyring,
+	"Invalid ctx");
+  
+  keyring = serval_get_keyring_file(ctx);
+      
+  struct subscriber *sub = find_subscriber(ctx->sid, SID_SIZE, 1); // get Serval identity described by given SID
+  
+  CHECK(sub, "Failed to fetch Serval subscriber");
+  
+  CHECK(keyring_send_sas_request_client(sub), "SAS request failed");
+  
+  CHECK(sub->sas_valid, "Could not validate the signing key!");
+  CHECK(!iszero(sub->sas_public,crypto_sign_PUBLICKEYBYTES), "Could not validate the signing key!");
+  
+  memcpy(ctx->sas_public,sub->sas_public,crypto_sign_PUBLICKEYBYTES);
+  
+  return cmd_serval_verify(ctx);
+error:
+  return 0;
 }
 
 static int serval_cmd(int argc, char *argv[]) {
@@ -249,8 +444,11 @@ int main(int argc, char *argv[]) {
   svl_crypto_ctx *ctx = svl_crypto_ctx_new();
   CHECK_MEM(ctx);
   
+  CHECK(co_init(), "Failed to initialize");
+  
   // Run the Serval command
   
+  // TODO only open keyring for sign, or make verify a commotion client request
   if (!strncmp("--keyring=",argv[argc-1],10)) {
     CHECK(strlen(argv[argc-1] + 10) < PATH_MAX,"keyring path too long");
     ctx->keyring_path = argv[argc-1] + 10;
@@ -258,20 +456,34 @@ int main(int argc, char *argv[]) {
   } else {
     // add default path to ctx->keyring_path
     ctx->keyring_path = h_malloc(strlen(DEFAULT_SERVAL_PATH) + strlen("/serval.keyring"));
+    CHECK_MEM(ctx->keyring_path);
     hattach(ctx->keyring_path,ctx);
     strcpy(ctx->keyring_path,DEFAULT_SERVAL_PATH);
     strcat(ctx->keyring_path,"/serval.keyring");
   }
   ctx->keyring_len = strlen(ctx->keyring_path);
+  CHECK(serval_open_keyring(ctx, NULL),
+	"Failed to open Serval keyring");
   
-  argc--;
-  argv++;
-  if (!strcmp(argv[0],"sign")) {
+  argc--; argv++;
+  if (!argc) {
+    char *help = "help";
+    ret = serval_cmd(1, &help);
+  } else if (!strcmp(argv[0],"sign")) {
+    // check if bind option given
+    if (!strncmp("--bind=",argv[argc-1],7)) {
+      CHECK(strlen(argv[argc-1] + 7) < PATH_MAX,"bind URI path too long");
+      strcpy(bind_uri,argv[argc-1] + 7);
+      argc--;
+    } else {
+      strcpy(bind_uri,COMMOTION_MANAGESOCK);
+    }
+    
     if (argc < 2 || argc > 3) {
       print_usage(SERVAL_SIGN);
       goto error;
     }
-    char sig_buf[2*SIGNATURE_BYTES + 1] = {0};
+
     if (argc == 3) {
       char *sid_str = argv[1];
       CHECK(strlen(sid_str) == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
@@ -283,11 +495,8 @@ int main(int argc, char *argv[]) {
       ctx->msg = (unsigned char*)argv[1];
       ctx->msg_len = strlen(argv[1]);
     }
-    CHECK(cmd_serval_sign(ctx), "Failed to create signature");
-    // convert ctx->signature to hex: 
-    strncpy(sig_buf, alloca_tohex(ctx->signature, SIGNATURE_BYTES), 2 * SIGNATURE_BYTES);
-    sig_buf[2 * SIGNATURE_BYTES] = '\0';
-    printf("%s\n",sig_buf);
+    
+    CHECK(serval_sign_client(ctx), "Failed to create signature");
     
   } else if (!strcmp(argv[0],"verify"))  {
     if (argc != 4) {
@@ -298,6 +507,7 @@ int main(int argc, char *argv[]) {
     // Set SERVALINSTANCE_PATH environment variable
     char *last_slash = strrchr(ctx->keyring_path,(int)'/');
     instance_path = calloc(last_slash - ctx->keyring_path + 1,sizeof(char));
+    CHECK_MEM(instance_path);
     strncpy(instance_path,ctx->keyring_path,last_slash - ctx->keyring_path);
     CHECK(setenv("SERVALINSTANCE_PATH", instance_path, 1) == 0,
 	      "Failed to set SERVALINSTANCE_PATH env variable");
@@ -320,14 +530,18 @@ int main(int argc, char *argv[]) {
   }
   
   /* clean up after ourselves */
-  overlay_mdp_client_done();
   rhizome_close_db();
   
   ret = 0;
+  
 error:
+  co_shutdown();
+  
   if (instance_path)
     free(instance_path);
+  
   if (ctx)
     svl_crypto_ctx_free(ctx);
+  
   return ret;
 }

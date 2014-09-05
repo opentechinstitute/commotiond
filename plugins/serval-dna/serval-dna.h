@@ -32,55 +32,56 @@
 #ifndef __CO_SERVAL_DNA_H
 #define __CO_SERVAL_DNA_H
 
-#define DEFAULT_SID "0000000000000000000000000000000000000000000000000000000000000000"
-#define DEFAULT_MDP_PATH "/etc/commotion/keys.d/mdp.keyring/serval.keyring"
-#define DEFAULT_SERVAL_PATH "/var/serval-node"
+#include <stdarg.h>
 
-#define PATH_MAX 4096
+#include "list.h"
 
-#define CHECK_ERR(A, M, ...) if(!(A)) { \
+#ifdef SVL_DAEMON
+
+extern int collect_errors;
+extern co_obj_t *err_msg;
+
+#undef CHECK
+#define CHECK(A, M, ...) if(!(A)) { \
     ERROR(M, ##__VA_ARGS__); \
-    if (err_msg == NULL) \
-      err_msg = co_list16_create(); \
-    char *msg = NULL; \
-    int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-    msg = calloc(len + 1,sizeof(char)); \
-    sprintf(msg, M, ##__VA_ARGS__); \
-    if (len < UINT8_MAX) { \
-      co_list_append(err_msg, co_str8_create(msg,len+1,0)); \
-    } else if (len < UINT16_MAX) { \
-      co_list_append(err_msg, co_str16_create(msg,len+1,0)); \
-    } else if (len < UINT32_MAX) { \
-      co_list_append(err_msg, co_str32_create(msg,len+1,0)); \
+    if (collect_errors) { \
+      if (err_msg == NULL) \
+	err_msg = co_list16_create(); \
+      if (err_msg) { \
+	char *msg = NULL; \
+	int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
+	msg = calloc(len + 1,sizeof(char)); \
+	if (msg) { \
+	  sprintf(msg, M, ##__VA_ARGS__); \
+	  co_obj_t *str = NULL; \
+	  if (len < UINT8_MAX) { \
+	    str = co_str8_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } else if (len < UINT16_MAX) { \
+	    str = co_str16_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } else if (len < UINT32_MAX) { \
+	    str = co_str32_create(msg,len+1,0); \
+	    if (str) co_list_append(err_msg, str); \
+	  } \
+	  free(msg); \
+	} \
+      } else { \
+        ERROR("Out of memory."); \
+      } \
     } \
-    free(msg); \
-    goto error; \
+    errno=0; goto error; \
   }
 
-/** until we have nested tree support */
-#undef CHECK_ERR
-#define CHECK_ERR(A, M, ...) if(!(A)) { \
-    ERROR(M, ##__VA_ARGS__); \
-    if (err_msg) \
-      co_obj_free(err_msg); \
-    char *msg = NULL; \
-    int len = snprintf(NULL, 0, M, ##__VA_ARGS__); \
-    msg = calloc(len + 1,sizeof(char)); \
-    sprintf(msg, M, ##__VA_ARGS__); \
-    if (len < UINT8_MAX) { \
-      err_msg = co_str8_create(msg,len+1,0); \
-    } else if (len < UINT16_MAX) { \
-      err_msg = co_str16_create(msg,len+1,0); \
-    } else if (len < UINT32_MAX) { \
-      err_msg = co_str32_create(msg,len+1,0); \
-    } \
-    free(msg); \
-    goto error; \
-  }
+#define CLEAR_ERR() err_msg = NULL; collect_errors = 1;
+#define INS_ERROR() if (err_msg) { CMD_OUTPUT("errors",err_msg); } collect_errors = 0;
 
-#define CLEAR_ERR() err_msg = NULL;
+#else
 
-#define INS_ERROR() if (err_msg) { CMD_OUTPUT("errors",err_msg); }
+#define CLEAR_ERR()
+#define INS_ERROR()
+
+#endif
 
 int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params);

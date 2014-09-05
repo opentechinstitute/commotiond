@@ -1,7 +1,6 @@
 /**
- *       @file  sas_request.h
- *      @brief  library for fetching a Serval SAS key over the MDP
- *                overlay network
+ *       @file  keyring.h
+ *      @brief  functions for managing serval-dna keyrings
  *
  *     @author  Dan Staples (dismantl), danstaples@opentechinstitute.org
  *
@@ -29,18 +28,20 @@
  * =====================================================================================
  */
 
-#include "serval-config.h"
-#include <serval.h>
+#ifndef __CO_SERVAL_KEYRING_H
+#define __CO_SERVAL_KEYRING_H
 
-#ifndef __CO_SERVAL_SAS_REQUEST_H
-#define __CO_SERVAL_SAS_REQUEST_H
+#include "crypto.h"
 
-#define SID_SIZE 32
-#define SAS_SIZE 32
+#define KEYRING_PIN NULL
 
-int keyring_send_sas_request_client(const char *sid_str, 
-				    const size_t sid_len,
-				    char *sas_buf,
-				    const size_t sas_buf_len);
+typedef int (*svl_keyring_update)(svl_crypto_ctx *);
+
+int serval_open_keyring(svl_crypto_ctx *ctx, svl_keyring_update update);
+void serval_close_keyring(svl_crypto_ctx *ctx);
+int serval_reload_keyring(svl_crypto_ctx *ctx);
+int serval_keyring_add_identity(svl_crypto_ctx *ctx);
+keyring_file *serval_get_keyring_file(svl_crypto_ctx *ctx);
+int serval_extract_sas(svl_crypto_ctx *ctx);
 
 #endif

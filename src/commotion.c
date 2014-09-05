@@ -207,7 +207,7 @@ co_call(co_obj_t *connection, co_obj_t **response, const char *method, const siz
   CHECK(((co_socket_t*)connection)->send((co_obj_t*)((co_socket_t*)connection)->fd, req, reqlen) != -1, "Send error!");
   if((resplen = ((co_socket_t*)connection)->receive(connection, (co_obj_t*)((co_socket_t*)connection)->fd, resp, sizeof(resp))) > 0) 
   {
-    CHECK(co_list_import(&rlist, resp, resplen) > 0, "Failed to parse response.");
+    CHECK(co_list_import(&rlist, resp, resplen) > 0 && co_list_length(rlist) == 4, "Failed to parse response.");
     rtree = co_list_element(rlist, 3);
     if(!IS_NIL(rtree))
     {

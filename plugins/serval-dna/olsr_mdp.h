@@ -1,7 +1,6 @@
 /**
- *       @file  sas_request.h
- *      @brief  library for fetching a Serval SAS key over the MDP
- *                overlay network
+ *       @file  olsr_mdp.h
+ *      @brief  command handlers for mdp plugin for olsrd
  *
  *     @author  Dan Staples (dismantl), danstaples@opentechinstitute.org
  *
@@ -29,18 +28,10 @@
  * =====================================================================================
  */
 
-#include "serval-config.h"
-#include <serval.h>
+#ifndef __CO_SERVAL_OLSR_H
+#define __CO_SERVAL_OLSR_H
 
-#ifndef __CO_SERVAL_SAS_REQUEST_H
-#define __CO_SERVAL_SAS_REQUEST_H
-
-#define SID_SIZE 32
-#define SAS_SIZE 32
-
-int keyring_send_sas_request_client(const char *sid_str, 
-				    const size_t sid_len,
-				    char *sas_buf,
-				    const size_t sas_buf_len);
+int olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params);
+int olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params);
 
 #endif

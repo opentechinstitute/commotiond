@@ -661,19 +661,19 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
   size_t length = 0, olen = 0, read = 0, klen = 0;
   char *kstr = NULL;
   int i = 0;
-  co_obj_t *obj = NULL;
+  co_obj_t *obj = NULL, *_tree = NULL;
   const char *cursor = input;
   switch((uint8_t)input[0])
   {
     case _tree16:
       length = *((uint16_t *)(input + 1));
-      *tree = co_tree16_create();
+      _tree = co_tree16_create();
       cursor += sizeof(uint16_t) + 1;
       read = sizeof(uint16_t) + 1;
       break;
     case _tree32:
       length = (uint32_t)(*(uint32_t*)(input + 1));
-      *tree = co_tree32_create();
+      _tree = co_tree32_create();
       cursor += sizeof(uint32_t) + 1;
       read = sizeof(uint32_t) + 1;
       break;
@@ -714,13 +714,19 @@ co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
       read += olen;
 
       DEBUG("Inserting value into tree with key.");
-      CHECK(co_tree_insert(*tree, kstr, klen, obj), "Failed to insert object.");
+      CHECK(co_tree_insert(_tree, kstr, klen, obj), "Failed to insert object.");
+      obj = NULL;
       i++;
+    } else {
+      SENTINEL("Invalid tree item.");
     }
   }
+  CHECK(length == i, "Length of imported tree not accurate.");
+  *tree = _tree;
   return read;
 error:
   if(obj != NULL) co_obj_free(obj);
+  if(_tree != NULL) co_obj_free(_tree);
   return -1;
 }
 

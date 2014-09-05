@@ -29,13 +29,14 @@
  * =====================================================================================
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
-#include <poll.h>
+#include <sys/types.h>
+#include <dirent.h>
 
+#include "serval-config.h"
 #include <serval.h>
 #include <serval/conf.h>
+#include <serval/overlay_interface.h>
 
 #include "debug.h"
 #include "plugin.h"
@@ -49,6 +50,8 @@
 
 #include "serval-dna.h"
 #include "crypto.h"
+#include "keyring.h"
+#include "commands.h"
 
 // Types & constructors
 
@@ -80,18 +83,16 @@ error:
 
 extern keyring_file *keyring;  // Serval global
 extern char *serval_path;
+
 co_socket_t co_socket_proto = {};
-svl_crypto_ctx *global_ctx = NULL;
 
 static co_obj_t *sock_alarms = NULL;
 static co_obj_t *timer_alarms = NULL;
 bool serval_registered = false;
 bool daemon_started = false;
-extern co_obj_t *err_msg;
+svl_crypto_ctx *serval_dna_ctx = NULL;
 
 // Private functions
-
-static int serval_daemon_register(void);
 
 /** Compares co_socket fd to serval alarm fd */
 static co_obj_t *_alarm_fd_match_i(co_obj_t *alarms, co_obj_t *alarm, void *fd) {
@@ -166,10 +167,13 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
   
   time_ms_t now = gettime_ms();
   
+  if (alarm->alarm == TIME_NEVER_WILL)
+    return 0;
+  
   if (alarm->deadline < alarm->alarm)
     alarm->deadline = alarm->alarm;
   
-  CHECK(now - alarm->alarm <= 1000,"Alarm tried to schedule a deadline %lldms ago, from %s() %s:%d",
+  CHECK(now - alarm->alarm <= 1000,"Alarm tried to schedule a deadline %ldms ago, from %s() %s:%d",
 	 (now - alarm->deadline),
 	 __whence.function,__whence.file,__whence.line);
   
@@ -200,7 +204,9 @@ int _schedule(struct __sourceloc __whence, struct sched_ent *alarm) {
 
   CHECK_MEM((timer = co_timer_create(deadline, serval_timer_cb, alarm)));
   CHECK(co_loop_add_timer(timer,NULL),"Failed to add timer %ld.%06ld %p",deadline.tv_sec,deadline.tv_usec,alarm);
-  CHECK(co_list_append(timer_alarms,co_alarm_create(alarm)),"Failed to add to timer_alarms");
+  co_obj_t *alarm_obj = co_alarm_create(alarm);
+  CHECK_MEM(alarm_obj);
+  CHECK(co_list_append(timer_alarms,alarm_obj),"Failed to add to timer_alarms");
   
   return 0;
   
@@ -249,12 +255,18 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     WARN("Socket %d already registered: %d",alarm->poll.fd,alarm->_poll_index);
   } else {
     sock = (co_socket_t*)NEW(co_socket, co_socket);
+    CHECK_MEM(sock);
     
     sock->fd = (co_fd_t*)co_fd_create((co_obj_t*)sock,alarm->poll.fd);
+    CHECK_MEM(sock->fd);
+    hattach(sock->fd, sock);
     sock->rfd_lst = co_list16_create();
+    CHECK_MEM(sock->rfd_lst);
+    hattach(sock->rfd_lst, sock);
     sock->listen = true;
     // NOTE: Aren't able to get the Serval socket uris, so instead use string representation of fd
     sock->uri = h_calloc(1,6);
+    CHECK_MEM(sock->uri);
     hattach(sock->uri,sock);
     sprintf(sock->uri,"%d",sock->fd->fd);
     sock->fd_registered = false;
@@ -272,13 +284,15 @@ int _watch(struct __sourceloc __whence, struct sched_ent *alarm) {
     alarm->_poll_index = 1;
     alarm->poll.revents = 0;
     
-    CHECK(co_list_append(sock_alarms, co_alarm_create(alarm)),"Failed to add to sock_alarms");
+    co_obj_t *alarm_obj = co_alarm_create(alarm);
+    CHECK_MEM(alarm_obj);
+    CHECK(co_list_append(sock_alarms, alarm_obj),"Failed to add to sock_alarms");
     DEBUG("Successfully added to sock_alarms %p",alarm);
   }
   
   return 0;
 error:
-  if (sock) free((co_obj_t*)sock);
+  if (sock) co_socket_destroy((co_obj_t*)sock);
   return -1;
 }
 
@@ -312,6 +326,13 @@ static void setup_sockets(void) {
   DEBUG("Setup MONITOR sockets");
   monitor_setup_sockets();
   
+  // start the HTTP server if enabled
+  DEBUG("HTTP server start");
+  httpd_server_start(HTTPD_PORT, HTTPD_PORT_MAX);  
+  
+  DEBUG("Bind internal services");
+  overlay_mdp_bind_internal_services();
+  
   DEBUG("Setup OLSR sockets");
   olsr_init_socket();
   
@@ -321,12 +342,13 @@ static void setup_sockets(void) {
   if (is_rhizome_enabled())
     rhizome_opendb();
   
-  /* Rhizome http server needs to know which callback to attach
-   *  t o client sockets, so pro*vide it here, along with the name to
-   *  appear in time accounting statistics. */
-  rhizome_http_server_start(rhizome_server_parse_http_request,
-			    "rhizome_server_parse_http_request",
-			    RHIZOME_HTTP_PORT,RHIZOME_HTTP_PORT_MAX);    
+  /* Get rhizome server started BEFORE populating fd list so that
+   *  the server's listen socket is in the list for poll() */
+  if (is_rhizome_enabled()){
+    rhizome_opendb();
+    if (config.rhizome.clean_on_start && !config.rhizome.clean_on_open)
+      rhizome_cleanup(NULL);
+  }
   
   DEBUG("Setup DNA HELPER");
   // start the dna helper if configured
@@ -387,6 +409,8 @@ int co_plugin_register(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
 
 static int serval_load_config(void) {
   CHECK(co_profile_get_str(co_profile_global(),&serval_path,"serval_path",sizeof("serval_path")) < PATH_MAX - 16,"serval_path config parameter too long");
+  if (serval_path[strlen(serval_path) - 1] == '/')
+    serval_path[strlen(serval_path) - 1] = '\0'; // remove trailing slash
   CHECK(setenv("SERVALINSTANCE_PATH",serval_path,1) == 0,"Failed to set SERVALINSTANCE_PATH env variable");
   DEBUG("serval_path: %s",serval_path);
   return 1;
@@ -394,9 +418,19 @@ error:
   return 0;
 }
 
+static int
+serval_reload_keyring_server(svl_crypto_ctx *ctx)
+{
+  CHECK(serval_reload_keyring(ctx), "Failed to reload server keyring");
+  keyring = serval_get_keyring_file(ctx);
+  return 1;
+error:
+  return 0;
+}
+
 int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   char *enabled = NULL;
-  global_ctx = NULL;
+  
   co_profile_get_str(co_profile_global(),&enabled,"servald",sizeof("servald"));
   if (strcmp(enabled,"disabled") == 0) return 1;
 
@@ -405,16 +439,15 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   srandomdev();
   
   CHECK(serval_load_config(),"Failed to load Serval config parameters");
-  global_ctx = svl_crypto_ctx_new();
-  CHECK(serval_open_keyring(global_ctx),"Failed to open keyring");
-  keyring = global_ctx->keyring_file;
+  serval_dna_ctx = svl_crypto_ctx_new();
+  CHECK(serval_open_keyring(serval_dna_ctx, serval_reload_keyring_server),"Failed to open keyring");
+  keyring = serval_get_keyring_file(serval_dna_ctx);
   
   if (!serval_registered) {
 //     CHECK(serval_register(),"Failed to register Serval commands");
     CHECK(serval_daemon_register(),"Failed to register Serval daemon commands");
     CHECK(serval_crypto_register(),"Failed to register Serval-crypto commands");
     CHECK(olsrd_mdp_register(),"Failed to register OLSRd-mdp commands");
-    CHECK(olsrd_mdp_sign_register(),"Failed to register OLSRd-mdp commands");
   }
   
   CHECK(cf_init() == 0, "Failed to initialize config");
@@ -428,7 +461,9 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   // Initialize our list of Serval alarms/sockets
   sock_alarms = co_list16_create();
+  CHECK_MEM(sock_alarms);
   timer_alarms = co_list16_create();
+  CHECK_MEM(timer_alarms);
   
   setup_sockets();
   
@@ -437,8 +472,6 @@ int co_plugin_init(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   return 1;
 error:
-  if (global_ctx)
-    svl_crypto_ctx_free(global_ctx);
   return 0;
 }
 
@@ -452,6 +485,34 @@ static co_obj_t *destroy_alarms(co_obj_t *alarms, co_obj_t *alarm, void *context
   return NULL;
 }
 
+/** From serval-dna/server.c */
+static void clean_proc()
+{
+  char path_buf[400];
+  strbuf sbname = strbuf_local(path_buf, sizeof path_buf);
+  strbuf_path_join(sbname, serval_instancepath(), "proc", NULL);
+  
+  DIR *dir;
+  struct dirent *dp;
+  if ((dir = opendir(path_buf)) == NULL) {
+    WARNF_perror("opendir(%s)", alloca_str_toprint(path_buf));
+    return;
+  }
+  while ((dp = readdir(dir)) != NULL) {
+    strbuf_reset(sbname);
+    strbuf_path_join(sbname, serval_instancepath(), "proc", dp->d_name, NULL);
+    
+    struct stat st;
+    if (lstat(path_buf, &st)) {
+      WARNF_perror("stat(%s)", path_buf);
+      continue;
+    }
+    
+    if (S_ISREG(st.st_mode))
+      unlink(path_buf);
+  }
+}
+
 int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   if (daemon_started == false) return 1;
 
@@ -459,68 +520,41 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   
   servalShutdown = 1;
   
-  serverCleanUp();
+  // Clean up serval-dna functions (commotiond will take care of closing sockets)
+  rhizome_close_db();
+  dna_helper_shutdown();
+  overlay_mdp_clean_socket_files();
+  clean_proc();
+  server_remove_stopfile();
   
-//   co_list_parse(sock_alarms,destroy_alarms,NULL);
-  co_obj_free(sock_alarms);  // halloc will free list items
-  
-//   co_list_parse(timer_alarms,destroy_alarms,NULL);
-  co_obj_free(timer_alarms); // halloc will free list items
-  
-  keyring_free(keyring);
+  svl_crypto_ctx_free(serval_dna_ctx);
   
   daemon_started = false;
   
-  svl_crypto_ctx_free(global_ctx);
-  
   return 1;
-}
-
-static int serval_daemon_register(void) {
-  /**
-   * name: serval-daemon
-   * param[0] <required>: start|stop|reload (co_str8_t)
-   */
-  
-  const char name[] = "serval-daemon",
-//   usage[] = "serval-daemon start|stop|reload",
-//   desc[] =  "Start or stop the Serval daemon, or reload the keyring file";
-  usage[] = "serval-daemon reload",
-  desc[] =  "Reload the keyring file";
-  
-  CHECK(co_cmd_register(name,sizeof(name),usage,sizeof(usage),desc,sizeof(desc),serval_daemon_handler),"Failed to register commands");
-  
-  return 1;
-error:
-  return 0;
 }
 
 int serval_daemon_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
-  svl_crypto_ctx *ctx = NULL;
-  
   CLEAR_ERR();
   
-  CHECK_ERR(IS_LIST(params) && co_list_length(params) == 1,"Invalid parameters");
+  CHECK(IS_LIST(params) && co_list_length(params) == 1,"Invalid parameters");
   
   /*if (co_str_cmp_str(co_list_element(params,0),"start") == 0) {
-    CHECK_ERR(daemon_started == false,"Daemon is already started");
-    CHECK_ERR(co_plugin_init(NULL,NULL,NULL),"Failed to start daemon");
+    CHECK(daemon_started == false,"Daemon is already started");
+    CHECK(co_plugin_init(NULL,NULL,NULL),"Failed to start daemon");
   } else if (co_str_cmp_str(co_list_element(params,0),"stop") == 0) {
-    CHECK_ERR(daemon_started == true,"Daemon is already stopped");
-    CHECK_ERR(co_plugin_shutdown(NULL,NULL,NULL),"Failed to stop daemon");
+    CHECK(daemon_started == true,"Daemon is already stopped");
+    CHECK(co_plugin_shutdown(NULL,NULL,NULL),"Failed to stop daemon");
   } else*/ if (co_str_cmp_str(co_list_element(params,0),"reload") == 0) {
-    keyring_free(keyring);
-    ctx = svl_crypto_ctx_new();
-    CHECK_ERR(serval_open_keyring(ctx),"Failed to open keyring");
-    keyring = ctx->keyring_file;
+    CHECK(serval_reload_keyring(serval_dna_ctx), "Failed to reload keyring");
+    keyring = serval_get_keyring_file(serval_dna_ctx);
   }
   
-  CMD_OUTPUT("result",co_str8_create("success",sizeof("success"),0));
+  co_obj_t *out = co_str8_create("success",sizeof("success"),0);
+  CHECK_MEM(out);
+  CMD_OUTPUT("result", out);
   
-  return 1;
 error:
-  if (ctx)
-    svl_crypto_ctx_free(ctx);
   INS_ERROR();
-  return 0;
+  return 1;
 }
