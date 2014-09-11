@@ -511,6 +511,7 @@ static void clean_proc()
     if (S_ISREG(st.st_mode))
       unlink(path_buf);
   }
+  closedir(dir);
 }
 
 int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
@@ -523,6 +524,7 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   // Clean up serval-dna functions (commotiond will take care of closing sockets)
   rhizome_close_db();
   dna_helper_shutdown();
+  overlay_interface_close_all();
   overlay_mdp_clean_socket_files();
   clean_proc();
   server_remove_stopfile();
@@ -530,6 +532,9 @@ int co_plugin_shutdown(co_obj_t *self, co_obj_t **output, co_obj_t *params) {
   svl_crypto_ctx_free(serval_dna_ctx);
   
   daemon_started = false;
+  
+  co_obj_free(sock_alarms);
+  co_obj_free(timer_alarms);
   
   return 1;
 }
