@@ -36,3 +36,15 @@ commotiond is an implementation of libcommotion, in the form of a superserver da
 commotion
 ---------
 The commotion application is a simple command-shell interface for managing the commotiond daemon.
+
+Plugins
+=======
+Commotiond currently includes 2 complete plugins:
+
+serval-dna
+----------
+This plugin uses the libserval library version of [Serval-DNA](https://github.com/opentechinstitute/serval-dna), and runs it as a daemon using commotiond's event loop. It also provides CLI commands and an API for creating and verifying signatures using a serval-dna keyring.
+
+demo
+----
+This is a barebones plugin that provides an example for other developers to build plugins for commotiond.
