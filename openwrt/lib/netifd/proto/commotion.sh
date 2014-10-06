@@ -98,11 +98,10 @@ proto_commotion_setup() {
         "auto")
 	      	local dhcp_status
 	      	local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
-		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	
 	      	logger -t "commotion.proto" "Removing $iface from bridge $client_bridge"
 	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
-		brctl delif br-"$client_bridge" "$iface"
+          brctl delif br-"$client_bridge" "$iface"
 	      	logger -t "commotion.proto" "Successfully removed $iface from bridge $client_bridge"
 	      	export DHCP_INTERFACE="$config"
 	      	udhcpc -q -i ${iface} -p /var/run/udhcpc-${iface}.pid -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
@@ -170,17 +169,14 @@ proto_commotion_setup() {
 	      	logger -t "commotion.proto" "Removing $iface from bridge $client_bridge"
 	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
 		brctl delif br-"$client_bridge" "$iface"
-	      	logger -t "commotion.proto" "Successfully removed $iface from bridge $client_bridge"
-	      	logger -t "commotion.proto" "Restarting $client_bridge interface"
-	      	ubus call network.interface."$client_bridge" down
-	      	ubus call network.interface."$client_bridge" up
 	      	proto_export "DHCP_INTERFACE=$config"
 		logger -t "commotion.proto.dhcp" "DHCP type: $dhcp"
 	      	proto_run_command "$config" udhcpc -i ${iface} -f -T "$dhcp_timeout" -t 0 -p /var/run/udhcpc-"$iface".pid -s /lib/netifd/commotion.dhcp.script
 		return
         ;;
 	"none")
-	      	unset_bridge "$client_bridge" "$iface"
+	      	#Can't use unset_bridge here, short-circuits startup process by calling *_teardown
+		brctl delif br-"$client_bridge" "$iface"
 	;;
       esac
       ;;
@@ -191,6 +187,7 @@ proto_commotion_setup() {
 	if [ $have_ip -eq 0 ]; then
 		if [ "$class" != "mesh" ]; then
 			if [ "$class" == "wired" -a "$dhcp" == "none" ]; then
+				logger -t "commotion.proto.none" "setting ipaddr: $ipaddr and netmask: $netmask"
 				local ip="$ipaddr" 
 				local netmask="$netmask"
 			else 
