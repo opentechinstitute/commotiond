@@ -872,36 +872,49 @@ error:
 }
 
 static co_obj_t *
-_co_tree_next_r(_treenode_t *current, _treenode_t *previous)
+_co_tree_next_r(_treenode_t *root, _treenode_t *current, _treenode_t *previous)
 {
   if (!current) return NULL;
-  if (!previous) { // first recurse
-    return _co_tree_next_r(current->parent, current); // go up
-  } else if (previous && previous == current->parent && current->low) {
-    return _co_tree_next_r(current->low, current); // go low
-  } else if (previous && (previous == current->parent || previous == current->low) && current->equal) {
-    return _co_tree_next_r(current->equal, current); // go equal
-  } else if (previous && (previous == current->low || previous == current->equal) && current->high) {
-    return _co_tree_next_r(current->high, current); // go high
-  } else if (previous && previous == current->parent) { // reached leaf
-    if (!current->key) ERROR("Reached leaf node without key");
-    return current->key;
-  } else { // return current key or go up
-    if (current->key)
-      return current->key;
-    else if (current->parent)
-      return _co_tree_next_r(current->parent, current);
-  }
-  return NULL;
+  _treenode_t *parent = current->parent,
+              *low = current->low,
+	      *equal = current->equal,
+	      *high = current->high;
+  co_obj_t *key = current->key;
+  
+  if (previous && key && (previous == parent || (previous == low && parent == root))) 
+    return key;
+  else if (low && (!previous || (previous && previous == parent))) 
+    return _co_tree_next_r(root, low, current); // go low
+  else if (equal && (!previous || (previous && (previous == parent || previous == low)))) 
+    return _co_tree_next_r(root, equal, current); // go equal
+  else if (high && previous && previous == equal) 
+    return _co_tree_next_r(root, high, current); // go high
+  else if (parent) 
+    return _co_tree_next_r(root, parent, current); // go up
+  else 
+    return key; // if NULL, tree walk has completed
 }
 
 co_obj_t *
 co_tree_next(const co_obj_t *tree, co_obj_t *key)
 {
-  char *key_str = NULL;
-  _treenode_t *key_node = NULL;
-  size_t klen = co_obj_data(&key_str, key);
-  key_node = co_tree_find_node(co_tree_root(tree), key_str, klen);
+  if (!IS_TREE(tree)) {
+    ERROR("Invalid tree");
+    return NULL;
+  }
   
-  return _co_tree_next_r(key_node, NULL);
+  _treenode_t *key_node = NULL,
+	      *root = co_tree_root(tree);
+  
+  if (key) {
+    char *key_str = NULL;
+    size_t klen = co_obj_data(&key_str, key);
+    key_node = co_tree_find_node(root, key_str, klen);
+  } else {
+    key_node = root;
+  }
+  
+  co_obj_t *ret = _co_tree_next_r(root, key_node, NULL);
+  if (ret != key) return ret;
+  return NULL;
 }
