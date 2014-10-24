@@ -910,6 +910,10 @@ co_tree_next(const co_obj_t *tree, co_obj_t *key)
     char *key_str = NULL;
     size_t klen = co_obj_data(&key_str, key);
     key_node = co_tree_find_node(root, key_str, klen);
+    if (!key_node) {
+      ERROR("Key not found in tree");
+      return NULL;
+    }
   } else {
     key_node = root;
   }
