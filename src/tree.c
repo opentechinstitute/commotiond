@@ -869,3 +869,42 @@ co_tree_print_raw(co_obj_t *tree)
 error:
   return 0;
 }
+
+static co_obj_t *
+_co_tree_next_r(_treenode_t *current, _treenode_t *previous)
+{
+  if (!current) return NULL;
+  if (!previous) { // first recurse
+    return _co_tree_next_r(current->parent, current); // go up
+  } else if (previous && previous == current->parent && current->low) {
+    return _co_tree_next_r(current->low, current); // go low
+  } else if (previous && (previous == current->parent || previous == current->low) && current->equal) {
+    return _co_tree_next_r(current->equal, current); // go equal
+  } else if (previous && (previous == current->low || previous == current->equal) && current->high) {
+    return _co_tree_next_r(current->high, current); // go high
+  } else if (previous && previous == current->parent) { // reached leaf
+    if (!current->key) ERROR("Reached leaf node without key");
+    return current->key;
+  } else { // return current key or go up
+    if (current->key)
+      return current->key;
+    else if (current->parent)
+      return _co_tree_next_r(current->parent, current);
+  }
+  return NULL;
+}
+
+co_obj_t *
+co_tree_next(const co_obj_t *tree, co_obj_t *key)
+{
+  char *key_str = NULL;
+  _treenode_t *key_node = NULL;
+  size_t klen = co_obj_data(&key_str, key);
+  if(CO_TYPE(tree) == _tree16) {
+    key_node = co_tree_find_node(((co_tree16_t *)tree)->root, key_str, klen);
+  } else if (CO_TYPE(tree) == _tree32) {
+    key_node = co_tree_find_node(((co_tree32_t *)tree)->root, key_str, klen);
+  }
+  
+  return _co_tree_next_r(key_node, NULL);
+}
