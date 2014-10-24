@@ -231,7 +231,7 @@ int co_tree_print(co_obj_t *tree);
 int co_tree_print_raw(co_obj_t *tree);
 
 /**
- * @brief get the next key in the tree
+ * @brief get the next key in the tree, in alphabetical order
  * @param tree tree object to search
  * @param key previous key returned from co_tree_next
  */
