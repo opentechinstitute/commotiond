@@ -246,32 +246,33 @@ error:
 }
 
 static inline _treenode_t *
-_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value, bool safe)
+_co_tree_insert_r(_treenode_t *parent, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value, bool safe)
 {
   if (current == NULL) 
   { 
     current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
-    if(root == NULL) 
+    if(parent == NULL) 
     {
-      root = current;
+      parent = current;
     } 
     else 
     {
-      hattach(current, root);
+      current->parent = parent;
+      hattach(current, parent);
     }
     current->splitchar = *key; 
   }
 
   if (*key < current->splitchar) 
   {
-    current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value, safe); 
+    current->low = _co_tree_insert_r(current, current->low, orig_key, orig_klen, key, klen, value, safe); 
   } 
   else if (*key == current->splitchar) 
   { 
     if (klen > 1) 
     {
       // not done yet, keep going but one less
-      current->equal = _co_tree_insert_r(root, current->equal, orig_key, orig_klen, key+1, klen - 1, value, safe);
+      current->equal = _co_tree_insert_r(current, current->equal, orig_key, orig_klen, key+1, klen - 1, value, safe);
     } 
     else 
     {
@@ -296,7 +297,7 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
   } 
   else 
   {
-    current->high = _co_tree_insert_r(root, current->high, orig_key, orig_klen, key, klen, value, safe);
+    current->high = _co_tree_insert_r(current, current->high, orig_key, orig_klen, key, klen, value, safe);
   }
 
   return current; 
@@ -900,11 +901,7 @@ co_tree_next(const co_obj_t *tree, co_obj_t *key)
   char *key_str = NULL;
   _treenode_t *key_node = NULL;
   size_t klen = co_obj_data(&key_str, key);
-  if(CO_TYPE(tree) == _tree16) {
-    key_node = co_tree_find_node(((co_tree16_t *)tree)->root, key_str, klen);
-  } else if (CO_TYPE(tree) == _tree32) {
-    key_node = co_tree_find_node(((co_tree32_t *)tree)->root, key_str, klen);
-  }
+  key_node = co_tree_find_node(co_tree_root(tree), key_str, klen);
   
   return _co_tree_next_r(key_node, NULL);
 }
