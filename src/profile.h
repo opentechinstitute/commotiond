@@ -181,7 +181,7 @@ int co_profile_set_str(co_obj_t *profile, const char *key, const size_t klen, co
  * @param key key in profile
  * @param klen key length
  */
-size_t co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen);
+ssize_t co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen);
 
 /**
  * @brief sets a specified profile value (if an int)

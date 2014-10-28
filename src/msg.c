@@ -66,9 +66,8 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   
   CHECK(((output != NULL) && (method != NULL)), "Invalid request components.");
   CHECK(olen > sizeof(_req_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
-  size_t written = 0;
+  ssize_t written = 0, s = 0;
   char *cursor = NULL;
-  size_t s = 0;
 
   /* Pack request header */
   memmove(output + written, &_req_header.list_type, sizeof(_req_header.list_type));
@@ -94,7 +93,7 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   /* Pack method call */
   CHECK(IS_STR(method), "Not a valid method name.");
   char *buffer = NULL;
-  size_t buffer_write = co_obj_raw(&buffer, method);
+  ssize_t buffer_write = co_obj_raw(&buffer, method);
   CHECK(buffer_write >= 0, "Failed to pack object.");
   memmove(output + written, buffer, buffer_write);
   written += buffer_write;
@@ -104,10 +103,15 @@ co_request_alloc(char *output, const size_t olen, const co_obj_t *method, co_obj
   if(param != NULL)
   {
     if(IS_LIST(param))
-      written += co_list_raw(output + written, olen - written, param);
+    {
+      s = co_list_raw(output + written, olen - written, param);
+      CHECK(s > 0, "Failed to pack list parameter");
+      written += s;
+    }
     else 
     {
       s = co_obj_raw(&cursor, param);
+      CHECK(s > 0, "Failed to pack object parameter");
       written += s;
       memmove(output + written, cursor, s);
     }
@@ -142,9 +146,8 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
 {
   CHECK(((output != NULL) && (error != NULL) && (result != NULL)), "Invalid response components.");
   CHECK(olen > sizeof(_resp_header) + sizeof(uint32_t) + sizeof(co_str16_t) + sizeof(co_list16_t), "Output buffer too small.");
-  size_t written = 0;
+  ssize_t written = 0, s = 0;
   char *cursor = NULL;
-  size_t s = 0;
 
   /* Pack response header */
   memmove(output + written, &_resp_header.list_type, sizeof(_resp_header.list_type));
@@ -171,14 +174,21 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   if(error != NULL)
   {
     if(IS_LIST(error))
-      written += co_list_raw(output + written, olen - written, error);
+    {
+      s = co_list_raw(output + written, olen - written, error);
+      CHECK(s > 0, "Failed to pack list parameter");
+      written += s;
+    }
     else if(IS_TREE(error))
     {
-      written += co_tree_raw(output + written, olen - written, error);
+      s = co_tree_raw(output + written, olen - written, error);
+      CHECK(s > 0, "Failed to pack tree parameter");
+      written += s;
     }
     else
     {
       s = co_obj_raw(&cursor, error);
+      CHECK(s > 0, "Failed to pack object parameter");
       memmove(output + written, cursor, s);
       written += s;
     }
@@ -189,14 +199,21 @@ co_response_alloc(char *output, const size_t olen, const uint32_t id, const co_o
   if(result != NULL)
   {
     if(IS_LIST(result))
-      written += co_list_raw(output + written, olen - written, result);
+    {
+      s = co_list_raw(output + written, olen - written, result);
+      CHECK(s > 0, "Failed to pack list parameter");
+      written += s;
+    }
     else if(IS_TREE(result))
     {
-      written += co_tree_raw(output + written, olen - written, result);
+      s = co_tree_raw(output + written, olen - written, result);
+      CHECK(s > 0, "Failed to pack tree parameter");
+      written += s;
     }
     else
     {
       s = co_obj_raw(&cursor, result);
+      CHECK(s > 0, "Failed to pack object parameter");
       memmove(output + written, cursor, s);
       written += s;
     }

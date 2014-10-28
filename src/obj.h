@@ -263,13 +263,13 @@ void co_obj_free(co_obj_t *object);
 /*-----------------------------------------------------------------------------
  *  Accessors
  *-----------------------------------------------------------------------------*/
-size_t co_obj_raw(char **data, const co_obj_t *object);
+ssize_t co_obj_raw(char **data, const co_obj_t *object);
 
-size_t co_obj_data(char **data, const co_obj_t *object);
+ssize_t co_obj_data(char **data, const co_obj_t *object);
 
 #define co_obj_data_ptr(J) ({ char *d = NULL; co_obj_data(&d,J); d; })
 
-size_t co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags);
+ssize_t co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags);
 
 int co_obj_getflags(const co_obj_t *object);
 

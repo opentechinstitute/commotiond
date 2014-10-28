@@ -209,7 +209,7 @@ static void _co_loop_poll_processes(void) {
 static void _co_loop_process_timers(struct timeval *now) {
   co_timer_t *timer = NULL;
   
-  while (co_list_length(timers)) {
+  while (co_list_length(timers) > 0) {
     timer = (co_timer_t*)co_list_get_first(timers);
     if (_co_loop_tv_diff(&timer->deadline,now) > 0)
       break;
