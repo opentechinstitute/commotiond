@@ -49,7 +49,9 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   svl_crypto_ctx *ctx = NULL;
   CHECK(IS_LIST(params) && co_list_length(params) == 2, "Invalid params");
   
-  size_t sid_len = co_str_len(co_list_element(params, 1));
+  ssize_t s = co_str_len(co_list_element(params, 1));
+  CHECK(s > 0, "Invalid params");
+  size_t sid_len = s;
   char *sid_str = _LIST_ELEMENT(params, 1);
   
   CHECK(sid_len == (2 * SID_SIZE) + 1 && str_is_subscriber_id(sid_str) == 1, "Invalid SID");
@@ -59,7 +61,9 @@ olsrd_mdp_init(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   stowSid(ctx->sid, 0, sid_str);
   
   ctx->keyring_path = _LIST_ELEMENT(params, 0);
-  ctx->keyring_len = co_str_len(co_list_element(params, 0)) - 1;
+  s = co_str_len(co_list_element(params, 0)) - 1;
+  CHECK(s > 0, "Invalid params");
+  ctx->keyring_len = s;
   CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
   
   CHECK(serval_open_keyring(ctx, NULL), "Failed to initialize Serval keyring");
@@ -87,7 +91,9 @@ olsrd_mdp_sign(co_obj_t *self, co_obj_t **output, co_obj_t *params)
   
 //   CHECK(IS_LIST(params) && co_list_length(params) == 2, "Invalid params");
   
-  ctx->msg_len = co_obj_data((char**)&ctx->msg, co_list_element(params, 1));
+  ssize_t s = co_obj_data((char**)&ctx->msg, co_list_element(params, 1));
+  CHECK(s > 0, "Invalid message");
+  ctx->msg_len = s;
   
   memcpy(ctx->sas_private,_LIST_ELEMENT(params, 0),crypto_sign_SECRETKEYBYTES);
   

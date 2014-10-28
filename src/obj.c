@@ -366,7 +366,7 @@ co_obj_free(co_obj_t *object)
 /*-----------------------------------------------------------------------------
  *   Accessors
  *-----------------------------------------------------------------------------*/
-size_t
+ssize_t
 co_obj_raw(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
@@ -444,13 +444,22 @@ co_obj_raw(char **data, const co_obj_t *object)
       *data = (char *)&(((co_bin32_t *)object)->_header._type);
       return ((co_bin32_t *)object)->_len + sizeof(uint32_t) + 1;
       break;
+    case _ext16:
+      if (object->_flags & 1) {
+	*data = (char *)&(object->_type);
+	return *((uint16_t*)(*data + sizeof(uint8_t) + 1)) + sizeof(uint8_t) + sizeof(uint16_t) + 1;
+      } else {
+	WARN("Extended type not serializable.");
+	return -1;
+      }
+      break;
     default:
       WARN("Not a valid object.");
       return -1;
   }
 }
 
-size_t
+ssize_t
 co_obj_data(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
@@ -515,11 +524,11 @@ co_obj_data(char **data, const co_obj_t *object)
   }
 }
 
-size_t
+ssize_t
 co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags)
 {
   CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
-  size_t read = 0;
+  ssize_t read = 0, s = 0;
   co_obj_t *obj = NULL;
   switch((uint8_t)input[0])
   {
@@ -598,13 +607,26 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       break;
     case _list16:
     case _list32:
-      read += co_list_import(&obj, input, in_size);
+      s = co_list_import(&obj, input, in_size);
+      CHECK(s > 0, "Failed to import list object");
+      read += s;
       *output = obj;
       break;
     case _tree16:
     case _tree32:
-      read += co_tree_import(&obj, input, in_size);
+      s = co_tree_import(&obj, input, in_size);
+      CHECK(s > 0, "Failed to import tree object");
+      read += s;
       *output = obj;
+      break;
+    case _ext16: ;
+      uint16_t len = (uint16_t)*((uint16_t*)(input + sizeof(uint8_t) + 1)) + sizeof(uint8_t) + sizeof(uint16_t) + 1;
+      co_obj_t *out = h_calloc(1,sizeof(co_obj_t) + len - 1);
+      CHECK_MEM(out);
+      out->_flags = 1;
+      memmove(&out->_type, input, len);
+      read += len;
+      *output = out;
       break;
     default:
       SENTINEL("Not a simple object.");
@@ -700,7 +722,7 @@ co_str_cmp(const co_obj_t *a, const co_obj_t *b)
 {
   char *a_data = NULL;
   char *b_data = NULL; 
-  size_t alen, blen;
+  ssize_t alen, blen;
 
   alen = co_obj_data(&a_data, a);
   blen = co_obj_data(&b_data, b);
