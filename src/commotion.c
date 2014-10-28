@@ -245,7 +245,7 @@ error:
   return NULL;
 }
 
-size_t
+ssize_t
 co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen) 
 {
   co_obj_t *obj = co_response_get(response, key, klen);
@@ -256,7 +256,7 @@ error:
   return -1;
 }
 
-size_t
+ssize_t
 co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen) 
 {
   co_obj_t *obj = co_response_get(response, key, klen);
