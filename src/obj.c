@@ -378,7 +378,7 @@ co_obj_raw(char **data, const co_obj_t *object)
     case _false:
     case _true:
       *data = (char *)&(object->_type);
-      return sizeof(bool) + 1;
+      return 1;
       break;
     case _float32:
       *data = (char *)&(object->_type);
@@ -530,7 +530,7 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
     case _false:
     case _true:
       *output = co_bool_create((bool)((uint8_t)input[0] - _false), flags);
-      read += sizeof(bool) + 1;
+      read += 1;
       break;
     case _float32:
       *output = co_float32_create((float)(*(float *)(input + 1)), flags);
