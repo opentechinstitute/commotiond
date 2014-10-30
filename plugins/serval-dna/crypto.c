@@ -167,15 +167,16 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     if (list_len == 3) { // SID specified
       
       char *sid_str = _LIST_ELEMENT(params, 1);
-      size_t sid_len = co_str_len(co_list_element(params, 1)) - 1;
+      size_t sid_len = 0;
+      CHECK((sid_len = co_str_len(co_list_element(params, 1)) - 1) > 0, "Invalid params");
       CHECK(sid_len == (2 * SID_SIZE) && str_is_subscriber_id(sid_str) == 1,
 		"Invalid SID");
       stowSid(ctx->sid, 0, sid_str);
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 2);
-      ctx->msg_len = co_str_len(co_list_element(params, 2)) - 1;
+      CHECK((ctx->msg_len = co_str_len(co_list_element(params, 2)) - 1) > 0, "Invalid params");
       if (keypath) {
 	ctx->keyring_path = _LIST_ELEMENT(params, 3) + strlen("keyring=");
-	ctx->keyring_len = co_str_len(co_list_element(params, 3)) - (strlen("keyring=") + 1);
+	CHECK((ctx->keyring_len = co_str_len(co_list_element(params, 3)) - (strlen("keyring=") + 1)) > 0, "Invalid params");
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
 	// TODO make sure keyring path is an existing file
       }
@@ -185,10 +186,10 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     } else if (list_len == 2) { // no SID specified, one will be created
       
       ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 1);
-      ctx->msg_len = co_str_len(co_list_element(params, 1)) - 1;
+      CHECK((ctx->msg_len = co_str_len(co_list_element(params, 1)) - 1) > 0, "Invalid params");
       if (keypath) {
 	ctx->keyring_path = _LIST_ELEMENT(params, 2) + strlen("keyring=");
-	ctx->keyring_len = co_str_len(co_list_element(params, 2)) - (strlen("keyring=") + 1);
+	CHECK((ctx->keyring_len = co_str_len(co_list_element(params, 2)) - (strlen("keyring=") + 1)) > 0, "Invalid params");
 	CHECK(ctx->keyring_len < PATH_MAX,"Keyring path too long");
 	// TODO make sure keyring path is an existing file
       }
@@ -223,7 +224,7 @@ serval_crypto_handler(co_obj_t *self, co_obj_t **output, co_obj_t *params)
     CHECK(fromhexstr(ctx->signature, _LIST_ELEMENT(params, 2), SIGNATURE_BYTES) == 0, "Invalid signature");
     CHECK(fromhexstr(ctx->sas_public, _LIST_ELEMENT(params, 1), crypto_sign_PUBLICKEYBYTES) == 0, "Invalid SAS key");
     ctx->msg = (unsigned char*)_LIST_ELEMENT(params, 3);
-    ctx->msg_len = co_str_len(co_list_element(params, 3)) - 1;
+    CHECK((ctx->msg_len = co_str_len(co_list_element(params, 3)) - 1) > 0, "Invalid params");
 
     int verdict = cmd_serval_verify(ctx);
     if (verdict == 1) {

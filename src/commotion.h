@@ -128,7 +128,7 @@ co_obj_t *co_response_get(co_obj_t *response, const char *key, const size_t klen
  * @param key identifier for response element to retrieve
  * @param klen length of key name
  */
-size_t co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen); 
+ssize_t co_response_get_str(co_obj_t *response, char **output, const char *key, const size_t klen); 
 
 /**
  * @brief retrieve byte array from response
@@ -137,7 +137,7 @@ size_t co_response_get_str(co_obj_t *response, char **output, const char *key, c
  * @param key identifier for response element to retrieve
  * @param klen length of key name
  */
-size_t co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen); 
+ssize_t co_response_get_bin(co_obj_t *response, char **output, const char *key, const size_t klen); 
 
 /**
  * @brief retrieve unsigned int from response

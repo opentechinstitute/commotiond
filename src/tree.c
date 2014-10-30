@@ -583,7 +583,7 @@ static inline void
 _co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *current)
 {
   if(current == NULL) return;
-  size_t klen = 0, vlen = 0; 
+  ssize_t klen = 0, vlen = 0; 
   char *kbuf = NULL, *vbuf = NULL;
   if(current->value != NULL)
   {
@@ -658,7 +658,8 @@ error:
 ssize_t
 co_tree_import(co_obj_t **tree, const char *input, const size_t ilen)
 {
-  size_t length = 0, olen = 0, read = 0, klen = 0;
+  size_t length = 0, read = 0, klen = 0;
+  ssize_t olen = 0;
   char *kstr = NULL;
   int i = 0;
   co_obj_t *obj = NULL, *_tree = NULL;
@@ -841,7 +842,7 @@ _co_tree_print_raw_r(co_obj_t *tree, _treenode_t *current)
 {
   CHECK(IS_TREE(tree), "Recursion target is not a tree.");
   if(current == NULL) return;
-  size_t klen = 0, vlen = 0; 
+  ssize_t klen = 0, vlen = 0; 
   char *kbuf = NULL, *vbuf = NULL;
   if(current->value != NULL)
   {

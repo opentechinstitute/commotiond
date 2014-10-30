@@ -105,7 +105,7 @@ static co_obj_t *
 _cmd_help_i(co_obj_t *data, co_obj_t *current, void *context) 
 {
   char *cmd_name = NULL;
-  size_t cmd_len = 0;
+  ssize_t cmd_len = 0;
   CHECK((cmd_len = co_obj_data(&cmd_name, ((co_cmd_t *)current)->name)) > 0, "Failed to read command name.");
   DEBUG("Command: %s, Length: %d", cmd_name, (int)cmd_len);
   co_tree_insert_unsafe((co_obj_t *)context, cmd_name, cmd_len, ((co_cmd_t *)current)->usage);
@@ -123,7 +123,7 @@ CMD(help)
     if(cmd != NULL && IS_STR(cmd))
     {
       char *cstr = NULL;
-      size_t clen = co_obj_data(&cstr, cmd);
+      ssize_t clen = co_obj_data(&cstr, cmd);
       if(clen > 0)
       {
         co_tree_insert_unsafe(*output, cstr, clen, co_cmd_desc(cmd));
@@ -139,7 +139,7 @@ static co_obj_t *
 _cmd_profiles_i(co_obj_t *data, co_obj_t *current, void *context) 
 {
   char *name = NULL;
-  size_t nlen = co_obj_data(&name, ((co_profile_t *)current)->name);
+  ssize_t nlen = co_obj_data(&name, ((co_profile_t *)current)->name);
   co_tree_insert_unsafe((co_obj_t *)context, name, nlen, ((co_profile_t *)current)->name);
   return NULL;
 }
@@ -160,7 +160,8 @@ CMD(up)
   char address[16];
   memset(address, '\0', sizeof(address));
   char *ifname = NULL;
-  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  ssize_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  CHECK(iflen > 0, "Incorrect parameters.");
   co_obj_t *iface = co_iface_add(ifname, AF_INET);
   DEBUG("Bringing up iface %s", ifname);
   CHECK(iface != NULL, "Failed to create interface %s.", ifname);
@@ -177,15 +178,15 @@ CMD(up)
 #ifndef _OPENWRT
   char *ipgen, *ip, *ipgenmask, *ssid, *bssid, *mode, *dns, *domain, *netmask;
   unsigned int chan;
-  CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")), "Failed to get 'ip' option.");
-  CHECK(co_profile_get_str(prof, &netmask, "netmask", sizeof("netmask")), "Failed to get 'netmask' option.");
-  CHECK(co_profile_get_str(prof, &ipgen, "ipgen", sizeof("ipgen")), "Failed to get 'ipgen' option.");
-  CHECK(co_profile_get_str(prof, &ipgenmask, "ipgenmask", sizeof("ipgenmask")), "Failed to get 'ipgenmask' option.");
-  CHECK(co_profile_get_str(prof, &ssid, "ssid", sizeof("ssid")), "Failed to get 'ssid' option.");
-  CHECK(co_profile_get_str(prof, &bssid, "bssid", sizeof("bssid")), "Failed to get 'bssid' option.");
-  CHECK(co_profile_get_str(prof, &mode, "mode", sizeof("mode")), "Failed to get 'mode' option.");
-  CHECK(co_profile_get_str(prof, &dns, "dns", sizeof("dns")), "Failed to get 'dns' option.");
-  CHECK(co_profile_get_str(prof, &domain, "domain", sizeof("domain")), "Failed to get 'domain' option.");
+  CHECK(co_profile_get_str(prof, &ip, "ip", sizeof("ip")) > 0, "Failed to get 'ip' option.");
+  CHECK(co_profile_get_str(prof, &netmask, "netmask", sizeof("netmask")) > 0, "Failed to get 'netmask' option.");
+  CHECK(co_profile_get_str(prof, &ipgen, "ipgen", sizeof("ipgen")) > 0, "Failed to get 'ipgen' option.");
+  CHECK(co_profile_get_str(prof, &ipgenmask, "ipgenmask", sizeof("ipgenmask")) > 0, "Failed to get 'ipgenmask' option.");
+  CHECK(co_profile_get_str(prof, &ssid, "ssid", sizeof("ssid")) > 0, "Failed to get 'ssid' option.");
+  CHECK(co_profile_get_str(prof, &bssid, "bssid", sizeof("bssid")) > 0, "Failed to get 'bssid' option.");
+  CHECK(co_profile_get_str(prof, &mode, "mode", sizeof("mode")) > 0, "Failed to get 'mode' option.");
+  CHECK(co_profile_get_str(prof, &dns, "dns", sizeof("dns")) > 0, "Failed to get 'dns' option.");
+  CHECK(co_profile_get_str(prof, &domain, "domain", sizeof("domain")) > 0, "Failed to get 'domain' option.");
   chan = co_profile_get_uint(prof, "channel", sizeof("channel"));
   CHECK(chan >= 0, "Failed to get 'channel' option.");
   /* Load interface configurations from profile */
@@ -224,7 +225,7 @@ CMD(down)
 {
   *output = co_tree16_create();
   char *ifname = NULL;
-  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  ssize_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
   CHECK(iflen > 0, "Incorrect parameters.");
   CHECK(co_iface_remove(ifname), "Failed to bring down interface %s.", ifname);
   co_tree_insert(*output, ifname, iflen, co_str8_create("down", sizeof("down"), 0));
@@ -240,7 +241,7 @@ CMD(status)
   *output = co_tree16_create();
   CHECK(co_list_length(params) == 1, "Incorrect parameters.");
   char *ifname = NULL;
-  size_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
+  ssize_t iflen = co_obj_data(&ifname, co_list_element(params, 0));
   CHECK(iflen > 0, "Incorrect parameters.");
   char *profile_name = profile_name = co_iface_profile(ifname); 
   if(profile_name == NULL)
@@ -270,8 +271,9 @@ CMD(state)
   CHECK(IS_STR(iface), "Incorrect parameters.");
   co_obj_t *prop = co_list_element(params, 1);
   CHECK(IS_STR(prop), "Incorrect parameters.");
-  size_t proplen = co_obj_data(&propname, prop);
-  CHECK(co_obj_data(&ifname, iface), "Incorrect parameters.");
+  ssize_t proplen = co_obj_data(&propname, prop);
+  CHECK(proplen > 0, "Incorrect parameters.");
+  CHECK(co_obj_data(&ifname, iface) > 0, "Incorrect parameters.");
   char *profile_name = NULL; 
   CHECK((profile_name = co_iface_profile(ifname)), "Interface state is inactive."); 
   DEBUG("profile_name: %s", profile_name);
@@ -360,7 +362,7 @@ CMD(nodeid)
   char *ret = NULL;
   co_obj_t *out = co_str8_create(NULL, 11, 0);
   nodeid_t id;
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   if(plen == 0)
   {
     co_obj_data(&ret, out);
@@ -425,7 +427,7 @@ error:
 CMD(genip)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen <= 3, "Incorrect parameters.");
 
   int type = 0;
@@ -469,7 +471,7 @@ error:
 CMD(genbssid)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen == 2, "Incorrect parameters.");
 
   char *ssid = NULL;
@@ -502,7 +504,7 @@ error:
 CMD(set)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen == 3, "Incorrect parameters.");
   co_obj_t *prof = NULL;
 
@@ -522,11 +524,11 @@ CMD(set)
   }
 
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  ssize_t klen = co_obj_data(&kstr, co_list_element(params, 1));
   CHECK(klen > 0, "Invalid key.");
 
   char *vstr = NULL;
-  size_t vlen = co_obj_data(&vstr, co_list_element(params, 2));
+  ssize_t vlen = co_obj_data(&vstr, co_list_element(params, 2));
   CHECK(vlen > 0, "Invalid value.");
 
   CHECK(co_profile_set_str(prof, kstr, klen, vstr, vlen), "Failed to set key %s to value %s.", kstr, vstr);
@@ -541,7 +543,7 @@ error:
 CMD(get)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK((plen == 2), "Incorrect parameters.");
   co_obj_t *prof = NULL;
 
@@ -561,7 +563,7 @@ CMD(get)
   }
 
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, co_list_element(params, 1));
+  ssize_t klen = co_obj_data(&kstr, co_list_element(params, 1));
   CHECK(klen > 0, "Invalid key.");
   co_obj_t *kobj = co_str8_create(kstr, klen, 0);
 
@@ -578,11 +580,11 @@ error:
 CMD(save)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen <= 2, "Incorrect parameters.");
   co_obj_t *prof = NULL;
   char *pstr = NULL;
-  size_t proflen = 0;
+  ssize_t proflen = 0;
   char path_tmp[PATH_MAX] = {};
 
   if(!co_str_cmp_str(co_list_element(params, 0), "global"))
@@ -644,7 +646,7 @@ error:
 CMD(new)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen == 1, "Incorrect parameters.");
 
   co_obj_t *prof = co_profile_find(co_list_element(params, 0));
@@ -655,7 +657,7 @@ CMD(new)
   }
 
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, co_list_element(params, 0));
+  ssize_t klen = co_obj_data(&kstr, co_list_element(params, 0));
   CHECK(klen > 0, "Invalid key.");
   CHECK(co_profile_add(kstr, klen), "Failed to add profile.");
 
@@ -669,7 +671,7 @@ error:
 CMD(delete)
 {
   *output = co_tree16_create();
-  size_t plen = co_list_length(params);
+  ssize_t plen = co_list_length(params);
   CHECK(plen == 1, "Incorrect parameters.");
 
   co_obj_t *prof = co_profile_find(co_list_element(params, 0));
@@ -680,7 +682,7 @@ CMD(delete)
   }
 
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, co_list_element(params, 0));
+  ssize_t klen = co_obj_data(&kstr, co_list_element(params, 0));
   CHECK(klen > 0, "Invalid key.");
   CHECK(co_profile_remove(kstr, klen), "Failed to add profile.");
 

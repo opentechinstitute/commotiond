@@ -366,7 +366,7 @@ co_obj_free(co_obj_t *object)
 /*-----------------------------------------------------------------------------
  *   Accessors
  *-----------------------------------------------------------------------------*/
-size_t
+ssize_t
 co_obj_raw(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
@@ -450,7 +450,7 @@ co_obj_raw(char **data, const co_obj_t *object)
   }
 }
 
-size_t
+ssize_t
 co_obj_data(char **data, const co_obj_t *object)
 {
   switch(CO_TYPE(object))
@@ -515,11 +515,11 @@ co_obj_data(char **data, const co_obj_t *object)
   }
 }
 
-size_t
+ssize_t
 co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const uint8_t flags)
 {
   CHECK(((in_size > 0) && (input != NULL)), "Nothing to import.");
-  size_t read = 0;
+  ssize_t read = 0, s = 0;
   co_obj_t *obj = NULL;
   switch((uint8_t)input[0])
   {
@@ -598,12 +598,16 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       break;
     case _list16:
     case _list32:
-      read += co_list_import(&obj, input, in_size);
+      s = co_list_import(&obj, input, in_size);
+      CHECK(s > 0, "Failed to import list object");
+      read += s;
       *output = obj;
       break;
     case _tree16:
     case _tree32:
-      read += co_tree_import(&obj, input, in_size);
+      s = co_tree_import(&obj, input, in_size);
+      CHECK(s > 0, "Failed to import tree object");
+      read += s;
       *output = obj;
       break;
     default:
@@ -700,7 +704,7 @@ co_str_cmp(const co_obj_t *a, const co_obj_t *b)
 {
   char *a_data = NULL;
   char *b_data = NULL; 
-  size_t alen, blen;
+  ssize_t alen, blen;
 
   alen = co_obj_data(&a_data, a);
   blen = co_obj_data(&b_data, b);

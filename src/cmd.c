@@ -109,7 +109,8 @@ int
 co_cmd_exec(co_obj_t *key, co_obj_t **output, co_obj_t *param) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, key);
+  ssize_t klen = co_obj_data(&kstr, key);
+  CHECK(klen > 0, "Failed to extract command key");
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen - 1);
   
   CHECK((cmd != NULL), "No such command!");
@@ -122,7 +123,8 @@ co_obj_t *
 co_cmd_usage(co_obj_t *key) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, key);
+  ssize_t klen = co_obj_data(&kstr, key);
+  CHECK(klen > 0, "Failed to extract command key");
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen - 1);
   
   CHECK((cmd != NULL), "No such command!");
@@ -135,7 +137,8 @@ co_obj_t *
 co_cmd_desc(co_obj_t *key) 
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, key);
+  ssize_t klen = co_obj_data(&kstr, key);
+  CHECK(klen > 0, "Failed to extract command key");
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen - 1);
   
   CHECK((cmd != NULL), "No such command!");
@@ -164,7 +167,8 @@ int
 co_cmd_hook(const co_obj_t *key, co_obj_t *cb)
 {
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, key);
+  ssize_t klen = co_obj_data(&kstr, key);
+  CHECK(klen > 0, "Failed to extract command key");
   co_cmd_t *cmd = (co_cmd_t *)co_tree_find(_cmds, kstr, klen);
 
   CHECK((cmd != NULL), "No such command!");

@@ -469,7 +469,8 @@ co_profile_get(co_obj_t *profile, const co_obj_t *key)
   CHECK_MEM(((co_profile_t*)profile)->data);
   CHECK_MEM(key);
   char *kstr = NULL;
-  size_t klen = co_obj_data(&kstr, key);
+  ssize_t klen = co_obj_data(&kstr, key);
+  CHECK(klen > 0, "Invalid profile name");
   co_obj_t *obj = NULL;
   CHECK((obj = co_tree_find(((co_profile_t*)profile)->data, kstr, klen)) != NULL, "Failed to find key %s.", kstr);
   return obj;
@@ -491,7 +492,7 @@ error:
     return 0;
 }
 
-size_t
+ssize_t
 co_profile_get_str(co_obj_t *profile, char **output, const char *key, const size_t klen) 
 {
   CHECK(IS_PROFILE(profile),"Not a profile.");
