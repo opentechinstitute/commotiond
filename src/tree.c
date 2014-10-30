@@ -246,32 +246,33 @@ error:
 }
 
 static inline _treenode_t *
-_co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value, bool safe)
+_co_tree_insert_r(_treenode_t *parent, _treenode_t *current, const char *orig_key, const size_t orig_klen,  const char *key, const size_t klen, co_obj_t *value, bool safe)
 {
   if (current == NULL) 
   { 
     current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
-    if(root == NULL) 
+    if(parent == NULL) 
     {
-      root = current;
+      parent = current;
     } 
     else 
     {
-      hattach(current, root);
+      current->parent = parent;
+      hattach(current, parent);
     }
     current->splitchar = *key; 
   }
 
   if (*key < current->splitchar) 
   {
-    current->low = _co_tree_insert_r(root, current->low, orig_key, orig_klen, key, klen, value, safe); 
+    current->low = _co_tree_insert_r(current, current->low, orig_key, orig_klen, key, klen, value, safe); 
   } 
   else if (*key == current->splitchar) 
   { 
     if (klen > 1) 
     {
       // not done yet, keep going but one less
-      current->equal = _co_tree_insert_r(root, current->equal, orig_key, orig_klen, key+1, klen - 1, value, safe);
+      current->equal = _co_tree_insert_r(current, current->equal, orig_key, orig_klen, key+1, klen - 1, value, safe);
     } 
     else 
     {
@@ -296,7 +297,7 @@ _co_tree_insert_r(_treenode_t *root, _treenode_t *current, const char *orig_key,
   } 
   else 
   {
-    current->high = _co_tree_insert_r(root, current->high, orig_key, orig_klen, key, klen, value, safe);
+    current->high = _co_tree_insert_r(current, current->high, orig_key, orig_klen, key, klen, value, safe);
   }
 
   return current; 
@@ -869,4 +870,56 @@ co_tree_print_raw(co_obj_t *tree)
   return 1;
 error:
   return 0;
+}
+
+static co_obj_t *
+_co_tree_next_r(_treenode_t *root, _treenode_t *current, _treenode_t *previous)
+{
+  if (!current) return NULL;
+  _treenode_t *parent = current->parent,
+              *low = current->low,
+	      *equal = current->equal,
+	      *high = current->high;
+  co_obj_t *key = current->key;
+  
+  if (previous && key && (previous == parent || (previous == low && parent == root))) 
+    return key;
+  else if (low && (!previous || (previous && previous == parent))) 
+    return _co_tree_next_r(root, low, current); // go low
+  else if (equal && (!previous || (previous && (previous == parent || previous == low)))) 
+    return _co_tree_next_r(root, equal, current); // go equal
+  else if (high && previous && previous == equal) 
+    return _co_tree_next_r(root, high, current); // go high
+  else if (parent) 
+    return _co_tree_next_r(root, parent, current); // go up
+  else 
+    return key; // if NULL, tree walk has completed
+}
+
+co_obj_t *
+co_tree_next(const co_obj_t *tree, co_obj_t *key)
+{
+  if (!IS_TREE(tree)) {
+    ERROR("Invalid tree");
+    return NULL;
+  }
+  
+  _treenode_t *key_node = NULL,
+	      *root = co_tree_root(tree);
+  
+  if (key) {
+    char *key_str = NULL;
+    size_t klen = co_obj_data(&key_str, key);
+    key_node = co_tree_find_node(root, key_str, klen);
+    if (!key_node) {
+      ERROR("Key not found in tree");
+      return NULL;
+    }
+  } else {
+    key_node = root;
+  }
+  
+  co_obj_t *ret = _co_tree_next_r(root, key_node, NULL);
+  if (ret != key) return ret;
+  return NULL;
 }

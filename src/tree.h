@@ -44,6 +44,7 @@ typedef struct _treenode_t _treenode_t;
 struct _treenode_t
 {
     char splitchar; 
+    _treenode_t *parent;
     _treenode_t *low;
     _treenode_t *equal;
     _treenode_t *high; 
@@ -228,5 +229,12 @@ int co_tree_print(co_obj_t *tree);
  * @param tree tree object to print
  */
 int co_tree_print_raw(co_obj_t *tree);
+
+/**
+ * @brief get the next key in the tree, in alphabetical order
+ * @param tree tree object to search
+ * @param key previous key returned from co_tree_next, or NULL to get first item
+ */
+co_obj_t *co_tree_next(const co_obj_t *tree, co_obj_t *key);
 
 #endif
