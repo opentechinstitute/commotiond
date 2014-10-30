@@ -86,7 +86,8 @@ SCHEMA(default)
   SCHEMA_ADD("encryption", "psk2"); 
   SCHEMA_ADD("key", "c0MM0t10n!r0cks"); 
   SCHEMA_ADD("serval", "false"); 
-  SCHEMA_ADD("announce", "true"); 
+  SCHEMA_ADD("announce", "true");
+  SCHEMA_ADD("routing", "olsr");
   return 1;
 }
 

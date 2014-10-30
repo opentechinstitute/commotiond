@@ -300,6 +300,22 @@ commotion_get_serval() {
   return "$ret"    
 }
 
+commotion_get_routing() {
+  local iface="$1"
+  local data=
+
+  data="$($CLIENT -b $SOCKET state "$iface" routing 2>/dev/null)"
+  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  ret=$?
+          
+  # UPDATE for routing
+  json_load "$data"   
+  json_get_var rt routing
+  echo "$rt"       
+  return "$ret"    
+}
+
+
 commotion_get_mode() {
   local iface="$1"
   local data=
