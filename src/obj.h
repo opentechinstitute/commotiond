@@ -84,6 +84,9 @@
 #define _process 8
 #define _iface 9
 
+/* Flags */
+#define _packable ((1 << 0))
+
 /* Convenience */
 #define CO_TYPE(J) (((co_obj_t *)J)->_type)
 
