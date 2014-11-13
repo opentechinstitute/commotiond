@@ -444,6 +444,15 @@ co_obj_raw(char **data, const co_obj_t *object)
       *data = (char *)&(((co_bin32_t *)object)->_header._type);
       return ((co_bin32_t *)object)->_len + sizeof(uint32_t) + 1;
       break;
+    case _ext16:
+      if (object->_flags & 1) {
+	*data = (char *)&(object->_type);
+	return *((uint16_t*)(*data + sizeof(uint8_t) + 1)) + sizeof(uint8_t) + sizeof(uint16_t) + 1;
+      } else {
+	WARN("Extended type not serializable.");
+	return -1;
+      }
+      break;
     default:
       WARN("Not a valid object.");
       return -1;
@@ -609,6 +618,15 @@ co_obj_import(co_obj_t **output, const char *input, const size_t in_size, const 
       CHECK(s > 0, "Failed to import tree object");
       read += s;
       *output = obj;
+      break;
+    case _ext16: ;
+      uint16_t len = (uint16_t)*((uint16_t*)(input + sizeof(uint8_t) + 1)) + sizeof(uint8_t) + sizeof(uint16_t) + 1;
+      co_obj_t *out = h_calloc(1,sizeof(co_obj_t) + len - 1);
+      CHECK_MEM(out);
+      out->_flags = 1;
+      memmove(&out->_type, input, len);
+      read += len;
+      *output = out;
       break;
     default:
       SENTINEL("Not a simple object.");
