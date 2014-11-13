@@ -251,11 +251,7 @@ _co_tree_insert_r(_treenode_t *parent, _treenode_t *current, const char *orig_ke
   if (current == NULL) 
   { 
     current = (_treenode_t *) h_calloc(1, sizeof(_treenode_t));
-    if(parent == NULL) 
-    {
-      parent = current;
-    } 
-    else 
+    if(parent)
     {
       current->parent = parent;
       hattach(current, parent);
@@ -599,7 +595,7 @@ _co_tree_raw_r(char **output, const size_t *olen, size_t *written, _treenode_t *
     }
     else if(IS_LIST(current->value))
     {
-      vlen = co_list_raw(*output, *olen, current->value);
+      vlen = co_list_raw(*output, *olen - *written, current->value);
       CHECK(vlen > 0, "Failed to dump tree value.");
     }
     else
@@ -882,17 +878,17 @@ _co_tree_next_r(_treenode_t *root, _treenode_t *current, _treenode_t *previous)
 	      *high = current->high;
   co_obj_t *key = current->key;
   
-  if (previous && key && (previous == parent || (previous == low && parent == root))) 
+  if (key && ((previous && previous == parent) || (parent == root && ((!previous && !low) || previous == low))))
     return key;
-  else if (low && (!previous || (previous && previous == parent))) 
+  else if (low && (!previous || previous == parent))
     return _co_tree_next_r(root, low, current); // go low
-  else if (equal && (!previous || (previous && (previous == parent || previous == low)))) 
+  else if (equal && (!previous || previous == parent || previous == low))
     return _co_tree_next_r(root, equal, current); // go equal
-  else if (high && previous && previous == equal) 
+  else if (high && (!previous || previous == parent || previous == low || previous == equal))
     return _co_tree_next_r(root, high, current); // go high
-  else if (parent) 
+  else if (parent)
     return _co_tree_next_r(root, parent, current); // go up
-  else 
+  else
     return key; // if NULL, tree walk has completed
 }
 
