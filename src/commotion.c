@@ -40,8 +40,8 @@
 #include "msg.h"
 #include "commotion.h"
 
-#define REQUEST_MAX 4096
-#define RESPONSE_MAX 4096
+#define REQUEST_MAX 65536
+#define RESPONSE_MAX 65536
 
 static co_obj_t *_pool = NULL;
 static co_obj_t *_sockets = NULL;

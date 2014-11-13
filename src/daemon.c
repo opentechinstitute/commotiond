@@ -55,8 +55,8 @@
 #include "list.h"
 #include "tree.h"
 
-#define REQUEST_MAX 1024
-#define RESPONSE_MAX 1024
+#define REQUEST_MAX 4096
+#define RESPONSE_MAX 4096
 
 extern co_socket_t unix_socket_proto;
 static int pid_filehandle;
@@ -1012,6 +1012,13 @@ int main(int argc, char *argv[]) {
   CMD_REGISTER(save, "save <profile> [<filename>]", "Save profile to a file in the profiles directory.");
   CMD_REGISTER(new, "new <profile>", "Create a new profile.");
   CMD_REGISTER(delete, "delete <profile>", "Delete a profile.");
+  
+  struct sigaction sa = {{0}};
+  sa.sa_handler = SIG_IGN; // handle socket errors gracefully
+  if (sigaction(SIGPIPE, &sa, 0) == -1) {
+    perror("Error setting signal handler");
+    exit(1);
+  }
   
   /* Set up sockets */
   co_socket_t *socket = (co_socket_t*)NEW(co_socket, unix_socket);
