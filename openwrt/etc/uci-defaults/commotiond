@@ -1,4 +1,7 @@
 #!/bin/sh
+
+. /etc/functions.sh
+
 [ -f "/usr/bin/patch" ] && { \
   cd /etc/init.d/
   patch -p0 < /usr/share/commotion/patches/dnsmasq.patch
@@ -14,8 +17,10 @@ grep -q "commotiond" /etc/crontabs/root || { \
   /etc/init.d/cron restart
 }
 
-uci add ucitrack setup_wizard
-uci set ucitrack.@setup_wizard[0].init='commotiond'
-uci commit ucitrack
+[ -z $(uci_get ucitrack @setup_wizard[0]) ] && { \
+  uci_add ucitrack setup_wizard
+  uci_set ucitrack @setup_wizard[0] init commotiond
+  uci_commit ucitrack
+}
 
 exit 0
