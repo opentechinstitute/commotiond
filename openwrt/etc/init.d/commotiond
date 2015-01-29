@@ -1,8 +1,8 @@
 #!/bin/sh /etc/rc.common
 
-. /lib/functions/commotion.sh
-. /lib/functions/network.sh
-. /lib/config/uci.sh
+. $IPKG_INSTROOT/lib/functions/commotion.sh
+. $IPKG_INSTROOT/lib/functions/network.sh
+. $IPKG_INSTROOT/lib/config/uci.sh
 
 #DEBUG=echo
 START=19

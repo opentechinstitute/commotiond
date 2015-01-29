@@ -1,8 +1,8 @@
 #!/bin/sh
 
-. /lib/functions.sh
-. /lib/config/uci.sh
-. /usr/share/libubox/jshn.sh
+. $IPKG_INSTROOT/lib/functions.sh
+. $IPKG_INSTROOT/lib/config/uci.sh
+. $IPKG_INSTROOT/usr/share/libubox/jshn.sh
 
 #DEBUG=echo
 CLIENT="/usr/bin/commotion"
@@ -109,7 +109,7 @@ commotion_gen_ip() {
   local gw="$3"     
              
   data="$("$CLIENT" -b "$SOCKET" genip "$subnet" "$netmask" "$gw"  2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?                                                                        
         
   json_load "$data"
@@ -123,7 +123,7 @@ commotion_gen_bssid() {
   local channel="$2"     
              
   data="$("$CLIENT" -b "$SOCKET" genbssid "$ssid" "$channel" 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?                                                                        
         
   json_load "$data"
@@ -137,7 +137,7 @@ commotion_get_ip() {
   local data=     
              
   data="$("$CLIENT" -b "$SOCKET" state "$iface" ip 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?                                                                        
         
   json_load "$data"
@@ -151,7 +151,7 @@ commotion_get_netmask() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface netmask 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
   
   json_load "$data"
@@ -165,7 +165,7 @@ commotion_get_ssid() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface ssid 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
   
   json_load "$data"
@@ -179,7 +179,7 @@ commotion_get_bssid() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface bssid 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -193,7 +193,7 @@ commotion_get_channel() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface channel 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -207,7 +207,7 @@ commotion_get_dns() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface dns 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -221,7 +221,7 @@ commotion_get_domain() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface domain 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -235,7 +235,7 @@ commotion_get_encryption() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface encryption 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -249,7 +249,7 @@ commotion_get_key() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface key 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -263,7 +263,7 @@ commotion_get_keyring() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface mdp_keyring 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -277,7 +277,7 @@ commotion_get_sid() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface mdp_sid 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -291,7 +291,7 @@ commotion_get_serval() {
   local data=
 
   data="$($CLIENT -b $SOCKET state "$iface" serval 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -305,7 +305,7 @@ commotion_get_routing() {
   local data=
 
   data="$($CLIENT -b $SOCKET state "$iface" routing 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   # UPDATE for routing
@@ -321,7 +321,7 @@ commotion_get_mode() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface mode 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -335,7 +335,7 @@ commotion_get_class() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface type 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -349,7 +349,7 @@ commotion_get_bssidgen() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface bssidgen 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -363,7 +363,7 @@ commotion_get_nodeid() {
   local data=
 
   data="$($CLIENT -b $SOCKET nodeid 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -377,7 +377,7 @@ commotion_get_profile() {
   local data=
 
   data="$($CLIENT -b $SOCKET status $iface 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -391,7 +391,7 @@ commotion_get_announce() {
   local data=
 
   data="$($CLIENT -b $SOCKET state $iface announce 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
           
   json_load "$data"   
@@ -405,7 +405,7 @@ commotion_set_nodeid_from_mac() {
   local data=
                                                                
   data="$($CLIENT -b $SOCKET nodeid mac $mac 2>/dev/null)"                        
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?
                    
   json_load "$data"      
@@ -420,7 +420,7 @@ commotion_up() {
   local data=              
                                  
   data="$($CLIENT -b $SOCKET up $iface $profile 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?                      
 
   json_load "$data"
@@ -434,7 +434,7 @@ commotion_down() {
   local data=
  
   data="$($CLIENT -b $SOCKET down $iface 2>/dev/null)"
-  [[ -z "$data" -o "$?" != 0 ]] || echo "$data" | grep -qs "Failed*" && return 1
+  [ -z "$data" -o $? -ne 0 ] || echo "$data" | grep -qs "Failed*" && return 1
   ret=$?           
                    
   json_load "$data"
