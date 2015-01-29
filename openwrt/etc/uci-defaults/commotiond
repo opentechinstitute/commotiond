@@ -1,14 +1,6 @@
 #!/bin/sh
 
-. /etc/functions.sh
-
-[ -f "/usr/bin/patch" ] && { \
-  cd /etc/init.d/
-  patch -p0 < /usr/share/commotion/patches/dnsmasq.patch
-  
-  cd /lib/wifi/
-  patch -p0 < /usr/share/commotion/patches/mac80211.sh.patch
-}
+. /lib/config/uci.sh
 
 [ -f "/etc/crontabs/root" ] || touch /etc/crontabs/root
 
