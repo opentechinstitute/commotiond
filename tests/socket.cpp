@@ -38,13 +38,10 @@ protected:
   SocketTest()
   {
     socket1 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
-    // socket1->register_cb = co_loop_add_socket;
     socket1->bind((co_obj_t*)socket1, "commotiontest.sock");
     
     socket2 = (co_socket_t*)co_socket_create(sizeof(co_socket_t), unix_socket_proto);
     socket2->connect((co_obj_t*)socket2, "commotiontest.sock");
-    // socket1->register_cb = co_loop_add_socket;
-    // socket2->bind((co_obj_t*)socket2, "commotiontest.sock");
   }
   
   virtual void SetUp()
