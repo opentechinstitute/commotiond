@@ -36,8 +36,10 @@ extern "C" {
 #include "gtest/gtest.h"
 
 /*
- * NOTE: Inserting keys with different length values will be interpreted as different keys (eg insert("test", 5) and insert("test", 6) are not the same
- * and their values will be stored in different nodes in the tree
+ * NOTE: Inserting keys with different length values will be 
+ * interpreted as different keys (eg insert("test", 5) and 
+ * insert("test", 6) are not the same and their values will be  
+ * stored in different nodes in the tree
  * 
  * 
  */
@@ -183,7 +185,6 @@ void TreeTest::UpdateObj()
     
   ptr = co_tree_find(Tree16, "1TESTKEY1", 10);
   ASSERT_EQ(0, co_str_cmp(ptr, ReplaceString1));
-    
   
   // reinitialize TestString1
   TestString1 = co_str8_create("1TESTVALUE1", 12, 0);
