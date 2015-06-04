@@ -11,6 +11,8 @@ DEFAULT_CLIENT_BRIDGE="lan"
 DEFAULT_CLIENT_SUBNET="10.0.0.0"
 DEFAULT_CLIENT_NETMASK="255.255.255.0"
 DEFAULT_CLIENT_IPGENMASK="255.0.0.0"
+DHCP_TIMEOUT="10"
+DHCP_TRIES="1"
 WIFI_DEVICE=
 TYPE=
 
@@ -98,9 +100,10 @@ proto_commotion_setup() {
 				"auto")
 					local dhcp_status
 					local dhcp_timeout="$(uci_get commotiond @node[0] dhcp_timeout "$DHCP_TIMEOUT")"
+					local dhcp_tries="$(uci_get commotiond @node[0] dhcp_tries "$DHCP_TRIES")"
 					logger -t "commotion.proto" "Removing $iface from bridge $client_bridge"
 					export DHCP_INTERFACE="$config"
-					udhcpc -q -i ${iface} -p /var/run/udhcpc-${iface}.pid -t 2 -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
+					udhcpc -q -i ${iface} -p /var/run/udhcpc-${iface}.pid -t "$dhcp_tries" -T "$dhcp_timeout" -n -s /lib/netifd/commotion.dhcp.script
 					dhcp_status=$?
 					export DHCP_INTERFACE=""
 					if [ $dhcp_status -eq 0 ]; then
