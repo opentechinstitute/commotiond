@@ -39,24 +39,26 @@ is_false() {
   return 1
 }
   
-unset_bridge() {
-  local bridge="$1"
+remove_device() {
+  local config="$1"
   local ifname="$2"
   
   json_init
   json_add_string name "$ifname"
-  ubus call network.interface.$bridge remove_device "$(json_dump)" 2>/dev/null
+  json_add_string link-ext "true"
+  ubus call network.interface.$config remove_device "$(json_dump)" 2>/dev/null
   
   return $?
 }
   
-set_bridge() {
-  local bridge="$1"
+add_device() {
+  local config="$1"
   local ifname="$2"
   
   json_init
   json_add_string name "$ifname"
-  ubus call network.interface.$bridge add_device "$(json_dump)" 2>/dev/null
+  json_add_string link-ext "true"
+  ubus call network.interface.$config add_device "$(json_dump)" 2>/dev/null
   
   return $?
 }
